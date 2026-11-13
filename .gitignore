@@ -1,20 +1,20 @@
 # ==============================================================================
 # AIK-VdGeneration: Root .gitignore
-# Phân loại chi tiết cho Monorepo: Next.js Web, FastAPI, Remotion, Flutter & Media
+# Multi-service monorepo: Next.js Web, FastAPI, Remotion, Flutter & Media Pipeline
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# 1. Môi trường & Bí mật bảo mật (Environment Variables & Secrets)
+# 1. Environment Variables & Secrets
 # ------------------------------------------------------------------------------
 .env
 .env.*
 *.env
-# Giữ lại các tệp mẫu cấu hình (Allow example files)
+# Allow configuration example templates
 !.env.example
 !services/api-gateway/.env.example
 !apps/web/.env.example
 
-# Chứng chỉ & Khóa bảo mật (Certificates & Keys)
+# Certificates & Private Keys
 *.pem
 *.key
 *.cert
@@ -23,13 +23,13 @@
 *.p12
 
 # ------------------------------------------------------------------------------
-# 2. Đa phương tiện & Tệp tạm thời Render (Remotion, Video & Audio Pipeline)
+# 2. Media Assets & Temporary Renders (Remotion, Video & Audio Pipeline)
 # ------------------------------------------------------------------------------
 # Remotion internal cache & bundles
 .remotion/
 services/video-renderer/.remotion/
 
-# Video kết xuất (Rendered Video outputs)
+# Video outputs
 *.mp4
 *.webm
 *.mov
@@ -40,7 +40,7 @@ exports/
 public/renders/
 services/video-renderer/out/
 
-# Tệp âm thanh tạm thời & cache TTS (TTS Audio temp files)
+# Audio temporary files & TTS cache
 *.mp3
 *.wav
 *.m4a
@@ -52,12 +52,12 @@ temp_audio/
 audio_cache/
 services/video-renderer/public/audio_temp/
 
-# Hình ảnh & tài nguyên tải tạm từ Unsplash / Pexels
+# Downloaded stock media caches (Unsplash / Pexels)
 public/stock_temp/
 temp_images/
 *.download
 
-# Thư mục tạm thời chung
+# General temporary directories
 tmp/
 temp/
 .temp/
@@ -83,7 +83,7 @@ build/
 *.tsbuildinfo
 .turbo/
 
-# Kiểm thử & Coverage
+# Testing & Coverage
 coverage/
 .nyc_output/
 
@@ -96,7 +96,7 @@ __pycache__/
 *.so
 .Python
 
-# Môi trường ảo (Virtual Environments)
+# Virtual Environments
 env/
 venv/
 .venv/
@@ -111,7 +111,7 @@ eggs/
 *.egg
 *.whl
 
-# Kiểm thử Python & Linters
+# Python Testing & Linters
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -138,7 +138,7 @@ apps/mobile/ios/.symlinks/
 *.ipa
 
 # ------------------------------------------------------------------------------
-# 6. IDEs & Trình soạn thảo (Editors & Tools)
+# 6. IDEs & Editors
 # ------------------------------------------------------------------------------
 .vscode/
 !.vscode/extensions.json
@@ -152,7 +152,7 @@ apps/mobile/ios/.symlinks/
 .history/
 
 # ------------------------------------------------------------------------------
-# 7. Hệ điều hành (Operating System Files)
+# 7. Operating System Files
 # ------------------------------------------------------------------------------
 # Windows
 Thumbs.db
@@ -175,5 +175,5 @@ Icon
 .directory
 .Trash-*
 
-# Giữ lại tệp giữ chỗ thư mục trống (Preserve empty directories)
+# Preserve empty directory placeholders
 !.gitkeep

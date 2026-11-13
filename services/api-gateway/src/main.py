@@ -45,7 +45,7 @@ async def generate_video(request: VideoGenerateRequest, background_tasks: Backgr
     return VideoJobResponse(
         job_id=job_id,
         status="queued",
-        message="Yêu cầu tạo video đã được tiếp nhận và đưa vào hàng đợi xử lý."
+        message="Video generation job accepted and enqueued for processing."
     )
 
 if __name__ == "__main__":

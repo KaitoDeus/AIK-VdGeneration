@@ -8,21 +8,21 @@ This guide details how to integrate and configure high-quality English and Vietn
 
 | Provider | Vietnamese Quality | English Quality | Pricing | Setup Difficulty | Best Use Case |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Edge-TTS** (Microsoft Neural) | ⭐⭐⭐⭐ (Rất tự nhiên, rõ chữ) | ⭐⭐⭐⭐ (Chuẩn bản ngữ) | **Miễn phí** | Rất dễ (Không cần API key) | **MVP, Local dev, Testing** |
-| **ElevenLabs** | ⭐⭐⭐⭐⭐ (Biểu cảm cảm xúc cao) | ⭐⭐⭐⭐⭐ (Đỉnh cao thế giới) | Trả phí theo ký tự | Dễ (Cần API key) | **Production, Premium Video** |
-| **FPT.AI / Vbee** | ⭐⭐⭐⭐ (Chuẩn báo đài VN) | ⭐⭐ (Cơ bản) | Trả phí | Trung bình | **Doanh nghiệp nội địa VN** |
+| **Edge-TTS** (Microsoft Neural) | ⭐⭐⭐⭐ (Natural, clear intonation) | ⭐⭐⭐⭐ (Native studio standard) | **Free** | Very easy (No API key required) | **MVP, Local dev, Testing** |
+| **ElevenLabs** | ⭐⭐⭐⭐⭐ (High emotional fidelity) | ⭐⭐⭐⭐⭐ (Industry gold standard) | Paid per character | Easy (API key required) | **Production, Premium Video** |
+| **FPT.AI / Vbee** | ⭐⭐⭐⭐ (Regional VN broadcast accent) | ⭐⭐ (Basic) | Paid | Moderate | **Domestic Vietnamese Enterprise** |
 
 ---
 
 ## 2. Option A: Edge-TTS (Zero-Cost Setup for MVP)
 
-Edge-TTS uses Microsoft Edge's internal cloud speech service. It provides studio-grade neural voices without any API key or subscription.
+Edge-TTS uses Microsoft Edge's cloud speech service. It provides studio-grade neural voices without requiring an API key or subscription.
 
 ### Recommended Voice IDs:
-- **Vietnamese (Female - Northern standard):** `vi-VN-HoaiMyNeural`
-- **Vietnamese (Male - Northern standard):** `vi-VN-NamMinhNeural`
-- **English (Male - US Natural):** `en-US-GuyNeural`
-- **English (Female - US Expressive):** `en-US-JennyNeural`
+- **Vietnamese (Female - Standard Northern):** `vi-VN-HoaiMyNeural`
+- **Vietnamese (Male - Standard Northern):** `vi-VN-NamMinhNeural`
+- **English (Male - Natural US):** `en-US-GuyNeural`
+- **English (Female - Expressive US):** `en-US-JennyNeural`
 
 ### Python Implementation Example:
 ```python
@@ -35,17 +35,17 @@ async def synthesize_speech(text: str, voice: str, output_path: str):
     print(f"Audio saved to: {output_path}")
 
 # Run:
-# asyncio.run(synthesize_speech("Chào mừng bạn đến với dự án AIK-VdGeneration", "vi-VN-HoaiMyNeural", "output.mp3"))
+# asyncio.run(synthesize_speech("Welcome to the AIK-VdGeneration video platform", "vi-VN-HoaiMyNeural", "output.mp3"))
 ```
 
 ### Node.js Implementation Example:
-Install: `npm install edge-tts` or run via CLI command.
+Install: `npm install edge-tts` or invoke via CLI child process.
 
 ---
 
 ## 3. Option B: ElevenLabs (Production Grade)
 
-ElevenLabs provides human-like breathing, pauses, and emotional coloring.
+ElevenLabs provides human-like breathing, natural pauses, and dynamic emotional coloring.
 
 ### Voice Settings for Vietnamese & English:
 - **Model:** `eleven_multilingual_v2`
@@ -86,7 +86,7 @@ export async function generateElevenLabsAudio(text: string, voiceId: string, out
 
 ## 4. Extracting Exact Duration in Node.js
 
-To calculate video frames dynamically, the exact audio length in milliseconds is extracted:
+To calculate video frames dynamically, the exact audio length in seconds/milliseconds is extracted:
 
 ```typescript
 import { parseFile } from 'music-metadata';

@@ -1,68 +1,69 @@
 # AIK-VdGeneration (AI Video Slide Presentation Generator)
 
-> Nền tảng tự động hóa biến prompt nội dung thành video trình chiếu (slide-presentation) với hoạt ảnh mượt mà và giọng đọc song ngữ Anh - Việt chuẩn mực.
+> Automated platform transforming text prompts into presentation videos with fluid animations and synchronized bilingual (English / Vietnamese) voiceovers.
 
 ---
 
-## 📁 Cấu trúc thư mục chuẩn (Project Architecture)
+## 📁 Project Architecture & Directory Layout
 
 ```
 D:\AIK-VdGeneration/
-├── .agent/                             # AI Agent Workflows & Workspace Rules
+├── .agent/                             # AI Agent Workflows, Skills & Workspace Rules
 │   ├── rules/
-│   │   ├── architecture-rules.md       # Quy tắc ranh giới độc lập giữa các service
-│   │   └── audio-sync-rules.md         # Công thức đồng bộ độ dài âm thanh & khung hình video
+│   │   ├── architecture-rules.md       # Service boundary & independence rules
+│   │   └── audio-sync-rules.md         # Formula for audio duration & frame synchronization
 │   └── skills/
-│       ├── video-prompt-engineering/   # Skill: Prompt chuyển đổi ý tưởng sang kịch bản JSON
-│       ├── tts-audio-sync/             # Skill: Quy trình tạo giọng đọc En/Vi & đo thời lượng
-│       └── remotion-render-engine/     # Skill: Mẫu thiết kế chuyển động & Render Remotion
+│       ├── video-prompt-engineering/   # Prompt skill: Transform ideas into structured JSON
+│       ├── tts-audio-sync/             # TTS skill: Generate En/Vi voiceovers & extract durations
+│       └── remotion-render-engine/     # Remotion skill: Spring motion & video render pipeline
 ├── apps/
-│   ├── web/                            # Web Studio UI (Next.js + Tailwind CSS)
+│   ├── web/                            # Web Studio UI (Next.js 14+ & Tailwind CSS)
 │   └── mobile/                         # Mobile App Client (Flutter / React Native)
 ├── services/
-│   ├── api-gateway/                    # API Backend điều phối tác vụ (FastAPI / Node)
-│   └── video-renderer/                 # Engine kết xuất video bằng React (Remotion)
-├── docs/                               # Bộ tài liệu kiến trúc & hiện thực chi tiết
-│   ├── ARCHITECTURE.md                 # Kiến trúc tổng thể hệ thống, sơ đồ luồng dữ liệu Mermaid
-│   ├── ROADMAP.md                      # Lộ trình 4 giai đoạn từ MVP đến Production Scale
-│   ├── API_SPEC.md                     # Đặc tả JSON Schema & giao thức WebSocket
-│   └── TTS_SETUP.md                    # Hướng dẫn chi tiết thiết lập giọng đọc Anh/Việt
+│   ├── api-gateway/                    # API Backend orchestrator (FastAPI / Python)
+│   └── video-renderer/                 # Video rendering engine via React (Remotion)
+├── docs/                               # System Architecture & Technical Specifications
+│   ├── ARCHITECTURE.md                 # System architecture overview & Mermaid flow diagrams
+│   ├── ROADMAP.md                      # 4-Phase implementation roadmap (MVP to Production)
+│   ├── API_SPEC.md                     # JSON Schema contracts & WebSocket protocol
+│   └── TTS_SETUP.md                    # Bilingual TTS setup guide (Edge-TTS, ElevenLabs, FPT.AI)
 ├── scripts/
-│   └── verify-env.ps1                  # Script tự động kiểm tra môi trường hệ thống
-├── AGENTS.md                           # Tiêu chuẩn và chỉ dẫn cho AI Coding Agents
-├── GEMINI.md                           # Quy tắc ứng xử và ngữ cảnh dành cho Gemini / Antigravity
-├── MEMORY.md                           # Bộ nhớ dự án: Quyết định kiến trúc (ADR), trạng thái hiện tại
-└── .gitignore                          # Cấu hình bỏ qua tệp tạm, cache render và file nhạy cảm
+│   └── verify-env.ps1                  # System runtime & environment verification script
+├── AGENTS.md                           # Standards and rules for AI Coding Agents
+├── GEMINI.md                           # Behavioral context & execution rules for Gemini / Antigravity
+├── MEMORY.md                           # Architectural Decision Records (ADR) & active milestone tracking
+└── .gitignore                          # Monorepo-wide ignore rules for binaries, caches & secrets
 ```
 
 ---
 
-## 🧠 Tích hợp AI Skills & Memory System
+## 🧠 AI Skills & Context Engine
 
-Dự án được cấu hình sẵn hệ thống ngữ cảnh chuyên sâu dành cho các AI Agent (Antigravity, Cursor, Gemini):
-1. **`MEMORY.md`:** Lưu trữ toàn bộ quyết định kiến trúc (ADR), tiến độ hiện tại và danh mục biến môi trường cần thiết.
-2. **`AGENTS.md` & `GEMINI.md`:** Định hướng tư duy cho AI luôn tuân thủ nguyên lý: **"Âm thanh quyết định trường độ video (Audio-First Synchronicity)"**.
-3. **`.agent/skills/`:** Chứa 3 quy trình công việc chuẩn:
-   - `video-prompt-engineering`: Tạo prompt ép LLM trả về cấu trúc JSON slide chuẩn.
-   - `tts-audio-sync`: Đo thời lượng âm thanh và bù trừ padding chuyển cảnh.
-   - `remotion-render-engine`: Dựng video bằng code React với chuyển động lò xo (spring physics).
-
----
-
-## 🗺️ Lộ trình triển khai (Roadmap Summary)
-
-- **Giai đoạn 1 (Tuần 1 - 3) [ĐANG THỰC HIỆN]:** Hoàn thành lõi MVP. Prompt -> LLM -> JSON -> Edge-TTS (Anh/Việt) -> Remotion render file `.mp4` 1080p.
-- **Giai đoạn 2 (Tuần 4 - 6):** Hàng đợi bất đồng bộ (Redis + BullMQ) + Next.js Web Studio giao diện tạo video thời gian thực.
-- **Giai đoạn 3 (Tuần 7 - 9):** Render phân tán trên đám mây (Remotion Lambda), chèn nhạc nền tự động giảm âm lượng (Audio ducking), phụ đề chạy chữ karaoke.
-- **Giai đoạn 4 (Tuần 10 - 12+):** Ứng dụng di động (Mobile App), bộ chỉnh sửa slide tương tác và tích hợp AI Avatar MC ảo.
-
-Xem chi tiết tại: [docs/ROADMAP.md](file:///D:/AIK-VdGeneration/docs/ROADMAP.md).
+The repository includes a comprehensive context and decision framework for AI Agents (Antigravity, Cursor, Gemini):
+1. **`MEMORY.md`:** Tracks all Architectural Decision Records (ADRs), current milestone progress, and required secrets.
+2. **`AGENTS.md` & `GEMINI.md`:** Enforces core architectural tenets, primarily: **"Audio Drives the Timeline (Audio-First Synchronicity)"**.
+3. **`.agent/skills/`:** Provides three standard operational procedures:
+   - `video-prompt-engineering`: Strict LLM prompting to generate valid slide script JSON.
+   - `tts-audio-sync`: Audio generation, precise duration extraction, and transition padding.
+   - `remotion-render-engine`: Programmatic video generation with spring physics in React.
 
 ---
 
-## 🚀 Kiểm tra môi trường phát triển
+## 🗺️ Implementation Roadmap Summary
 
-Mở PowerShell và chạy:
+- **Phase 1 (Weeks 1 - 3) [IN PROGRESS]:** Core MVP. Prompt -> LLM -> JSON Script -> Edge-TTS (English/Vietnamese) -> Remotion renders 1080p `.mp4`.
+- **Phase 2 (Weeks 4 - 6):** Asynchronous Job Queue (Redis + BullMQ) + Next.js Web Studio for real-time video generation.
+- **Phase 3 (Weeks 7 - 9):** Distributed Cloud Rendering (Remotion Lambda), automatic background music ducking, and karaoke subtitles.
+- **Phase 4 (Weeks 10 - 12+):** Cross-platform Mobile App, interactive slide editor canvas, and digital AI avatar presenter.
+
+For the detailed breakdown, see: [docs/ROADMAP.md](file:///D:/AIK-VdGeneration/docs/ROADMAP.md).
+
+---
+
+## 🚀 Environment Verification
+
+To verify that your development environment has all necessary runtimes and CLI tools installed, run in PowerShell:
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\verify-env.ps1
 ```

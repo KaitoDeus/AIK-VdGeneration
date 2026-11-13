@@ -5,8 +5,8 @@
 
 ```json
 {
-  "prompt": "Giải thích điện toán đám mây cho người mới bắt đầu",
-  "language": "vi",
+  "prompt": "Explain cloud computing for beginners with real-world examples",
+  "language": "en",
   "aspect_ratio": "16:9",
   "target_duration_seconds": 60,
   "style": {
@@ -16,7 +16,7 @@
   },
   "voice_settings": {
     "provider": "edge_tts",
-    "voice_id": "vi-VN-HoaiMyNeural",
+    "voice_id": "en-US-GuyNeural",
     "speed": 1.0
   }
 }
@@ -78,7 +78,7 @@ Before starting video rendering, the orchestrator compiles the final props for R
 
 ```json
 {
-  "project_title": "Điện toán đám mây cơ bản",
+  "project_title": "Cloud Computing Fundamentals",
   "fps": 30,
   "width": 1920,
   "height": 1080,
@@ -92,8 +92,11 @@ Before starting video rendering, the orchestrator compiles the final props for R
     {
       "slide_index": 1,
       "layout": "title_intro",
-      "heading": "Điện toán đám mây là gì?",
-      "bullet_points": ["Không còn lưu dữ liệu trên ổ cứng đơn thuần", "Truy cập mọi nơi qua Internet"],
+      "heading": "What is Cloud Computing?",
+      "bullet_points": [
+        "Data stored on remote distributed servers",
+        "On-demand computing accessible over the Internet"
+      ],
       "voiceover_audio_url": "/audio_temp/job_123_slide_1.mp3",
       "voiceover_duration_seconds": 5.4,
       "calculated_frames": 162,
@@ -118,7 +121,7 @@ Clients listen to events over WebSockets to display animated progress:
   "job_id": "job_984f88e1-0cf2-491b",
   "step": "rendering_video",
   "progress_percentage": 78,
-  "message": "Đang kết xuất khung hình video... (78%)",
+  "message": "Rendering video frames... (78%)",
   "timestamp": "2026-11-14T04:40:00Z"
 }
 ```

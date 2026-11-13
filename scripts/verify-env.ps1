@@ -31,17 +31,17 @@ $hasFfmpeg = Check-Command "ffmpeg" "FFmpeg" "-version"
 
 Write-Host ""
 if ($allGood) {
-    Write-Host "[SUCCESS] Tất cả môi trường cốt lõi (Node, npm, Python, Git) đã sẵn sàng!" -ForegroundColor Green
+    Write-Host "[SUCCESS] All core runtimes and tools (Node, npm, Python, Git) are ready!" -ForegroundColor Green
 } else {
-    Write-Host "[WARNING] Vui lòng cài đặt các công cụ còn thiếu trước khi tiếp tục." -ForegroundColor Yellow
+    Write-Host "[WARNING] Please install the missing tools before proceeding." -ForegroundColor Yellow
 }
 
 if (-not $hasFfmpeg) {
-    Write-Host "[INFO] FFmpeg chưa có trong PATH. Remotion có thể tự động bundle chromium và ffmpeg, tuy nhiên cài đặt FFmpeg hệ thống sẽ tối ưu tốc độ trích xuất thời lượng âm thanh." -ForegroundColor Cyan
+    Write-Host "[INFO] FFmpeg is not found in PATH. Remotion bundles Chromium and FFmpeg automatically, but installing system FFmpeg optimizes audio duration extraction speed." -ForegroundColor Cyan
 }
 
 Write-Host ""
-Write-Host "Kiểm tra thư mục dự án:" -ForegroundColor Cyan
+Write-Host "Project path verification:" -ForegroundColor Cyan
 Write-Host "Root: D:\AIK-VdGeneration" -ForegroundColor Gray
 Write-Host "Documentation: D:\AIK-VdGeneration\docs\" -ForegroundColor Gray
 Write-Host "AI Skills: D:\AIK-VdGeneration\.agent\skills\" -ForegroundColor Gray

@@ -14,21 +14,21 @@ const defaultProps: VideoPresentationProps = {
     {
       slide_index: 1,
       layout: 'title_intro',
-      heading: 'Chào mừng bạn đến với AIK-VdGeneration',
+      heading: 'Welcome to AIK-VdGeneration',
       bullet_points: [
-        'Biến ý tưởng văn bản thành video tự động',
-        'Tích hợp giọng đọc song ngữ Anh - Việt chuẩn mực',
+        'Automated slide video generation from text prompts',
+        'Synchronized bilingual English and Vietnamese voiceovers',
       ],
       voiceover_duration_seconds: 4.5,
     },
     {
       slide_index: 2,
       layout: 'bullet_list',
-      heading: 'Kiến trúc Remotion & AI Queue',
+      heading: 'Remotion Engine & Queue System',
       bullet_points: [
-        'Đồng bộ khung hình theo trường độ giọng đọc',
-        'Hoạt ảnh mượt mà dựa trên mô hình lò xo vật lý',
-        'Hỗ trợ phân tán render quy mô lớn qua Cloud',
+        'Timeline duration dynamically driven by speech length',
+        'Fluid spring animations with declarative React styling',
+        'Scalable cloud rendering via serverless workers',
       ],
       voiceover_duration_seconds: 6.0,
     },
