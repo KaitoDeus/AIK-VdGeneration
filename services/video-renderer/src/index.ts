@@ -1,0 +1,66 @@
+import { registerRoot, Composition } from 'remotion';
+import { SlidePresentation } from './compositions/SlidePresentation';
+import { VideoPresentationProps } from './types';
+
+// Default mock props for local development preview
+const defaultProps: VideoPresentationProps = {
+  project_title: 'AIK-VdGeneration Presentation Demo',
+  theme: {
+    backgroundColor: '#0f172a',
+    primaryColor: '#38bdf8',
+    textColor: '#f8fafc',
+  },
+  slides: [
+    {
+      slide_index: 1,
+      layout: 'title_intro',
+      heading: 'Chào mừng bạn đến với AIK-VdGeneration',
+      bullet_points: [
+        'Biến ý tưởng văn bản thành video tự động',
+        'Tích hợp giọng đọc song ngữ Anh - Việt chuẩn mực',
+      ],
+      voiceover_duration_seconds: 4.5,
+    },
+    {
+      slide_index: 2,
+      layout: 'bullet_list',
+      heading: 'Kiến trúc Remotion & AI Queue',
+      bullet_points: [
+        'Đồng bộ khung hình theo trường độ giọng đọc',
+        'Hoạt ảnh mượt mà dựa trên mô hình lò xo vật lý',
+        'Hỗ trợ phân tán render quy mô lớn qua Cloud',
+      ],
+      voiceover_duration_seconds: 6.0,
+    },
+  ],
+};
+
+export const RemotionRoot: React.FC = () => {
+  const fps = 30;
+
+  return (
+    <Composition
+      id="SlidePresentation"
+      component={SlidePresentation}
+      durationInFrames={360} // default for preview
+      fps={fps}
+      width={1920}
+      height={1080}
+      defaultProps={defaultProps}
+      calculateMetadata={({ props }) => {
+        const totalFrames = props.slides.reduce((acc, slide) => {
+          return acc + Math.max(90, Math.ceil((slide.voiceover_duration_seconds + 0.6) * fps));
+        }, 0);
+
+        return {
+          durationInFrames: Math.max(90, totalFrames),
+          fps,
+          width: 1920,
+          height: 1080,
+        };
+      }}
+    />
+  );
+};
+
+registerRoot(RemotionRoot);
