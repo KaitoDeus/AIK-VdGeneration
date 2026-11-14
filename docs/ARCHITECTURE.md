@@ -15,7 +15,7 @@ flowchart TD
 
     subgraph Workers [Async Worker Pool]
         RedisQueue -->|3. Consume Job| LLMWorker[LLM Worker]
-        LLMWorker -->|4. Generate JSON Script| GeminiAPI[Gemini 1.5 Flash / GPT-4o-mini]
+        LLMWorker -->|4. Generate JSON Script| GeminiAPI["Gemini 3.8 Flash (google-genai SDK)"]
         GeminiAPI -->|Structured JSON| LLMWorker
         
         LLMWorker -->|5. Dispatch Media Generation| MediaPool[Media Synthesis]
@@ -50,7 +50,7 @@ flowchart TD
 
 ### 3.2. Script Generation Worker (LLM)
 - **Responsibilities:**
-  - Call Gemini or OpenAI using strict JSON schemas.
+  - Call Gemini 3.8 Flash (`google-genai` >= 3.2.0 Interactions API) with native JSON Schema Structured Outputs (`response_format`).
   - Break down themes into 3-8 logical slide scenes.
   - Craft natural, spoken-word scripts for the voiceover narrator.
   - Generate search keywords for visual backdrops.

@@ -12,9 +12,9 @@ This roadmap breaks down the product development into 4 distinct phases, from an
   - Standardized monorepo/modular layout.
   - Integration of agent skills (`video-prompt-engineering`, `tts-audio-sync`, `remotion-render-engine`).
   - Strict JSON schemas & system documentation.
-- [ ] **M1.2: Orchestrator & LLM Script Generation**
-  - Python / Node.js service connecting to Gemini 1.5 Flash / GPT-4o-mini.
-  - Conversion of prompt -> Structured Slide JSON with validation.
+- [x] **M1.2: Orchestrator & LLM Script Generation**
+  - Python service connecting to Gemini 3.8 Flash via the official `google-genai` SDK.
+  - Native Structured Outputs converting prompts into strictly validated Slide JSON (`PresentationScript`) with retry and fallback mechanisms.
 - [ ] **M1.3: Audio Pipeline (TTS)**
   - Integration of `edge-tts` (free, immediate testing for En & Vi).
   - Integration of ElevenLabs API for high-fidelity English/Vietnamese voiceovers.

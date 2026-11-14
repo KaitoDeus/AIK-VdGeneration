@@ -12,3 +12,6 @@ This file governs Antigravity's role and execution priorities when operating in 
    - Use `.agent/skills/remotion-render-engine/SKILL.md` when creating or modifying Remotion compositions.
 3. **Memory Maintenance:**
    - Keep `MEMORY.md` updated with key decisions, newly installed dependencies, and roadmap status.
+4. **English Documentation & Automatic Git Commits:**
+   - All project documentation, markdown files, comments, and commit messages must be written in English.
+   - Immediately stage and `git commit` all changes upon completing each task or milestone.

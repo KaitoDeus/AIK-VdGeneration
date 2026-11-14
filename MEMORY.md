@@ -2,8 +2,8 @@
 
 ## 1. Project Identity & Status
 - **Project Name:** AIK-VdGeneration (AI-driven Prompt to Slide-Video Generator)
-- **Status:** Phase 1 (Foundation & MVP Scaffolding)
-- **Current Milestone:** M1.1 - Project Initialized with AI Skills, Memory & Architecture Docs.
+- **Status:** Phase 1 (MVP & Core Pipeline)
+- **Current Milestone:** M1.2 - Orchestrator & Gemini 3.8 Flash LLM Script Generation Completed.
 - **Created Date:** 2026-11-14
 - **Working Root:** `D:\AIK-VdGeneration`
 
@@ -24,14 +24,19 @@
 - **ADR-004: Decoupled Queue Worker Model**
   - *Context:* Video rendering can take 30-120 seconds, blocking standard HTTP request/response loops.
   - *Decision:* Redis + BullMQ (or Celery) job queue with WebSocket progress updates.
+- **ADR-005: LLM Engine Upgrade to Gemini 3.8 Flash (`google-genai` >= 3.2.0 Interactions API)**
+  - *Context:* Legacy Gemini 1.5/2.5 Flash and `generateContent` API are outdated; strict JSON schema compliance is critical for the slide pipeline.
+  - *Decision:* Adopted the unified `google-genai` >= 3.2.0 SDK (`client.interactions.create`) targeting `gemini-3.8-flash` (configurable via `GEMINI_MODEL` with automatic fallback to `gemini-4-hydrogen`) using native `response_format` JSON Schema Structured Outputs, exponential backoff retries, and local dev mock fallback.
 
 ---
 
 ## 3. Environment & Secrets Mapping
 The system relies on the following environment variables (stored in `.env` files, never committed):
 ```env
-# LLM Providers
+# LLM Providers (Google GenAI SDK >= 3.2.0)
 GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.8-flash
+GEMINI_FALLBACK_MODEL=gemini-4-hydrogen
 OPENAI_API_KEY=
 
 # TTS Providers
@@ -56,7 +61,7 @@ AWS_SECRET_ACCESS_KEY=
 - [x] Defined AI Agent Guidelines (`AGENTS.md`, `GEMINI.md`)
 - [x] Created Agent Skills (`video-prompt-engineering`, `tts-audio-sync`, `remotion-render-engine`)
 - [x] Documented Architecture & Roadmap (`docs/ROADMAP.md`, `docs/ARCHITECTURE.md`, `docs/API_SPEC.md`, `docs/TTS_SETUP.md`)
-- [ ] Implement `services/api-gateway` orchestration endpoint
+- [x] Implement `services/api-gateway` orchestration & Gemini 3.8 Flash script generation (M1.2)
 - [ ] Implement `services/video-renderer` starter Remotion compositions
-- [ ] Connect Edge-TTS & ElevenLabs audio pipeline
+- [ ] Connect Edge-TTS & ElevenLabs audio pipeline (M1.3)
 - [ ] Build `apps/web` prompt & studio interface
