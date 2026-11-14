@@ -52,5 +52,6 @@ Welcome AI Agent! You are working on **AIK-VdGeneration**, an automated platform
 - **Styling:** Tailwind CSS with fluid typography, responsive slide ratios (16:9 widescreen default: 1920x1080).
 - **Error Handling:** Every external API call (LLM, TTS, Stock Photos) must have timeout and retry mechanisms.
 - **English-Only Documentation:** All repository documentation, markdown files, code comments, schemas, and commit messages must be written in English.
-- **Automatic Git Commits:** Always run `git add` and `git commit` with a clear Conventional Commit message immediately after completing any task or milestone.
+- **Mandatory Verification & Testing Gate:** Before marking any task/milestone complete or moving to the next task, you MUST write automated tests, execute them to verify 100% pass rate, and present a clear Verification & Testing Report with execution proof to the user.
+- **Automatic Git Commits:** Always run `git add` and `git commit` with a clear Conventional Commit message immediately after completing and verifying any task or milestone.
 - When adding new features or completing milestones, always update `MEMORY.md` and `docs/ROADMAP.md`.

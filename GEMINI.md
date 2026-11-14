@@ -14,4 +14,6 @@ This file governs Antigravity's role and execution priorities when operating in 
    - Keep `MEMORY.md` updated with key decisions, newly installed dependencies, and roadmap status.
 4. **English Documentation & Automatic Git Commits:**
    - All project documentation, markdown files, comments, and commit messages must be written in English.
-   - Immediately stage and `git commit` all changes upon completing each task or milestone.
+   - Immediately stage and `git commit` all changes upon completing and verifying each task or milestone.
+5. **Mandatory Testing & Verification Report Gate:**
+   - Never move to a new task or milestone without writing automated tests, running them to confirm they pass according to specifications, and presenting a structured Testing & Verification Report with concrete proof to the user.
