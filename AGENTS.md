@@ -53,5 +53,6 @@ Welcome AI Agent! You are working on **AIK-VdGeneration**, an automated platform
 - **Error Handling:** Every external API call (LLM, TTS, Stock Photos) must have timeout and retry mechanisms.
 - **English-Only Documentation:** All repository documentation, markdown files, code comments, schemas, and commit messages must be written in English.
 - **Mandatory Verification & Testing Gate:** Before marking any task/milestone complete or moving to the next task, you MUST write automated tests, execute them to verify 100% pass rate, and present a clear Verification & Testing Report with execution proof to the user.
+- **Full Roadmap Progress Display:** Every time a task or milestone is completed, always display the full 4-phase implementation roadmap (`[x]` completed vs `[ ]` pending) in your response so the user can track overall progress at a glance.
 - **Automatic Git Commits:** Always run `git add` and `git commit` with a clear Conventional Commit message immediately after completing and verifying any task or milestone.
 - When adding new features or completing milestones, always update `MEMORY.md` and `docs/ROADMAP.md`.

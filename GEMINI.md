@@ -17,3 +17,5 @@ This file governs Antigravity's role and execution priorities when operating in 
    - Immediately stage and `git commit` all changes upon completing and verifying each task or milestone.
 5. **Mandatory Testing & Verification Report Gate:**
    - Never move to a new task or milestone without writing automated tests, running them to confirm they pass according to specifications, and presenting a structured Testing & Verification Report with concrete proof to the user.
+6. **Full Roadmap Progress Display:**
+   - At the end of every completed task or milestone, display the entire 4-phase Roadmap (`[x]` vs `[ ]`) so the user can review overall project progress.
