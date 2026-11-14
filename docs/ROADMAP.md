@@ -15,10 +15,10 @@ This roadmap breaks down the product development into 4 distinct phases, from an
 - [x] **M1.2: Orchestrator & LLM Script Generation**
   - Python service connecting to Gemini 3.8 Flash via the official `google-genai` SDK.
   - Native Structured Outputs converting prompts into strictly validated Slide JSON (`PresentationScript`) with retry and fallback mechanisms.
-- [ ] **M1.3: Audio Pipeline (TTS)**
-  - Integration of `edge-tts` (free, immediate testing for En & Vi).
-  - Integration of ElevenLabs API for high-fidelity English/Vietnamese voiceovers.
-  - Audio duration measurement & metadata generation.
+- [x] **M1.3: Audio Pipeline (TTS)**
+  - Integration of `edge-tts >= 7.3.1` (zero-cost neural synthesis for En & Vi: `vi-VN-HoaiMyNeural`, `en-US-GuyNeural`).
+  - Integration of ElevenLabs API (`eleven_multilingual_v2`) with automatic fallback to Edge-TTS.
+  - MP3 header verification (`>10KB`), exact millisecond duration extraction via `mutagen`, and dynamic Remotion frame calculation (`RemotionCompositionProps`).
 - [ ] **M1.4: Remotion Presentation Compositions**
   - Basic slide layouts: `title_intro`, `bullet_list`, `split_card`, `conclusion_cta`.
   - Spring-based smooth animations and typography styling.

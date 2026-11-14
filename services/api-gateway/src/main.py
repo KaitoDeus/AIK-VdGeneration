@@ -1,6 +1,6 @@
 """
-AIK-VdGeneration: Main API Gateway & Orchestrator (Milestone M1.2)
-FastAPI service exposing prompt-to-script and prompt-to-video endpoints.
+AIK-VdGeneration: Main API Gateway & Orchestrator (Milestones M1.2 & M1.3)
+FastAPI service exposing prompt-to-script, script-to-audio, and prompt-to-video endpoints.
 """
 
 import json
@@ -15,22 +15,28 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException
 
 try:
     from .schemas import (
+        AudioSynthesizeRequest,
         JobStatusResponse,
         PresentationScript,
+        RemotionCompositionProps,
         ScriptGenerateRequest,
         VideoGenerateRequest,
         VideoJobResponse,
     )
     from .services.llm_service import LLMScriptGenerator
+    from .services.tts_service import TTSAudioPipeline
 except ImportError:
     from schemas import (  # type: ignore
+        AudioSynthesizeRequest,
         JobStatusResponse,
         PresentationScript,
+        RemotionCompositionProps,
         ScriptGenerateRequest,
         VideoGenerateRequest,
         VideoJobResponse,
     )
     from services.llm_service import LLMScriptGenerator  # type: ignore
+    from services.tts_service import TTSAudioPipeline  # type: ignore
 
 load_dotenv()
 
@@ -42,8 +48,8 @@ logger = logging.getLogger("api-gateway")
 
 app = FastAPI(
     title="AIK-VdGeneration API Gateway",
-    version="0.2.0",
-    description="Automated presentation video generation from prompts with Gemini Flash & bilingual TTS.",
+    version="0.3.0",
+    description="Automated presentation video generation from prompts with Gemini 3.8 Flash & bilingual TTS.",
 )
 
 # In-memory job store for Phase 1 MVP (replaced by Redis in Phase 2)
@@ -51,15 +57,21 @@ JOBS_STORE: Dict[str, JobStatusResponse] = {}
 TEMP_JOBS_DIR = Path(__file__).resolve().parent.parent / ".temp" / "jobs"
 
 llm_generator = LLMScriptGenerator()
+tts_pipeline = TTSAudioPipeline(output_base_dir=TEMP_JOBS_DIR)
 
 
 def _execute_video_generation_pipeline(job_id: str, request: VideoGenerateRequest) -> None:
-    """Background orchestration task executing M1.2 LLM Script Generation (and subsequent stages)."""
+    """
+    Background orchestration task executing:
+      - Stage 1 (M1.2): LLM Script Generation & Schema Validation
+      - Stage 2 (M1.3): Bilingual TTS Audio Synthesis, Duration Extraction & Remotion Props Compilation
+    """
     job_state = JOBS_STORE.get(job_id)
     if not job_state:
         return
 
     try:
+        # Stage 1: LLM Script Generation (M1.2)
         job_state.status = "generating_script"
         job_state.progress_percentage = 20
 
@@ -71,7 +83,6 @@ def _execute_video_generation_pipeline(job_id: str, request: VideoGenerateReques
             model_override=request.model,
         )
 
-        # Persist validated JSON script artifact to .temp/jobs/{job_id}/script.json
         job_dir = TEMP_JOBS_DIR / job_id
         job_dir.mkdir(parents=True, exist_ok=True)
         script_path = job_dir / "script.json"
@@ -84,10 +95,41 @@ def _execute_video_generation_pipeline(job_id: str, request: VideoGenerateReques
         job_state.model_used = model_used
         job_state.status = "script_ready"
         job_state.progress_percentage = 40
-        logger.info("Job %s script generated and validated via %s -> %s", job_id, model_used, script_path)
+        logger.info("Job %s script generated via %s -> %s", job_id, model_used, script_path)
+
+        # Stage 2: TTS Audio Synthesis & Frame Synchronization (M1.3)
+        job_state.status = "synthesizing_audio"
+        job_state.progress_percentage = 60
+
+        remotion_props, provider_used = tts_pipeline.synthesize_presentation(
+            script=script,
+            voice_settings=request.voice_settings,
+            job_id=job_id,
+            aspect_ratio=request.aspect_ratio,
+            fps=30,
+        )
+
+        props_path = job_dir / "remotion_props.json"
+        props_path.write_text(
+            json.dumps(remotion_props.model_dump(), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+
+        job_state.remotion_props = remotion_props
+        job_state.voice_provider_used = provider_used
+        job_state.status = "audio_ready"
+        job_state.progress_percentage = 80
+        logger.info(
+            "Job %s audio synthesized (%d frames, %.2fs) via %s -> %s",
+            job_id,
+            remotion_props.total_frames,
+            remotion_props.total_duration_seconds,
+            provider_used,
+            props_path,
+        )
 
     except Exception as exc:
-        logger.exception("Job %s failed during script generation: %s", job_id, exc)
+        logger.exception("Job %s failed during pipeline execution: %s", job_id, exc)
         job_state.status = "failed"
         job_state.error = str(exc)
 
@@ -97,9 +139,10 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "AIK-VdGeneration API Gateway",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "default_llm_model": llm_generator.default_model,
         "fallback_llm_model": llm_generator.fallback_model,
+        "supported_tts_providers": ["edge_tts", "elevenlabs", "fpt"],
     }
 
 
@@ -118,6 +161,26 @@ async def generate_script_endpoint(request: ScriptGenerateRequest):
             model_override=request.model,
         )
         return script
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/api/v1/audio/synthesize", response_model=RemotionCompositionProps)
+async def synthesize_audio_endpoint(request: AudioSynthesizeRequest):
+    """
+    Synchronous endpoint (M1.3) that synthesizes bilingual slide voiceovers, extracts
+    exact MP3 durations, and compiles RemotionCompositionProps with dynamic frame math.
+    """
+    job_id = request.job_id or f"job_{uuid.uuid4().hex[:12]}"
+    try:
+        props, _ = tts_pipeline.synthesize_presentation(
+            script=request.script,
+            voice_settings=request.voice_settings,
+            job_id=job_id,
+            aspect_ratio=request.aspect_ratio,
+            fps=request.fps,
+        )
+        return props
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -148,7 +211,7 @@ async def generate_video(request: VideoGenerateRequest, background_tasks: Backgr
 
 @app.get("/api/v1/jobs/{job_id}", response_model=JobStatusResponse)
 async def get_job_status(job_id: str):
-    """Retrieve current status, progress percentage, and generated script for a job."""
+    """Retrieve current status, progress percentage, generated script, and Remotion props for a job."""
     job = JOBS_STORE.get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found.")

@@ -257,8 +257,8 @@ class TestAPIGatewayEndpoints:
         status_resp = client.get(f"/api/v1/jobs/{job_id}")
         assert status_resp.status_code == 200
         status_body = status_resp.json()
-        assert status_body["status"] == "script_ready"
-        assert status_body["progress_percentage"] == 40
+        assert status_body["status"] in ("script_ready", "audio_ready")
+        assert status_body["progress_percentage"] >= 40
         assert status_body["script"] is not None
         assert len(status_body["script"]["slides"]) >= 3
 
@@ -270,7 +270,7 @@ class TestAPIGatewayEndpoints:
         )
         assert disk_script.language == "vi"
 
-        # Clean up test artifact
-        persisted_file.unlink(missing_ok=True)
-        persisted_file.parent.rmdir()
+        # Clean up test artifact directory
+        import shutil
+        shutil.rmtree(TEMP_JOBS_DIR / job_id, ignore_errors=True)
         JOBS_STORE.pop(job_id, None)

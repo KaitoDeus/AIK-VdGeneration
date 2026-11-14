@@ -1,6 +1,7 @@
 """
 Strict Data Contracts & JSON Schema Models for AIK-VdGeneration.
-Adheres to docs/API_SPEC.md and .agent/skills/video-prompt-engineering/SKILL.md.
+Adheres to docs/API_SPEC.md, .agent/skills/video-prompt-engineering/SKILL.md,
+and .agent/rules/audio-sync-rules.md.
 """
 
 from typing import List, Literal, Optional
@@ -16,6 +17,7 @@ SlideLayout = Literal[
 ]
 
 SupportedLanguage = Literal["vi", "en"]
+TTSProviderType = Literal["edge_tts", "elevenlabs", "fpt"]
 
 
 class SlideScriptItem(BaseModel):
@@ -98,15 +100,61 @@ class StyleSettings(BaseModel):
 
 
 class VoiceSettings(BaseModel):
-    provider: Literal["edge_tts", "elevenlabs", "fpt"] = Field(
+    provider: TTSProviderType = Field(
         default="edge_tts",
-        description="TTS synthesis provider",
+        description="TTS synthesis provider ('edge_tts', 'elevenlabs', or 'fpt')",
     )
     voice_id: Optional[str] = Field(
         default=None,
         description="Specific voice identifier (defaults based on language if omitted)",
     )
     speed: float = Field(default=1.0, ge=0.5, le=2.0, description="Speech rate multiplier")
+
+
+class RemotionThemeProps(BaseModel):
+    """Visual theme properties passed into Remotion composition."""
+
+    backgroundColor: str = Field(default="#0f172a")
+    primaryColor: str = Field(default="#38bdf8")
+    textColor: str = Field(default="#f8fafc")
+    fontFamily: str = Field(default="Inter, sans-serif")
+
+
+class RemotionBGMProps(BaseModel):
+    """Background music configuration for Remotion composition."""
+
+    enabled: bool = Field(default=False)
+    audio_url: Optional[str] = Field(default=None)
+    volume: float = Field(default=0.15, ge=0.0, le=1.0)
+
+
+class RemotionSlideProps(BaseModel):
+    """Synchronized slide data with synthesized audio metadata for Remotion (M1.3)."""
+
+    slide_index: int = Field(..., ge=1)
+    layout: SlideLayout
+    heading: str
+    bullet_points: List[str] = Field(default_factory=list)
+    voiceover_script: str
+    voiceover_audio_url: str = Field(..., description="Relative URL or path to the MP3 asset")
+    voiceover_audio_path: str = Field(..., description="Absolute local path to the MP3 asset")
+    voiceover_duration_seconds: float = Field(..., gt=0, description="Exact audio duration in seconds")
+    calculated_frames: int = Field(..., ge=90, description="Calculated frame count at target FPS")
+    background_image_url: Optional[str] = Field(default=None)
+
+
+class RemotionCompositionProps(BaseModel):
+    """Complete Remotion input props contract matching docs/API_SPEC.md Section 3."""
+
+    project_title: str
+    fps: int = Field(default=30, ge=24, le=60)
+    width: int = Field(default=1920)
+    height: int = Field(default=1080)
+    total_duration_seconds: float = Field(..., gt=0)
+    total_frames: int = Field(..., ge=90)
+    theme: RemotionThemeProps = Field(default_factory=RemotionThemeProps)
+    slides: List[RemotionSlideProps]
+    bgm: RemotionBGMProps = Field(default_factory=RemotionBGMProps)
 
 
 class ScriptGenerateRequest(BaseModel):
@@ -135,6 +183,16 @@ class ScriptGenerateRequest(BaseModel):
         default=None,
         description="Optional override for the Gemini model ID (e.g., 'gemini-3.8-flash').",
     )
+
+
+class AudioSynthesizeRequest(BaseModel):
+    """Request payload for standalone M1.3 TTS audio synthesis & frame calculation."""
+
+    script: PresentationScript
+    voice_settings: VoiceSettings = Field(default_factory=VoiceSettings)
+    aspect_ratio: Literal["16:9", "9:16"] = Field(default="16:9")
+    fps: int = Field(default=30, ge=24, le=60)
+    job_id: Optional[str] = Field(default=None)
 
 
 class VideoGenerateRequest(BaseModel):
@@ -181,8 +239,18 @@ class JobStatusResponse(BaseModel):
     """Detailed status and artifact payload for an active or completed job."""
 
     job_id: str
-    status: Literal["queued", "generating_script", "script_ready", "completed", "failed"]
+    status: Literal[
+        "queued",
+        "generating_script",
+        "script_ready",
+        "synthesizing_audio",
+        "audio_ready",
+        "completed",
+        "failed",
+    ]
     progress_percentage: int = Field(ge=0, le=100)
     model_used: Optional[str] = None
+    voice_provider_used: Optional[str] = None
     script: Optional[PresentationScript] = None
+    remotion_props: Optional[RemotionCompositionProps] = None
     error: Optional[str] = None
