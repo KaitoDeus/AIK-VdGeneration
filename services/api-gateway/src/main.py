@@ -24,6 +24,7 @@ try:
         VideoJobResponse,
     )
     from .services.llm_service import LLMScriptGenerator
+    from .services.render_service import RemotionRenderService
     from .services.tts_service import TTSAudioPipeline
 except ImportError:
     from schemas import (  # type: ignore
@@ -36,6 +37,7 @@ except ImportError:
         VideoJobResponse,
     )
     from services.llm_service import LLMScriptGenerator  # type: ignore
+    from services.render_service import RemotionRenderService  # type: ignore
     from services.tts_service import TTSAudioPipeline  # type: ignore
 
 load_dotenv()
@@ -48,8 +50,8 @@ logger = logging.getLogger("api-gateway")
 
 app = FastAPI(
     title="AIK-VdGeneration API Gateway",
-    version="0.3.0",
-    description="Automated presentation video generation from prompts with Gemini 3.8 Flash & bilingual TTS.",
+    version="0.4.0",
+    description="Automated presentation video generation from prompts with Gemini 3.8 Flash, bilingual TTS & Remotion.",
 )
 
 # In-memory job store for Phase 1 MVP (replaced by Redis in Phase 2)
@@ -58,6 +60,7 @@ TEMP_JOBS_DIR = Path(__file__).resolve().parent.parent / ".temp" / "jobs"
 
 llm_generator = LLMScriptGenerator()
 tts_pipeline = TTSAudioPipeline(output_base_dir=TEMP_JOBS_DIR)
+render_service = RemotionRenderService()
 
 
 def _execute_video_generation_pipeline(job_id: str, request: VideoGenerateRequest) -> None:
@@ -127,6 +130,22 @@ def _execute_video_generation_pipeline(job_id: str, request: VideoGenerateReques
             provider_used,
             props_path,
         )
+
+        # Stage 3: Optional Remotion MP4 Rendering (M1.5)
+        if request.render_video:
+            job_state.status = "rendering_video"
+            job_state.progress_percentage = 90
+            output_mp4 = job_dir / f"{job_id}.mp4"
+            rendered_path = render_service.render_presentation(
+                props=remotion_props,
+                job_id=job_id,
+                output_mp4_path=output_mp4,
+                props_json_path=props_path,
+            )
+            job_state.output_video_path = str(rendered_path)
+            job_state.status = "completed"
+            job_state.progress_percentage = 100
+            logger.info("Job %s completed full MP4 video render -> %s", job_id, rendered_path)
 
     except Exception as exc:
         logger.exception("Job %s failed during pipeline execution: %s", job_id, exc)

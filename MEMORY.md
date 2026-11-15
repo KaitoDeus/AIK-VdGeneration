@@ -2,8 +2,8 @@
 
 ## 1. Project Identity & Status
 - **Project Name:** AIK-VdGeneration (AI-driven Prompt to Slide-Video Generator)
-- **Status:** Phase 1 (MVP & Core Pipeline)
-- **Current Milestone:** M1.4 - Remotion Presentation Compositions & 5 Slide Layout Templates Completed.
+- **Status:** Phase 1 Complete (5/5 Milestones) -> Ready for Phase 2 (Queue & Web Studio)
+- **Current Milestone:** M1.5 - Local End-to-End CLI Pipeline Runner Completed.
 - **Created Date:** 2026-11-14
 - **Working Root:** `D:\AIK-VdGeneration`
 
@@ -64,5 +64,5 @@ AWS_SECRET_ACCESS_KEY=
 - [x] Implement `services/api-gateway` orchestration & Gemini 3.8 Flash script generation (M1.2)
 - [x] Connect Edge-TTS & ElevenLabs audio pipeline & Remotion frame sync (M1.3)
 - [x] Implement `services/video-renderer` 5 Remotion slide layouts & dynamic metadata (M1.4)
-- [ ] Build Local CLI Pipeline Runner (M1.5)
-- [ ] Build `apps/web` prompt & studio interface
+- [x] Build Local CLI Pipeline Runner & stateless Remotion MP4 render service (M1.5)
+- [ ] Build `apps/web` prompt & studio interface (Phase 2)

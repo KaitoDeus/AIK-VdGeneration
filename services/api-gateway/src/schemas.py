@@ -223,6 +223,10 @@ class VideoGenerateRequest(BaseModel):
         default=None,
         description="Optional override for the Gemini model ID (defaults to GEMINI_MODEL).",
     )
+    render_video: bool = Field(
+        default=False,
+        description="When True, also executes Stage 3 Remotion MP4 compilation in the background.",
+    )
 
 
 class VideoJobResponse(BaseModel):
@@ -245,6 +249,7 @@ class JobStatusResponse(BaseModel):
         "script_ready",
         "synthesizing_audio",
         "audio_ready",
+        "rendering_video",
         "completed",
         "failed",
     ]
@@ -253,4 +258,5 @@ class JobStatusResponse(BaseModel):
     voice_provider_used: Optional[str] = None
     script: Optional[PresentationScript] = None
     remotion_props: Optional[RemotionCompositionProps] = None
+    output_video_path: Optional[str] = None
     error: Optional[str] = None

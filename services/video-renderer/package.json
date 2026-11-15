@@ -7,6 +7,7 @@
     "dev": "remotion studio src/index.ts",
     "build": "remotion bundle src/index.ts",
     "render": "remotion render src/index.ts SlidePresentation out/video.mp4",
+    "generate": "python ../api-gateway/src/cli.py",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

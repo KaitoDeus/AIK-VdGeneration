@@ -23,8 +23,8 @@ This roadmap breaks down the product development into 4 distinct phases, from an
   - Complete 5 distinct slide layouts: `title_intro`, `bullet_list`, `split_card`, `quote_highlight`, `conclusion_cta`.
   - Spring-based smooth entrance/exit animations, progress timeline bar, Ken Burns background image layer with CSS radial-gradient fallback, and typography styling.
   - Dynamic `calculatePresentationMetadata` composition combining slides, 0.2s pre-padded voiceover audio sequences, and optional BGM track.
-- [ ] **M1.5: Local CLI Pipeline Runner**
-  - Single CLI command: `npm run generate -- --prompt "Topic" --lang vi` to output `output.mp4`.
+- [x] **M1.5: Local CLI Pipeline Runner**
+  - Single CLI command (`npm run generate -- --prompt "Topic" --lang vi` or `python services/api-gateway/src/cli.py`) executing the complete pipeline (`Prompt -> Gemini 3.8 Flash -> Edge-TTS/ElevenLabs -> Remotion Render`) to output a verified 1080p `.mp4` video with automatic staging cleanup.
 
 ---
 

@@ -1,0 +1,13 @@
+{
+  "name": "aik-vdgeneration",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AIK-VdGeneration Monorepo: Automated Prompt-to-Slide Video Presentation Platform",
+  "scripts": {
+    "generate": "python services/api-gateway/src/cli.py",
+    "test:api": "python -m pytest services/api-gateway/tests/ -v",
+    "test:video": "npm --prefix services/video-renderer test",
+    "typecheck:video": "npm --prefix services/video-renderer run typecheck",
+    "test": "npm run test:api && npm run typecheck:video && npm run test:video"
+  }
+}

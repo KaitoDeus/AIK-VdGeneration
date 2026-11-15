@@ -3,7 +3,26 @@
  * Implements formulas from .agent/rules/audio-sync-rules.md and .agent/skills/remotion-render-engine/SKILL.md.
  */
 
+import { staticFile } from 'remotion';
 import { SlideData, ThemeConfig, VideoPresentationProps } from '../types';
+
+/**
+ * Resolves an asset path or URL for Remotion rendering.
+ * External URLs (http/https/data) are returned as-is; relative paths (e.g. `/audio_temp/...`)
+ * are resolved against `services/video-renderer/public/` via Remotion's `staticFile()`.
+ */
+export function resolveAssetSrc(assetUrl: string): string {
+  if (!assetUrl) return '';
+  if (
+    assetUrl.startsWith('http://') ||
+    assetUrl.startsWith('https://') ||
+    assetUrl.startsWith('data:')
+  ) {
+    return assetUrl;
+  }
+  const normalized = assetUrl.replace(/^\/+/, '');
+  return staticFile(normalized);
+}
 
 export const DEFAULT_FPS = 30;
 export const DEFAULT_WIDTH = 1920;

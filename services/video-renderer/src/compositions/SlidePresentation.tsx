@@ -12,6 +12,7 @@ import { VideoPresentationProps } from '../types';
 import {
   DEFAULT_FPS,
   PADDING_BEFORE_SEC,
+  resolveAssetSrc,
   resolveSlideDurationInFrames,
 } from '../utils/timing';
 
@@ -29,7 +30,7 @@ export const SlidePresentation: React.FC<VideoPresentationProps> = ({
     <AbsoluteFill>
       {/* Optional Background Music Track */}
       {bgm?.enabled && bgm?.audio_url && (
-        <Audio src={bgm.audio_url} volume={bgm.volume ?? 0.15} />
+        <Audio src={resolveAssetSrc(bgm.audio_url)} volume={bgm.volume ?? 0.15} />
       )}
 
       <Series>
@@ -43,7 +44,7 @@ export const SlidePresentation: React.FC<VideoPresentationProps> = ({
             >
               {slide.voiceover_audio_url && (
                 <Sequence from={audioStartOffsetFrames}>
-                  <Audio src={slide.voiceover_audio_url} />
+                  <Audio src={resolveAssetSrc(slide.voiceover_audio_url)} />
                 </Sequence>
               )}
               <SlideCard

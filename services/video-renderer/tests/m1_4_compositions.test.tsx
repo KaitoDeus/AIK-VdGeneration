@@ -69,6 +69,7 @@ vi.mock('remotion', async () => {
       ReactMod.createElement('audio', { 'data-remotion': 'Audio', src, 'data-volume': volume }),
     Img: ({ src, style }: { src: string; style?: React.CSSProperties }) =>
       ReactMod.createElement('img', { src, style }),
+    staticFile: (p: string) => `/${p.replace(/^\/+/, '')}`,
     Composition: () => null,
     registerRoot: () => undefined,
   };
