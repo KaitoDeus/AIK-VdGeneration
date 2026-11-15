@@ -1,29 +1,61 @@
+/**
+ * Main Remotion Slide Presentation Composition (Milestone M1.4).
+ * Sequences all slides dynamically based on audio duration + padding rules,
+ * aligns per-slide voiceover tracks with PADDING_BEFORE_SEC offset,
+ * and mixes optional background music (BGM).
+ */
+
 import React from 'react';
-import { Audio, Series } from 'remotion';
+import { AbsoluteFill, Audio, Sequence, Series, useVideoConfig } from 'remotion';
 import { SlideCard } from '../components/SlideCard';
 import { VideoPresentationProps } from '../types';
+import {
+  DEFAULT_FPS,
+  PADDING_BEFORE_SEC,
+  resolveSlideDurationInFrames,
+} from '../utils/timing';
 
-export const SlidePresentation: React.FC<VideoPresentationProps> = ({ slides, theme }) => {
-  const fps = 30;
+export const SlidePresentation: React.FC<VideoPresentationProps> = ({
+  project_title,
+  slides,
+  theme,
+  bgm,
+}) => {
+  const videoConfig = useVideoConfig();
+  const fps = videoConfig?.fps || DEFAULT_FPS;
+  const audioStartOffsetFrames = Math.round(PADDING_BEFORE_SEC * fps);
 
   return (
-    <Series>
-      {slides.map((slide, index) => {
-        // Compute frames needed: audio duration + 0.6s breathing room
-        const durationInFrames = Math.max(
-          90,
-          Math.ceil((slide.voiceover_duration_seconds + 0.6) * fps)
-        );
+    <AbsoluteFill>
+      {/* Optional Background Music Track */}
+      {bgm?.enabled && bgm?.audio_url && (
+        <Audio src={bgm.audio_url} volume={bgm.volume ?? 0.15} />
+      )}
 
-        return (
-          <Series.Sequence key={index} durationInFrames={durationInFrames}>
-            {slide.voiceover_audio_url && (
-              <Audio src={slide.voiceover_audio_url} />
-            )}
-            <SlideCard slide={slide} theme={theme} />
-          </Series.Sequence>
-        );
-      })}
-    </Series>
+      <Series>
+        {slides.map((slide, index) => {
+          const durationInFrames = resolveSlideDurationInFrames(slide, fps);
+
+          return (
+            <Series.Sequence
+              key={slide.slide_index || index}
+              durationInFrames={durationInFrames}
+            >
+              {slide.voiceover_audio_url && (
+                <Sequence from={audioStartOffsetFrames}>
+                  <Audio src={slide.voiceover_audio_url} />
+                </Sequence>
+              )}
+              <SlideCard
+                slide={slide}
+                theme={theme}
+                projectTitle={project_title}
+                totalSlides={slides.length}
+              />
+            </Series.Sequence>
+          );
+        })}
+      </Series>
+    </AbsoluteFill>
   );
 };

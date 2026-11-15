@@ -19,10 +19,10 @@ This roadmap breaks down the product development into 4 distinct phases, from an
   - Integration of `edge-tts >= 7.3.1` (zero-cost neural synthesis for En & Vi: `vi-VN-HoaiMyNeural`, `en-US-GuyNeural`).
   - Integration of ElevenLabs API (`eleven_multilingual_v2`) with automatic fallback to Edge-TTS.
   - MP3 header verification (`>10KB`), exact millisecond duration extraction via `mutagen`, and dynamic Remotion frame calculation (`RemotionCompositionProps`).
-- [ ] **M1.4: Remotion Presentation Compositions**
-  - Basic slide layouts: `title_intro`, `bullet_list`, `split_card`, `conclusion_cta`.
-  - Spring-based smooth animations and typography styling.
-  - Video composition combining slides, audio, and transitions.
+- [x] **M1.4: Remotion Presentation Compositions**
+  - Complete 5 distinct slide layouts: `title_intro`, `bullet_list`, `split_card`, `quote_highlight`, `conclusion_cta`.
+  - Spring-based smooth entrance/exit animations, progress timeline bar, Ken Burns background image layer with CSS radial-gradient fallback, and typography styling.
+  - Dynamic `calculatePresentationMetadata` composition combining slides, 0.2s pre-padded voiceover audio sequences, and optional BGM track.
 - [ ] **M1.5: Local CLI Pipeline Runner**
   - Single CLI command: `npm run generate -- --prompt "Topic" --lang vi` to output `output.mp4`.
 
