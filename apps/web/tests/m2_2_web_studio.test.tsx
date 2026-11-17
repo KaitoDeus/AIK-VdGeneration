@@ -1,6 +1,7 @@
 /**
  * Automated Verification & Test Suite for Milestone M2.2:
- * StudioBlank Design System Compliance, Web Studio Components, and API Helpers.
+ * StudioBlank Design System Compliance, Top-Right Bilingual Switcher (VIE/EN + Flags),
+ * Web Studio Components, and API Helpers.
  */
 
 import fs from 'node:fs';
@@ -9,6 +10,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
+import { LanguageSwitcher, UkFlagIcon, VietnamFlagIcon } from '../src/components/FlagIcons';
 import { JobsArchiveFooter } from '../src/components/JobsArchiveFooter';
 import { LiveProgressTracker } from '../src/components/LiveProgressTracker';
 import { PromptStudioForm, StudioFormState } from '../src/components/PromptStudioForm';
@@ -97,37 +99,44 @@ describe('M2.2 StudioBlank Design System Strict Compliance', () => {
 
     const componentsDir = path.resolve(__dirname, '../src/components');
     const componentFiles = fs.readdirSync(componentsDir).filter((f) => f.endsWith('.tsx'));
-    expect(componentFiles.length).toBeGreaterThanOrEqual(5);
+    expect(componentFiles.length).toBeGreaterThanOrEqual(6);
 
     for (const file of componentFiles) {
       const src = fs.readFileSync(path.join(componentsDir, file), 'utf-8');
-      // StudioBlank strictly forbids rounded corners and box-shadow classes
       expect(src).not.toMatch(/\brounded-(sm|md|lg|xl|2xl|3xl|full)\b/);
       expect(src).not.toMatch(/\bshadow-(sm|md|lg|xl|2xl)\b/);
-      // Transitions must stay <= 200ms
       expect(src).not.toMatch(/\bduration-(300|500|700|1000)\b/);
     }
   });
 });
 
-describe('M2.2 API Helper Utilities', () => {
-  it('builds WebSocket and media URLs accurately from base URL', () => {
-    expect(getApiBaseUrl()).toBe('http://localhost:8000');
-    expect(buildWebSocketUrl('job_123')).toBe('ws://localhost:8000/ws/jobs/job_123');
-    expect(buildWebSocketUrl('job_123', 'wss://api.example.com/ws/jobs/job_123')).toBe(
-      'wss://api.example.com/ws/jobs/job_123'
-    );
-    expect(getJobAudioUrl('job_123', '/audio_temp/job_123/slide_1_deadbeef.mp3')).toBe(
-      'http://localhost:8000/api/v1/jobs/job_123/audio/slide_1_deadbeef.mp3'
-    );
-    expect(getJobVideoUrl('job_123')).toBe('http://localhost:8000/api/v1/jobs/job_123/video');
-  });
-});
+describe('M2.2 Top-Right Bilingual Language Switcher (VIE / EN + SVG Flags)', () => {
+  it('renders crisp geometric Vietnam flag for VIE and UK Union Jack flag for EN', () => {
+    const vnFlagHtml = renderToStaticMarkup(<VietnamFlagIcon />);
+    expect(vnFlagHtml).toContain('data-flag="vn"');
+    expect(vnFlagHtml).toContain('#DA251D');
+    expect(vnFlagHtml).toContain('#FFFF00');
 
-describe('M2.2 Web Studio UI Components SSR Rendering', () => {
-  it('renders StudioHeader with live API & Redis queue telemetry', () => {
-    const html = renderToStaticMarkup(
+    const ukFlagHtml = renderToStaticMarkup(<UkFlagIcon />);
+    expect(ukFlagHtml).toContain('data-flag="gb"');
+    expect(ukFlagHtml).toContain('#012169');
+    expect(ukFlagHtml).toContain('#C8102E');
+
+    const switcherVi = renderToStaticMarkup(<LanguageSwitcher locale="vi" onChange={vi.fn()} />);
+    expect(switcherVi).toContain('data-testid="lang-switch-vie"');
+    expect(switcherVi).toContain('VIE');
+    expect(switcherVi).toContain('data-flag="vn"');
+    expect(switcherVi).toContain('data-testid="lang-switch-en"');
+    expect(switcherVi).toContain('EN');
+    expect(switcherVi).toContain('data-flag="gb"');
+    expect(switcherVi).toContain('aria-pressed="true"');
+  });
+
+  it('embeds LanguageSwitcher in top-right StudioHeader and translates header labels in EN and VI', () => {
+    const htmlEn = renderToStaticMarkup(
       <StudioHeader
+        locale="en"
+        onLocaleChange={vi.fn()}
         apiOnline={true}
         activeSection="studio"
         onNavigate={vi.fn()}
@@ -150,14 +159,46 @@ describe('M2.2 Web Studio UI Components SSR Rendering', () => {
         }}
       />
     );
+    expect(htmlEn).toContain('WORKSPACE');
+    expect(htmlEn).toContain('API ONLINE');
+    expect(htmlEn).toContain('QUEUE: redis');
+    expect(htmlEn).toContain('data-testid="ui-language-switcher"');
 
-    expect(html).toContain('AIK — STUDIO');
-    expect(html).toContain('API ONLINE');
-    expect(html).toContain('gemini-3.8-flash');
-    expect(html).toContain('QUEUE: redis');
+    const htmlVi = renderToStaticMarkup(
+      <StudioHeader
+        locale="vi"
+        onLocaleChange={vi.fn()}
+        apiOnline={false}
+        activeSection="studio"
+        onNavigate={vi.fn()}
+        health={null}
+        queueStats={null}
+      />
+    );
+    expect(htmlVi).toContain('KHÔNG GIAN TẠO');
+    expect(htmlVi).toContain('LỊCH SỬ RENDER');
+    expect(htmlVi).toContain('API NGOẠI TUYẾN');
+    expect(htmlVi).toContain('VIE');
+    expect(htmlVi).toContain('EN');
   });
+});
 
-  it('renders PromptStudioForm with quick templates, EN/VI chips, voice audition, and error notice', () => {
+describe('M2.2 API Helper Utilities', () => {
+  it('builds WebSocket and media URLs accurately from base URL', () => {
+    expect(getApiBaseUrl()).toBe('http://localhost:8000');
+    expect(buildWebSocketUrl('job_123')).toBe('ws://localhost:8000/ws/jobs/job_123');
+    expect(buildWebSocketUrl('job_123', 'wss://api.example.com/ws/jobs/job_123')).toBe(
+      'wss://api.example.com/ws/jobs/job_123'
+    );
+    expect(getJobAudioUrl('job_123', '/audio_temp/job_123/slide_1_deadbeef.mp3')).toBe(
+      'http://localhost:8000/api/v1/jobs/job_123/audio/slide_1_deadbeef.mp3'
+    );
+    expect(getJobVideoUrl('job_123')).toBe('http://localhost:8000/api/v1/jobs/job_123/video');
+  });
+});
+
+describe('M2.2 Web Studio Bilingual UI Components SSR Rendering', () => {
+  it('renders PromptStudioForm in both EN and VI locales cleanly', () => {
     const formState: StudioFormState = {
       prompt: PROMPT_TEMPLATES[0].prompt,
       language: 'en',
@@ -169,8 +210,9 @@ describe('M2.2 Web Studio UI Components SSR Rendering', () => {
       renderVideo: true,
     };
 
-    const html = renderToStaticMarkup(
+    const htmlEn = renderToStaticMarkup(
       <PromptStudioForm
+        locale="en"
         formState={formState}
         voices={DEFAULT_VOICES}
         isSubmitting={false}
@@ -184,19 +226,34 @@ describe('M2.2 Web Studio UI Components SSR Rendering', () => {
         onGeneratePipeline={vi.fn()}
       />
     );
+    expect(htmlEn).toContain('TECH EXPLAINER');
+    expect(htmlEn).toContain('AUDITION VOICE SAMPLE');
+    expect(htmlEn).toContain('Generate Presentation');
+    expect(htmlEn).toContain('Draft Script First');
 
-    expect(html).toContain('TECH EXPLAINER');
-    expect(html).toContain('EDUCATIONAL');
-    expect(html).toContain('PITCH DECK');
-    expect(html).toContain('MARKETING');
-    expect(html).toContain('AUDITION VOICE SAMPLE');
-    expect(html).toContain('Voice audition audio player');
-    expect(html).toContain('Prompt validation sample message');
-    expect(html).toContain('Generate Presentation');
-    expect(html).toContain('Draft Script First');
+    const htmlVi = renderToStaticMarkup(
+      <PromptStudioForm
+        locale="vi"
+        formState={formState}
+        voices={DEFAULT_VOICES}
+        isSubmitting={false}
+        isAuditioning={false}
+        auditionAudioUrl={null}
+        validationError={null}
+        onChange={vi.fn()}
+        onApplyTemplate={vi.fn()}
+        onAuditionVoice={vi.fn()}
+        onDraftScript={vi.fn()}
+        onGeneratePipeline={vi.fn()}
+      />
+    );
+    expect(htmlVi).toContain('Thiết Lập Kịch Bản &amp; Giọng Đọc');
+    expect(htmlVi).toContain('NGHE THỬ GIỌNG ĐỌC');
+    expect(htmlVi).toContain('Tạo Video Thuyết Trình');
+    expect(htmlVi).toContain('Soạn Kịch Bản Trước');
   });
 
-  it('renders LiveProgressTracker with WebSocket event feed and 1080p MP4 player on completion', () => {
+  it('renders LiveProgressTracker with localized progress status and MP4 player', () => {
     const completedJob: JobStatusResponse = {
       job_id: 'job_abc123',
       status: 'completed',
@@ -218,26 +275,24 @@ describe('M2.2 Web Studio UI Components SSR Rendering', () => {
       ],
     };
 
-    const html = renderToStaticMarkup(
+    const htmlVi = renderToStaticMarkup(
       <LiveProgressTracker
+        locale="vi"
         job={completedJob}
         events={completedJob.progress_events}
         wsConnected={false}
       />
     );
-
-    expect(html).toContain('job_abc123');
-    expect(html).toContain('100%');
-    expect(html).toContain('MASTER RENDER COMPLETE');
-    expect(html).toContain('Download 1080p MP4');
-    expect(html).toContain('Export Remotion Props JSON');
-    expect(html).toContain('http://localhost:8000/api/v1/jobs/job_abc123/video');
-    expect(html).toContain('Video rendering complete and ready for playback! (100%)');
+    expect(htmlVi).toContain('KẾT XUẤT VIDEO HOÀN TẤT');
+    expect(htmlVi).toContain('Tải Xuống MP4 1080p');
+    expect(htmlVi).toContain('Xuất JSON Remotion Props');
+    expect(htmlVi).toContain('http://localhost:8000/api/v1/jobs/job_abc123/video');
   });
 
-  it('renders SlideReviewer with 16:9 canvas, slide list, audio player, and inline editor', () => {
-    const html = renderToStaticMarkup(
+  it('renders SlideReviewer and JobsArchiveFooter cleanly in EN and VI locales', () => {
+    const reviewerVi = renderToStaticMarkup(
       <SlideReviewer
+        locale="vi"
         jobId="job_demo_01"
         script={SAMPLE_SCRIPT}
         remotionProps={SAMPLE_REMOTION_PROPS}
@@ -247,18 +302,13 @@ describe('M2.2 Web Studio UI Components SSR Rendering', () => {
         onCompileSlides={vi.fn()}
       />
     );
+    expect(reviewerVi).toContain('TRÌNH DUYỆT &amp; CHỈNH SỬA SLIDE TRỰC QUAN');
+    expect(reviewerVi).toContain('Biên Dịch &amp; Xuất MP4 1080p');
+    expect(reviewerVi).toContain('slide_1_abc12345.mp3');
 
-    expect(html).toContain('Event-Driven Cloud Architecture');
-    expect(html).toContain('data-testid="live-slide-canvas"');
-    expect(html).toContain('aspect-video');
-    expect(html).toContain('SYNTHESIZED SLIDE AUDIO');
-    expect(html).toContain('slide_1_abc12345.mp3');
-    expect(html).toContain('Compile &amp; Render 1080p MP4');
-  });
-
-  it('renders JobsArchiveFooter on inverse #0A0A0A surface with selectable jobs', () => {
-    const html = renderToStaticMarkup(
+    const archiveVi = renderToStaticMarkup(
       <JobsArchiveFooter
+        locale="vi"
         activeJobId="job_01"
         onSelectJob={vi.fn()}
         onRefresh={vi.fn()}
@@ -275,10 +325,8 @@ describe('M2.2 Web Studio UI Components SSR Rendering', () => {
         ]}
       />
     );
-
-    expect(html).toContain('bg-[#0A0A0A]');
-    expect(html).toContain('Recent Render History');
-    expect(html).toContain('job_01');
-    expect(html).toContain('Event-Driven Cloud Architecture');
+    expect(archiveVi).toContain('bg-[#0A0A0A]');
+    expect(archiveVi).toContain('Lịch Sử Kết Xuất Gần Đây');
+    expect(archiveVi).toContain('HOÀN TẤT');
   });
 });

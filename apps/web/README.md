@@ -4,7 +4,9 @@
 Web Studio built with **Next.js 15 (App Router)**, **TypeScript (Strict Mode)**, and **Tailwind CSS**, designed strictly following the **StudioBlank Design System** (ultra-minimal monochrome palette `#FAFAFA`/`#0A0A0A`, zero border-radius, zero shadows, `Inter` + `IBM Plex Mono` typography, generous spacing).
 
 ## Implemented Features (Phase 2 M2.2)
-1. **Prompt & Script Studio:**
+1. **Top-Right Bilingual UI Switcher (`VIE` / `EN`):**
+   - Instant client-side localization between Vietnamese (`VIE` + geometric Vietnam flag SVG) and English (`EN` + geometric Union Jack UK flag SVG) persisted across sessions.
+2. **Prompt & Script Studio:**
    - Topic prompt editor with quick templates (`TECH EXPLAINER`, `EDUCATIONAL`, `PITCH DECK`, `MARKETING`).
    - Bilingual language selector (`VI` / `EN`), aspect ratio (`16:9` / `9:16`), visual theme, and target duration controls.
    - Live Voice Audition Player (`POST /api/v1/voices/preview`) for previewing narrator voices before rendering.

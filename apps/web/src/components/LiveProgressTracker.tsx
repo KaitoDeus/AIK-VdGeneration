@@ -2,9 +2,11 @@
 
 import React from 'react';
 import { getJobVideoUrl } from '@/lib/api';
+import { STUDIO_DICTIONARY, UiLocale } from '@/lib/i18n';
 import { JobStatusResponse, WebSocketProgressEvent } from '@/types/studio';
 
 interface LiveProgressTrackerProps {
+  locale: UiLocale;
   job: JobStatusResponse;
   events: WebSocketProgressEvent[];
   wsConnected: boolean;
@@ -21,20 +23,22 @@ const STATUS_CHIP_STYLE: Record<string, string> = {
   failed: 'border-[#DC2626] bg-[#DC2626] text-[#FAFAFA]',
 };
 
-const PIPELINE_STEPS = [
-  { id: '01', label: 'QUEUED', threshold: 0 },
-  { id: '02', label: 'SCRIPT (LLM)', threshold: 40 },
-  { id: '03', label: 'AUDIO (TTS)', threshold: 80 },
-  { id: '04', label: 'RENDER (MP4)', threshold: 100 },
-];
-
 export const LiveProgressTracker: React.FC<LiveProgressTrackerProps> = ({
+  locale,
   job,
   events,
   wsConnected,
 }) => {
+  const t = STUDIO_DICTIONARY[locale].progress;
   const chipStyle =
     STATUS_CHIP_STYLE[job.status] || 'border-[#D4D4D8] bg-transparent text-[#71717A]';
+
+  const pipelineSteps = [
+    { id: '01', label: t.steps.queued, threshold: 0 },
+    { id: '02', label: t.steps.script, threshold: 40 },
+    { id: '03', label: t.steps.audio, threshold: 80 },
+    { id: '04', label: t.steps.render, threshold: 100 },
+  ];
 
   const handleDownloadProps = () => {
     if (!job.remotion_props) return;
@@ -58,11 +62,11 @@ export const LiveProgressTracker: React.FC<LiveProgressTrackerProps> = ({
       <div className="flex flex-col justify-between gap-4 border-b border-[#E5E5E5] px-8 py-6 md:flex-row md:items-center">
         <div>
           <span className="font-mono text-[12px] uppercase tracking-[0.08em] text-[#71717A]">
-            02 / LIVE EXECUTION TELEMETRY
+            {t.sectionEyebrow}
           </span>
           <div className="mt-1 flex flex-wrap items-center gap-4">
             <h2 id="progress-heading" className="text-[20px] font-semibold text-[#0A0A0A]">
-              Pipeline Status
+              {t.title}
             </h2>
             <span className="font-mono text-[13px] text-[#71717A]">
               {job.job_id}
@@ -72,13 +76,13 @@ export const LiveProgressTracker: React.FC<LiveProgressTrackerProps> = ({
 
         <div className="flex items-center gap-3">
           <span className="font-mono text-[12px] uppercase text-[#71717A]">
-            WS: {wsConnected ? 'STREAMING' : 'CLOSED'}
+            WS: {wsConnected ? t.wsStreaming : t.wsClosed}
           </span>
           <span
             data-testid="job-status-chip"
             className={`inline-flex h-7 items-center border px-3 text-[12px] uppercase tracking-[0.05em] ${chipStyle}`}
           >
-            {job.status.replace(/_/g, ' ')}
+            {t.statuses[job.status] || job.status.replace(/_/g, ' ')}
           </span>
           <span className="font-mono text-[20px] font-semibold text-[#0A0A0A]">
             {job.progress_percentage}%
@@ -102,7 +106,7 @@ export const LiveProgressTracker: React.FC<LiveProgressTrackerProps> = ({
 
       {/* 4-Stage Milestone Matrix */}
       <div className="grid grid-cols-2 divide-x divide-[#E5E5E5] border-b border-[#E5E5E5] md:grid-cols-4">
-        {PIPELINE_STEPS.map((step) => {
+        {pipelineSteps.map((step) => {
           const isReached = job.progress_percentage >= step.threshold && job.status !== 'failed';
           return (
             <div key={step.id} className="px-6 py-4">
@@ -122,7 +126,7 @@ export const LiveProgressTracker: React.FC<LiveProgressTrackerProps> = ({
       {/* Error Notice */}
       {job.error && (
         <div role="alert" className="border-b border-[#E5E5E5] bg-[#FEF2F2] px-8 py-4 font-mono text-[13px] text-[#DC2626]">
-          ERROR: {job.error}
+          {t.errorPrefix}: {job.error}
         </div>
       )}
 
@@ -132,12 +136,12 @@ export const LiveProgressTracker: React.FC<LiveProgressTrackerProps> = ({
           <div className="mb-4 flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
               <span className="font-mono text-[12px] uppercase tracking-[0.08em] text-[#16A34A]">
-                MASTER RENDER COMPLETE
+                {t.masterComplete}
               </span>
               {job.remotion_props && (
                 <p className="mt-1 font-mono text-[13px] text-[#71717A]">
                   {job.remotion_props.width}×{job.remotion_props.height} @ {job.remotion_props.fps}FPS ·{' '}
-                  {job.remotion_props.total_duration_seconds.toFixed(2)}s ({job.remotion_props.total_frames} frames)
+                  {job.remotion_props.total_duration_seconds.toFixed(2)}s ({job.remotion_props.total_frames} {t.framesUnit.toLowerCase()})
                 </p>
               )}
             </div>
@@ -149,7 +153,7 @@ export const LiveProgressTracker: React.FC<LiveProgressTrackerProps> = ({
                   onClick={handleDownloadProps}
                   className="h-10 border border-[#0A0A0A] px-6 text-[12px] uppercase tracking-[0.05em] text-[#0A0A0A] transition-colors duration-150 hover:bg-[#0A0A0A] hover:text-[#FAFAFA]"
                 >
-                  Export Remotion Props JSON
+                  {t.exportPropsBtn}
                 </button>
               )}
               <a
@@ -157,7 +161,7 @@ export const LiveProgressTracker: React.FC<LiveProgressTrackerProps> = ({
                 download={`${job.job_id}.mp4`}
                 className="inline-flex h-10 items-center bg-[#0A0A0A] px-6 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#FAFAFA] transition-colors duration-150 hover:bg-[#27272A]"
               >
-                Download 1080p MP4
+                {t.downloadMp4Btn}
               </a>
             </div>
           </div>
@@ -177,18 +181,18 @@ export const LiveProgressTracker: React.FC<LiveProgressTrackerProps> = ({
       <div className="p-8">
         <div className="mb-3 flex items-center justify-between">
           <span className="font-mono text-[12px] uppercase tracking-[0.08em] text-[#71717A]">
-            WebSocket Event Log ({events.length})
+            {t.eventLogTitle} ({events.length})
           </span>
           {job.remotion_props && (
             <span className="font-mono text-[12px] text-[#71717A]">
-              DURATION: {job.remotion_props.total_duration_seconds.toFixed(2)}S ({job.remotion_props.total_frames} FRAMES)
+              {t.durationLabel}: {job.remotion_props.total_duration_seconds.toFixed(2)}S ({job.remotion_props.total_frames} {t.framesUnit})
             </span>
           )}
         </div>
 
         <div className="max-h-48 overflow-y-auto border border-[#E5E5E5] bg-[#FAFAFA] p-4 font-mono text-[13px] leading-[1.5]">
           {events.length === 0 ? (
-            <p className="text-[#71717A]">Waiting for pipeline telemetry events...</p>
+            <p className="text-[#71717A]">{t.waitingEvents}</p>
           ) : (
             <ul className="space-y-1">
               {events.map((evt, idx) => (

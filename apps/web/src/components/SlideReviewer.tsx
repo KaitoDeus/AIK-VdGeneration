@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { getJobAudioUrl } from '@/lib/api';
+import { STUDIO_DICTIONARY, UiLocale } from '@/lib/i18n';
 import { SLIDE_LAYOUT_LABELS } from '@/lib/templates';
 import {
   AspectRatio,
@@ -12,6 +13,7 @@ import {
 } from '@/types/studio';
 
 interface SlideReviewerProps {
+  locale: UiLocale;
   jobId: string | null;
   script: PresentationScript;
   remotionProps: RemotionCompositionProps | null;
@@ -30,6 +32,7 @@ const LAYOUT_KEYS: SlideLayout[] = [
 ];
 
 export const SlideReviewer: React.FC<SlideReviewerProps> = ({
+  locale,
   jobId,
   script,
   remotionProps,
@@ -38,6 +41,7 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
   onUpdateScript,
   onCompileSlides,
 }) => {
+  const t = STUDIO_DICTIONARY[locale].reviewer;
   const [activeIndex, setActiveIndex] = useState<number>(0);
 
   const safeIndex = Math.min(activeIndex, Math.max(0, script.slides.length - 1));
@@ -61,9 +65,9 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
     const newSlide: SlideScriptItem = {
       slide_index: nextIndex,
       layout: 'bullet_list',
-      heading: `Slide ${nextIndex} Key Point`,
-      bullet_points: ['First supporting insight', 'Second supporting insight'],
-      voiceover_script: 'Add your voiceover narration for this slide here.',
+      heading: `${t.defaultSlideHeadingPrefix} ${nextIndex}`,
+      bullet_points: [t.defaultSlideBulletA, t.defaultSlideBulletB],
+      voiceover_script: t.defaultSlideVoiceover,
       visual_keywords: 'minimal architecture presentation workspace',
     };
     onUpdateScript({ ...script, slides: [...script.slides, newSlide] });
@@ -90,7 +94,7 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
       <div className="flex flex-col justify-between gap-4 border-b border-[#E5E5E5] px-8 py-6 md:flex-row md:items-center">
         <div>
           <span className="font-mono text-[12px] uppercase tracking-[0.08em] text-[#71717A]">
-            03 / INTERACTIVE SLIDE REVIEWER &amp; CANVAS
+            {t.sectionEyebrow}
           </span>
           <h2 id="reviewer-heading" className="mt-1 text-[20px] font-semibold text-[#0A0A0A]">
             {script.title}
@@ -104,7 +108,7 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
             onClick={() => onCompileSlides(false)}
             className="h-10 border border-[#0A0A0A] bg-transparent px-5 text-[12px] font-medium uppercase tracking-[0.05em] text-[#0A0A0A] transition-colors duration-150 hover:bg-[#0A0A0A] hover:text-[#FAFAFA] disabled:cursor-not-allowed disabled:opacity-30"
           >
-            Synthesize Audio Only
+            {t.synthAudioBtn}
           </button>
           <button
             type="button"
@@ -112,7 +116,7 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
             onClick={() => onCompileSlides(true)}
             className="h-10 border border-[#0A0A0A] bg-[#0A0A0A] px-6 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#FAFAFA] transition-colors duration-150 hover:bg-[#FFFFFF] hover:text-[#0A0A0A] disabled:cursor-not-allowed disabled:opacity-30"
           >
-            {isCompiling ? 'COMPILING...' : 'Compile & Render 1080p MP4'}
+            {isCompiling ? t.compilingBtn : t.compileRenderBtn}
           </button>
         </div>
       </div>
@@ -123,7 +127,7 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
         <div className="border-b border-[#E5E5E5] lg:col-span-4 lg:border-b-0 lg:border-r">
           <div className="flex h-12 items-center justify-between border-b border-[#E5E5E5] px-4">
             <span className="font-mono text-[12px] uppercase tracking-[0.06em] text-[#71717A]">
-              SLIDES ({script.slides.length} / 8)
+              {t.slidesCounter} ({script.slides.length} / 8)
             </span>
             <div className="flex gap-2">
               <button
@@ -132,7 +136,7 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                 disabled={script.slides.length >= 8}
                 className="h-7 border border-[#D4D4D8] px-2 font-mono text-[11px] text-[#0A0A0A] hover:border-[#0A0A0A] disabled:opacity-30"
               >
-                + ADD
+                {t.addSlideBtn}
               </button>
               <button
                 type="button"
@@ -140,7 +144,7 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                 disabled={script.slides.length <= 3}
                 className="h-7 border border-[#D4D4D8] px-2 font-mono text-[11px] text-[#DC2626] hover:border-[#DC2626] disabled:opacity-30"
               >
-                REMOVE
+                {t.removeSlideBtn}
               </button>
             </div>
           </div>
@@ -262,11 +266,11 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
             <div className="mb-8 flex flex-col justify-between gap-4 border border-[#E5E5E5] bg-[#FAFAFA] p-4 md:flex-row md:items-center">
               <div>
                 <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[#71717A]">
-                  SYNTHESIZED SLIDE AUDIO
+                  {t.synthesizedAudioTitle}
                 </span>
                 <p className="font-mono text-[13px] text-[#0A0A0A]">
                   {currentAudioSlide.voiceover_duration_seconds.toFixed(2)}s ·{' '}
-                  {currentAudioSlide.calculated_frames} frames @ 30fps
+                  {currentAudioSlide.calculated_frames} {t.framesAt30Fps}
                 </p>
               </div>
               <audio
@@ -286,7 +290,7 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                   htmlFor="slide-heading-input"
                   className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.06em] text-[#71717A]"
                 >
-                  Slide Heading
+                  {t.slideHeadingLabel}
                 </label>
                 <input
                   id="slide-heading-input"
@@ -302,7 +306,7 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                   htmlFor="slide-layout-select"
                   className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.06em] text-[#71717A]"
                 >
-                  Layout Template
+                  {t.layoutTemplateLabel}
                 </label>
                 <select
                   id="slide-layout-select"
@@ -326,16 +330,14 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                 htmlFor="slide-bullets-input"
                 className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.06em] text-[#71717A]"
               >
-                Bullet Points (One per line, max 5)
+                {t.bulletPointsLabel}
               </label>
               <textarea
                 id="slide-bullets-input"
                 rows={3}
                 value={currentSlide.bullet_points.join('\n')}
                 onChange={(e) => {
-                  const lines = e.target.value
-                    .split('\n')
-                    .slice(0, 5);
+                  const lines = e.target.value.split('\n').slice(0, 5);
                   updateCurrentSlide({ bullet_points: lines });
                 }}
                 className="w-full border border-[#D4D4D8] bg-[#FFFFFF] p-3 text-[14px] leading-[1.6] text-[#0A0A0A] hover:border-[#A1A1AA] focus:border-2 focus:border-[#0A0A0A] focus:outline-none"
@@ -347,7 +349,7 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                 htmlFor="slide-voiceover-input"
                 className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.06em] text-[#71717A]"
               >
-                Voiceover Script (Narrator Speech)
+                {t.voiceoverScriptLabel}
               </label>
               <textarea
                 id="slide-voiceover-input"

@@ -1,6 +1,8 @@
 'use client';
 
 import React from 'react';
+import { UkFlagIcon, VietnamFlagIcon } from '@/components/FlagIcons';
+import { STUDIO_DICTIONARY, UiLocale } from '@/lib/i18n';
 import { PROMPT_TEMPLATES, THEME_OPTIONS } from '@/lib/templates';
 import {
   AspectRatio,
@@ -23,6 +25,7 @@ export interface StudioFormState {
 }
 
 interface PromptStudioFormProps {
+  locale: UiLocale;
   formState: StudioFormState;
   voices: VoiceOption[];
   isSubmitting: boolean;
@@ -37,6 +40,7 @@ interface PromptStudioFormProps {
 }
 
 export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
+  locale,
   formState,
   voices,
   isSubmitting,
@@ -49,6 +53,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
   onDraftScript,
   onGeneratePipeline,
 }) => {
+  const t = STUDIO_DICTIONARY[locale].form;
   const filteredVoices = voices.filter(
     (v) => v.language === formState.language || v.provider === 'elevenlabs'
   );
@@ -63,20 +68,22 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
       <div className="flex flex-col justify-between gap-4 border-b border-[#E5E5E5] px-8 py-6 md:flex-row md:items-center">
         <div>
           <span className="font-mono text-[12px] uppercase tracking-[0.08em] text-[#71717A]">
-            01 / PROMPT &amp; PARAMETERS
+            {t.sectionEyebrow}
           </span>
           <h2 id="studio-heading" className="mt-1 text-[20px] font-semibold leading-[1.3] text-[#0A0A0A]">
-            Script &amp; Voice Configuration
+            {t.sectionTitle}
           </h2>
         </div>
 
         {/* Quick Prompt Template Filter Chips */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="mr-2 text-[12px] uppercase tracking-[0.05em] text-[#71717A]">
-            Templates:
+            {t.templatesLabel}
           </span>
           {PROMPT_TEMPLATES.map((tpl) => {
             const isSelected = formState.prompt.trim() === tpl.prompt.trim();
+            const label =
+              t.templateNames[tpl.id as keyof typeof t.templateNames] || tpl.label;
             return (
               <button
                 key={tpl.id}
@@ -88,7 +95,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
                     : 'border-[#D4D4D8] bg-transparent text-[#71717A] hover:border-[#A1A1AA] hover:bg-[#F4F4F5] hover:text-[#0A0A0A]'
                 }`}
               >
-                {tpl.label}
+                {label}
               </button>
             );
           })}
@@ -101,14 +108,14 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
           htmlFor="prompt-input"
           className="mb-3 block text-[12px] font-semibold uppercase tracking-[0.08em] text-[#0A0A0A]"
         >
-          Presentation Topic or Raw Narrative
+          {t.promptLabel}
         </label>
         <textarea
           id="prompt-input"
           rows={4}
           value={formState.prompt}
           onChange={(e) => onChange({ prompt: e.target.value })}
-          placeholder="Describe your presentation topic in English or Vietnamese (e.g., Explain Event-Driven Architecture for engineering teams)..."
+          placeholder={t.promptPlaceholder}
           className={`w-full resize-y border bg-[#FFFFFF] p-4 text-[14px] leading-[1.6] text-[#0A0A0A] placeholder:text-[#A1A1AA] focus:border-2 focus:border-[#0A0A0A] focus:outline-none ${
             validationError
               ? 'border-[#DC2626]'
@@ -127,7 +134,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
         {/* Column 1: Language */}
         <div className="p-6">
           <span className="mb-3 block text-[12px] font-semibold uppercase tracking-[0.08em] text-[#71717A]">
-            Language
+            {t.languageLabel}
           </span>
           <div className="flex gap-2">
             {(['vi', 'en'] as SupportedLanguage[]).map((lang) => {
@@ -145,13 +152,14 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
                       voiceId: defaultVoice,
                     });
                   }}
-                  className={`h-8 flex-1 border text-[12px] uppercase tracking-[0.05em] transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0A0A0A] ${
+                  className={`inline-flex h-8 flex-1 items-center justify-center gap-1.5 border px-2 text-[11px] uppercase tracking-[0.05em] transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0A0A0A] ${
                     active
                       ? 'border-[#0A0A0A] bg-[#0A0A0A] text-[#FAFAFA]'
                       : 'border-[#D4D4D8] bg-transparent text-[#71717A] hover:border-[#A1A1AA] hover:text-[#0A0A0A]'
                   }`}
                 >
-                  {lang === 'vi' ? 'VIETNAMESE' : 'ENGLISH'}
+                  {lang === 'vi' ? <VietnamFlagIcon /> : <UkFlagIcon />}
+                  <span>{lang === 'vi' ? t.languageVi : t.languageEn}</span>
                 </button>
               );
             })}
@@ -161,12 +169,12 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
         {/* Column 2: Aspect Ratio (StudioBlank Radio Style) */}
         <div className="p-6">
           <span className="mb-3 block text-[12px] font-semibold uppercase tracking-[0.08em] text-[#71717A]">
-            Aspect Ratio
+            {t.aspectRatioLabel}
           </span>
           <div className="flex flex-col gap-2">
             {([
-              { value: '16:9', label: '16:9 WIDESCREEN (1920×1080)' },
-              { value: '9:16', label: '9:16 VERTICAL (1080×1920)' },
+              { value: '16:9', label: t.aspect169 },
+              { value: '9:16', label: t.aspect916 },
             ] as const).map((ratio) => {
               const selected = formState.aspectRatio === ratio.value;
               return (
@@ -179,7 +187,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
                   className="flex items-center gap-3 text-left text-[12px] tracking-[0.04em] text-[#0A0A0A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0A0A0A]"
                 >
                   <span
-                    className={`flex h-[18px] w-[18px] items-center justify-center border ${
+                    className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center border ${
                       selected ? 'border-[#0A0A0A]' : 'border-[#D4D4D8]'
                     }`}
                   >
@@ -197,7 +205,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
         {/* Column 3: Visual Theme & Duration */}
         <div className="p-6">
           <span className="mb-3 block text-[12px] font-semibold uppercase tracking-[0.08em] text-[#71717A]">
-            Theme &amp; Target Duration
+            {t.themeDurationLabel}
           </span>
           <div className="flex flex-col gap-3">
             <select
@@ -206,9 +214,9 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
               onChange={(e) => onChange({ theme: e.target.value as VisualTheme })}
               className="h-10 w-full border border-[#D4D4D8] bg-[#FFFFFF] px-3 text-[13px] text-[#0A0A0A] hover:border-[#A1A1AA] focus:border-2 focus:border-[#0A0A0A] focus:outline-none"
             >
-              {THEME_OPTIONS.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.label}
+              {THEME_OPTIONS.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {t.themeNames[opt.id]}
                 </option>
               ))}
             </select>
@@ -238,7 +246,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
         {/* Column 4: Narrator Voice & Audition */}
         <div className="p-6">
           <span className="mb-3 block text-[12px] font-semibold uppercase tracking-[0.08em] text-[#71717A]">
-            Narrator Voice
+            {t.voiceLabel}
           </span>
           <div className="flex flex-col gap-3">
             <select
@@ -266,7 +274,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
               disabled={isAuditioning}
               className="h-8 w-full border border-[#0A0A0A] bg-transparent px-4 text-[12px] uppercase tracking-[0.05em] text-[#0A0A0A] transition-colors duration-150 hover:bg-[#0A0A0A] hover:text-[#FAFAFA] disabled:cursor-not-allowed disabled:opacity-30"
             >
-              {isAuditioning ? 'SYNTHESIZING SAMPLE...' : 'AUDITION VOICE SAMPLE'}
+              {isAuditioning ? t.auditionLoading : t.auditionButton}
             </button>
 
             {auditionAudioUrl && (
@@ -292,7 +300,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
           className="flex items-center gap-3 text-[14px] text-[#0A0A0A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0A0A0A]"
         >
           <span
-            className={`flex h-[18px] w-[18px] items-center justify-center border text-[12px] font-bold ${
+            className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center border text-[12px] font-bold ${
               formState.renderVideo
                 ? 'border-[#0A0A0A] bg-[#0A0A0A] text-[#FAFAFA]'
                 : 'border-[#D4D4D8] bg-[#FFFFFF]'
@@ -300,7 +308,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
           >
             {formState.renderVideo ? '✓' : ''}
           </span>
-          <span>Compile final 1080p MP4 via Remotion immediately</span>
+          <span>{t.renderImmediateCheckbox}</span>
         </button>
 
         <div className="flex flex-wrap items-center gap-4">
@@ -310,7 +318,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
             onClick={onDraftScript}
             className="h-12 min-w-[160px] border border-[#0A0A0A] bg-transparent px-8 text-[14px] font-medium uppercase tracking-[0.06em] text-[#0A0A0A] transition-colors duration-150 hover:bg-[#0A0A0A] hover:text-[#FAFAFA] disabled:cursor-not-allowed disabled:opacity-30"
           >
-            Draft Script First
+            {t.draftScriptBtn}
           </button>
 
           <button
@@ -319,7 +327,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
             onClick={onGeneratePipeline}
             className="h-12 min-w-[200px] border border-[#0A0A0A] bg-[#0A0A0A] px-8 text-[14px] font-semibold uppercase tracking-[0.06em] text-[#FAFAFA] transition-colors duration-150 hover:bg-[#FFFFFF] hover:text-[#0A0A0A] disabled:cursor-not-allowed disabled:opacity-30"
           >
-            {isSubmitting ? 'Processing...' : 'Generate Presentation'}
+            {isSubmitting ? t.processingBtn : t.generateBtn}
           </button>
         </div>
       </div>

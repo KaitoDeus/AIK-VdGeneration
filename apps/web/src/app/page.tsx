@@ -18,6 +18,7 @@ import {
   generateVideoJob,
   previewVoiceAudio,
 } from '@/lib/api';
+import { STUDIO_DICTIONARY, UiLocale } from '@/lib/i18n';
 import { DEFAULT_VOICES } from '@/lib/templates';
 import {
   HealthResponse,
@@ -29,7 +30,10 @@ import {
   WebSocketProgressEvent,
 } from '@/types/studio';
 
+const LOCALE_STORAGE_KEY = 'aik-studio-locale';
+
 export default function StudioWorkspacePage() {
+  const [locale, setLocale] = useState<UiLocale>('vi');
   const [formState, setFormState] = useState<StudioFormState>({
     prompt: '',
     language: 'vi',
@@ -62,6 +66,31 @@ export default function StudioWorkspacePage() {
 
   const wsRef = useRef<WebSocket | null>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const t = STUDIO_DICTIONARY[locale];
+
+  // Hydrate saved UI locale preference on client mount
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+      if (saved === 'en' || saved === 'vi') {
+        setLocale(saved);
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
+  const handleLocaleChange = (nextLocale: UiLocale) => {
+    setLocale(nextLocale);
+    setValidationError(null);
+    document.documentElement.lang = nextLocale;
+    try {
+      window.localStorage.setItem(LOCALE_STORAGE_KEY, nextLocale);
+    } catch {
+      // ignore storage errors
+    }
+  };
 
   const loadTelemetry = useCallback(async () => {
     try {
@@ -210,9 +239,7 @@ export default function StudioWorkspacePage() {
       const url = URL.createObjectURL(blob);
       setAuditionAudioUrl(url);
     } catch (err) {
-      setStatusMessage(
-        err instanceof Error ? err.message : 'Unable to preview voice audio.'
-      );
+      setStatusMessage(err instanceof Error ? err.message : t.form.auditionError);
     } finally {
       setIsAuditioning(false);
     }
@@ -220,7 +247,7 @@ export default function StudioWorkspacePage() {
 
   const validatePrompt = (): boolean => {
     if (formState.prompt.trim().length < 3) {
-      setValidationError('Prompt must contain at least 3 characters.');
+      setValidationError(t.form.promptMinError);
       return false;
     }
     setValidationError(null);
@@ -242,7 +269,7 @@ export default function StudioWorkspacePage() {
       setActiveJob(null);
       setLiveEvents([]);
     } catch (err) {
-      setValidationError(err instanceof Error ? err.message : 'Script generation failed.');
+      setValidationError(err instanceof Error ? err.message : t.form.scriptError);
     } finally {
       setIsSubmitting(false);
     }
@@ -282,7 +309,7 @@ export default function StudioWorkspacePage() {
       });
       attachJobTelemetry(resp.job_id, resp.websocket_url);
     } catch (err) {
-      setValidationError(err instanceof Error ? err.message : 'Failed to enqueue job.');
+      setValidationError(err instanceof Error ? err.message : t.form.enqueueError);
     } finally {
       setIsSubmitting(false);
     }
@@ -315,7 +342,7 @@ export default function StudioWorkspacePage() {
       });
       attachJobTelemetry(resp.job_id, resp.websocket_url);
     } catch (err) {
-      setStatusMessage(err instanceof Error ? err.message : 'Compilation failed.');
+      setStatusMessage(err instanceof Error ? err.message : t.form.compileError);
     } finally {
       setIsSubmitting(false);
     }
@@ -333,6 +360,8 @@ export default function StudioWorkspacePage() {
   return (
     <div className="flex min-h-screen flex-col bg-[#FAFAFA] text-[#0A0A0A]">
       <StudioHeader
+        locale={locale}
+        onLocaleChange={handleLocaleChange}
         health={health}
         queueStats={queueStats}
         apiOnline={apiOnline}
@@ -344,14 +373,13 @@ export default function StudioWorkspacePage() {
         {/* Generous Hero Section (StudioBlank spacing: space-8 / 96px top, space-6 / 64px bottom) */}
         <section className="py-16 md:py-24">
           <p className="mb-4 font-mono text-[12px] uppercase tracking-[0.12em] text-[#71717A]">
-            PHASE 02 · WEB STUDIO WORKSPACE
+            {t.hero.eyebrow}
           </p>
           <h1 className="max-w-4xl text-[40px] font-bold leading-[1.05] tracking-[-0.02em] text-[#0A0A0A] md:text-[64px]">
-            Prompt to Synchronized Slide Video.
+            {t.hero.title}
           </h1>
           <p className="mt-6 max-w-2xl text-[16px] font-light leading-[1.65] text-[#71717A]">
-            Structured bilingual script synthesis with Gemini 3.8 Flash, precision audio-driven
-            timelines in English and Vietnamese, and automated 1080p Remotion rendering.
+            {t.hero.subtitle}
           </p>
         </section>
 
@@ -367,6 +395,7 @@ export default function StudioWorkspacePage() {
         {/* Generous Section Stack (gap-16 = 64px minimum between major sections) */}
         <div className="flex flex-col gap-16">
           <PromptStudioForm
+            locale={locale}
             formState={formState}
             voices={voices}
             isSubmitting={isSubmitting}
@@ -382,6 +411,7 @@ export default function StudioWorkspacePage() {
 
           {activeJob && (
             <LiveProgressTracker
+              locale={locale}
               job={activeJob}
               events={liveEvents}
               wsConnected={wsConnected}
@@ -390,6 +420,7 @@ export default function StudioWorkspacePage() {
 
           {draftScript && (
             <SlideReviewer
+              locale={locale}
               jobId={activeJob?.job_id ?? null}
               script={draftScript}
               remotionProps={activeJob?.remotion_props ?? null}
@@ -403,6 +434,7 @@ export default function StudioWorkspacePage() {
       </main>
 
       <JobsArchiveFooter
+        locale={locale}
         jobs={jobsArchive}
         activeJobId={activeJob?.job_id ?? null}
         onSelectJob={handleSelectArchivedJob}
