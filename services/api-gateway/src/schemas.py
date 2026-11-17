@@ -18,6 +18,7 @@ SlideLayout = Literal[
 
 SupportedLanguage = Literal["vi", "en"]
 TTSProviderType = Literal["edge_tts", "elevenlabs", "fpt"]
+WorkerStage = Literal["llm", "tts", "render"]
 
 
 class SlideScriptItem(BaseModel):
@@ -239,6 +240,27 @@ class VideoJobResponse(BaseModel):
     message: str
 
 
+class WebSocketProgressEvent(BaseModel):
+    """Realtime progress event payload matching docs/API_SPEC.md Section 4."""
+
+    job_id: str
+    step: str
+    progress_percentage: int = Field(ge=0, le=100)
+    message: str
+    timestamp: str
+
+
+class QueueTaskPayload(BaseModel):
+    """Serialized task envelope pushed onto Redis / Memory stage queues."""
+
+    job_id: str
+    stage: WorkerStage
+    request: VideoGenerateRequest
+    attempt: int = Field(default=1, ge=1)
+    max_retries: int = Field(default=3, ge=1)
+    created_at: str
+
+
 class JobStatusResponse(BaseModel):
     """Detailed status and artifact payload for an active or completed job."""
 
@@ -254,9 +276,23 @@ class JobStatusResponse(BaseModel):
         "failed",
     ]
     progress_percentage: int = Field(ge=0, le=100)
+    current_stage: Optional[WorkerStage] = None
+    render_requested: bool = False
+    retry_count: int = Field(default=0, ge=0)
     model_used: Optional[str] = None
     voice_provider_used: Optional[str] = None
     script: Optional[PresentationScript] = None
     remotion_props: Optional[RemotionCompositionProps] = None
     output_video_path: Optional[str] = None
+    progress_events: List[WebSocketProgressEvent] = Field(default_factory=list)
     error: Optional[str] = None
+
+
+class QueueStatsResponse(BaseModel):
+    """Operational telemetry for the asynchronous queue backend."""
+
+    backend: Literal["redis", "memory"]
+    redis_connected: bool
+    queues: dict[str, int]
+    dead_letter_count: int = 0
+    total_jobs: int = 0

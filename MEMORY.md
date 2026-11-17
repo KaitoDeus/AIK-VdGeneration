@@ -2,8 +2,8 @@
 
 ## 1. Project Identity & Status
 - **Project Name:** AIK-VdGeneration (AI-driven Prompt to Slide-Video Generator)
-- **Status:** Phase 1 Complete (5/5 Milestones) -> Ready for Phase 2 (Queue & Web Studio)
-- **Current Milestone:** M1.5 - Local End-to-End CLI Pipeline Runner Completed.
+- **Status:** Phase 2 In Progress (1/4 Milestones) — M2.1 Async Queue Worker & WebSockets Completed.
+- **Current Milestone:** M2.1 - Redis Asynchronous Queue Worker, Retry/DLQ & WebSocket Streaming Completed.
 - **Created Date:** 2026-11-14
 - **Working Root:** `D:\AIK-VdGeneration`
 
@@ -21,9 +21,9 @@
   - *Decision:*
     - Production: ElevenLabs Multilingual v2 / FPT.AI for regional accuracy.
     - Development/Testing: Edge-TTS (`vi-VN-HoaiMyNeural`, `vi-VN-NamMinhNeural`, `en-US-GuyNeural`) for zero-cost rapid iterations.
-- **ADR-004: Decoupled Queue Worker Model**
+- **ADR-004: Decoupled Queue Worker Model (Stage Queues + Redis Pub/Sub)**
   - *Context:* Video rendering can take 30-120 seconds, blocking standard HTTP request/response loops.
-  - *Decision:* Redis + BullMQ (or Celery) job queue with WebSocket progress updates.
+  - *Decision:* Implemented `RedisQueueBackend` with dedicated stage queues (`llm`, `tts`, `render`), atomic progress history (`aik:progress_history:{job_id}`), Redis Pub/Sub WebSocket streaming (`/ws/jobs/{job_id}`), 3-attempt automatic retry with Dead-Letter Queue (`aik:queue:dlq`), and seamless `LocalMemoryQueueBackend` fallback when Redis is absent.
 - **ADR-005: LLM Engine Upgrade to Gemini 3.8 Flash (`google-genai` >= 3.2.0 Interactions API)**
   - *Context:* Legacy Gemini 1.5/2.5 Flash and `generateContent` API are outdated; strict JSON schema compliance is critical for the slide pipeline.
   - *Decision:* Adopted the unified `google-genai` >= 3.2.0 SDK (`client.interactions.create`) targeting `gemini-3.8-flash` (configurable via `GEMINI_MODEL` with automatic fallback to `gemini-4-hydrogen`) using native `response_format` JSON Schema Structured Outputs, exponential backoff retries, and local dev mock fallback.
@@ -48,7 +48,10 @@ UNSPLASH_ACCESS_KEY=
 PEXELS_API_KEY=
 
 # Redis & Storage
-REDIS_URL=redis://localhost:6379
+REDIS_URL=redis://localhost:6379/0
+QUEUE_MODE=auto # auto | redis | memory
+USE_EXTERNAL_WORKER=false
+MAX_JOB_RETRIES=3
 AWS_S3_BUCKET=
 AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=
@@ -65,4 +68,5 @@ AWS_SECRET_ACCESS_KEY=
 - [x] Connect Edge-TTS & ElevenLabs audio pipeline & Remotion frame sync (M1.3)
 - [x] Implement `services/video-renderer` 5 Remotion slide layouts & dynamic metadata (M1.4)
 - [x] Build Local CLI Pipeline Runner & stateless Remotion MP4 render service (M1.5)
-- [ ] Build `apps/web` prompt & studio interface (Phase 2)
+- [x] Implement Redis Queue Workers (`LLMWorker`, `TTSWorker`, `RenderWorker`), Retry/DLQ & WebSocket streaming (M2.1)
+- [ ] Build `apps/web` prompt & studio interface (M2.2)

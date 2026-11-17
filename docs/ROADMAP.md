@@ -32,9 +32,9 @@ This roadmap breaks down the product development into 4 distinct phases, from an
 *Goal: Provide a user-friendly Web UI and decouple rendering from HTTP request cycles.*
 
 ### Milestones:
-- [ ] **M2.1: Asynchronous Queue Worker**
-  - Redis + BullMQ (or Celery) job orchestration.
-  - Worker processes dedicated to LLM, TTS generation, and Remotion rendering.
+- [x] **M2.1: Asynchronous Queue Worker**
+  - Redis-backed distributed job orchestration (`RedisQueueBackend` with automatic `LocalMemoryQueueBackend` fallback for zero-dependency local dev) and `docker-compose.yml` Redis infrastructure.
+  - Dedicated modular stage workers (`LLMWorker`, `TTSWorker`, `RenderWorker`, and standalone `src.worker` daemon) with 3-attempt automatic retries, Dead-Letter Queue (DLQ), and realtime `/ws/jobs/{job_id}` WebSocket progress streaming.
 - [ ] **M2.2: Next.js Web Studio (apps/web)**
   - Clean UI with prompt box, language selector, template picker, and voice audition preview.
   - Realtime progress tracker via WebSockets (e.g. "Generating script... 20%", "Synthesizing voice... 50%", "Rendering video... 85%").
