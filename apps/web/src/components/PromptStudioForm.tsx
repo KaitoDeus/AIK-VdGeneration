@@ -279,6 +279,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
 
             {auditionAudioUrl && (
               <audio
+                data-testid="voice-audition-player"
                 controls
                 autoPlay
                 src={auditionAudioUrl}

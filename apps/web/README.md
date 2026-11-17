@@ -25,6 +25,12 @@ Web Studio built with **Next.js 15 (App Router)**, **TypeScript (Strict Mode)**,
 npm install
 npm run dev
 
+# Run interactive DOM & component tests (Vitest + jsdom + Testing Library)
+npm test
+
+# Run real Chrome browser E2E & StudioBlank geometry audit (Playwright)
+npm run build && npm run test:e2e
+
 # Or from repository root
 npm run dev:web
 ```

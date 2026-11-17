@@ -168,6 +168,7 @@ export const LiveProgressTracker: React.FC<LiveProgressTrackerProps> = ({
 
           <div className="border border-[#0A0A0A] bg-[#0A0A0A]">
             <video
+              data-testid="rendered-video-player"
               controls
               src={getJobVideoUrl(job.job_id)}
               className="aspect-video w-full"

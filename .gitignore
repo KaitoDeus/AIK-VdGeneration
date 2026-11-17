@@ -86,6 +86,9 @@ build/
 # Testing & Coverage
 coverage/
 .nyc_output/
+playwright-report/
+test-results/
+blob-report/
 
 # ------------------------------------------------------------------------------
 # 4. Python & API Gateway (services/api-gateway)

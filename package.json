@@ -12,6 +12,7 @@
     "test:api": "python -m pytest services/api-gateway/tests/ -v",
     "test:video": "npm --prefix services/video-renderer test",
     "test:web": "npm --prefix apps/web test",
+    "test:web:e2e": "npm --prefix apps/web run test:e2e",
     "typecheck:video": "npm --prefix services/video-renderer run typecheck",
     "typecheck:web": "npm --prefix apps/web run typecheck",
     "test": "npm run test:api && npm run typecheck:video && npm run test:video && npm run typecheck:web && npm run test:web"

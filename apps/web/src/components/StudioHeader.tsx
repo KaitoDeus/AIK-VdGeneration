@@ -28,8 +28,8 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
 
   return (
     <header className="w-full border-b border-[#E5E5E5] bg-[#FAFAFA]">
-      <div className="mx-auto flex h-16 max-w-[1360px] items-center justify-between gap-4 px-6 md:px-12">
-        <div className="flex items-center gap-6 md:gap-8">
+      <div className="mx-auto flex max-w-[1360px] flex-wrap items-center justify-between gap-x-6 gap-y-2 px-6 py-3 md:h-16 md:flex-nowrap md:px-12 md:py-0">
+        <div className="order-1 flex items-center gap-6 md:gap-8">
           <a
             href="#studio"
             onClick={(e) => {
@@ -41,7 +41,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
             {t.brand}
           </a>
 
-          <nav className="flex items-center gap-5 md:gap-6" aria-label="Primary navigation">
+          <nav className="hidden items-center gap-5 md:flex md:gap-6" aria-label="Primary navigation">
             <button
               type="button"
               onClick={() => onNavigate('studio')}
@@ -67,7 +67,7 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
           </nav>
         </div>
 
-        <div className="flex items-center gap-2.5 font-mono text-[12px] md:gap-3">
+        <div className="order-2 flex shrink-0 items-center gap-2.5 font-mono text-[12px] md:gap-3">
           {health && (
             <span className="hidden h-7 items-center border border-[#D4D4D8] px-3 text-[#71717A] lg:inline-flex">
               {health.default_llm_model}
@@ -98,6 +98,35 @@ export const StudioHeader: React.FC<StudioHeaderProps> = ({
           {/* Top-right Bilingual Switcher (VIE / EN with crisp SVG flags) */}
           <LanguageSwitcher locale={locale} onChange={onLocaleChange} />
         </div>
+
+        {/* Clean mobile sub-row navigation (< md) preventing header horizontal overflow */}
+        <nav
+          className="order-3 flex w-full items-center gap-5 border-t border-[#F4F4F5] pt-2 md:hidden"
+          aria-label="Mobile navigation"
+        >
+          <button
+            type="button"
+            onClick={() => onNavigate('studio')}
+            className={`h-7 shrink-0 text-[11px] uppercase tracking-[0.08em] transition-colors duration-150 ${
+              activeSection === 'studio'
+                ? 'border-b-2 border-[#0A0A0A] font-semibold text-[#0A0A0A]'
+                : 'text-[#71717A]'
+            }`}
+          >
+            {t.workspace}
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate('archive')}
+            className={`h-7 shrink-0 text-[11px] uppercase tracking-[0.08em] transition-colors duration-150 ${
+              activeSection === 'archive'
+                ? 'border-b-2 border-[#0A0A0A] font-semibold text-[#0A0A0A]'
+                : 'text-[#71717A]'
+            }`}
+          >
+            {t.archive}
+          </button>
+        </nav>
       </div>
     </header>
   );
