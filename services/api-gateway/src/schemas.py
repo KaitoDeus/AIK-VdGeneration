@@ -196,6 +196,35 @@ class AudioSynthesizeRequest(BaseModel):
     job_id: Optional[str] = Field(default=None)
 
 
+class VoiceOption(BaseModel):
+    """Supported voiceover preset exposed to Web Studio UI."""
+
+    voice_id: str
+    label: str
+    language: SupportedLanguage
+    provider: TTSProviderType
+    gender: Literal["female", "male"]
+    sample_text: str
+
+
+class VoicePreviewRequest(BaseModel):
+    """Request payload for Web Studio voice audition preview."""
+
+    provider: TTSProviderType = Field(default="edge_tts")
+    voice_id: str = Field(default="vi-VN-HoaiMyNeural")
+    language: SupportedLanguage = Field(default="vi")
+    sample_text: Optional[str] = Field(default=None)
+
+
+class ScriptCompileRequest(BaseModel):
+    """Request payload to compile user-edited slides directly through TTS -> Remotion."""
+
+    script: PresentationScript
+    aspect_ratio: Literal["16:9", "9:16"] = Field(default="16:9")
+    voice_settings: VoiceSettings = Field(default_factory=VoiceSettings)
+    render_video: bool = Field(default=True)
+
+
 class VideoGenerateRequest(BaseModel):
     """Request payload for full prompt-to-video generation pipeline."""
 

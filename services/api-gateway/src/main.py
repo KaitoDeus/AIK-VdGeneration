@@ -4,6 +4,7 @@ FastAPI service exposing prompt-to-script, script-to-audio, queued video generat
 queue telemetry, and realtime WebSocket job progress endpoints.
 """
 
+import json
 import logging
 import os
 from pathlib import Path
@@ -20,6 +21,7 @@ from fastapi import (
     WebSocketDisconnect,
 )
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 try:
     from .schemas import (
@@ -29,9 +31,14 @@ try:
         QueueStatsResponse,
         QueueTaskPayload,
         RemotionCompositionProps,
+        ScriptCompileRequest,
         ScriptGenerateRequest,
+        StyleSettings,
         VideoGenerateRequest,
         VideoJobResponse,
+        VoiceOption,
+        VoicePreviewRequest,
+        VoiceSettings,
     )
     from .services.llm_service import LLMScriptGenerator
     from .services.queue_service import (
@@ -50,9 +57,14 @@ except ImportError:
         QueueStatsResponse,
         QueueTaskPayload,
         RemotionCompositionProps,
+        ScriptCompileRequest,
         ScriptGenerateRequest,
+        StyleSettings,
         VideoGenerateRequest,
         VideoJobResponse,
+        VoiceOption,
+        VoicePreviewRequest,
+        VoiceSettings,
     )
     from services.llm_service import LLMScriptGenerator  # type: ignore
     from services.queue_service import (  # type: ignore
@@ -238,6 +250,183 @@ async def generate_video(
         estimated_time_seconds=45,
         websocket_url=websocket_url,
         message="Video generation job accepted and enqueued for processing.",
+    )
+
+
+VOICE_CATALOG: List[VoiceOption] = [
+    VoiceOption(
+        voice_id="vi-VN-HoaiMyNeural",
+        label="Hoài My (Northern Female)",
+        language="vi",
+        provider="edge_tts",
+        gender="female",
+        sample_text="Xin chào, đây là giọng đọc AI tiếng Việt tự nhiên từ AIK Studio.",
+    ),
+    VoiceOption(
+        voice_id="vi-VN-NamMinhNeural",
+        label="Nam Minh (Northern Male)",
+        language="vi",
+        provider="edge_tts",
+        gender="male",
+        sample_text="Chào mừng bạn đến với nền tảng tạo video thuyết trình tự động.",
+    ),
+    VoiceOption(
+        voice_id="en-US-GuyNeural",
+        label="Guy (US Natural Male)",
+        language="en",
+        provider="edge_tts",
+        gender="male",
+        sample_text="Welcome to AIK Studio. Transform any prompt into a synchronized presentation video.",
+    ),
+    VoiceOption(
+        voice_id="en-US-JennyNeural",
+        label="Jenny (US Expressive Female)",
+        language="en",
+        provider="edge_tts",
+        gender="female",
+        sample_text="Audio drives the timeline with precision frame synchronization.",
+    ),
+    VoiceOption(
+        voice_id="21m00Tcm4TlvDq8ikWAM",
+        label="Rachel (ElevenLabs Multilingual)",
+        language="en",
+        provider="elevenlabs",
+        gender="female",
+        sample_text="Studio grade emotional voiceover powered by ElevenLabs Multilingual v2.",
+    ),
+]
+
+
+@app.get("/api/v1/voices", response_model=List[VoiceOption])
+async def list_voices(language: str | None = None):
+    """Returns supported bilingual voiceover presets for Web Studio."""
+    if language in ("vi", "en"):
+        return [v for v in VOICE_CATALOG if v.language == language or v.provider == "elevenlabs"]
+    return VOICE_CATALOG
+
+
+@app.post("/api/v1/voices/preview")
+async def preview_voice(request: VoicePreviewRequest):
+    """Synthesizes or retrieves a cached voice audition MP3 sample for Web Studio playback."""
+    preset = next((v for v in VOICE_CATALOG if v.voice_id == request.voice_id), None)
+    text = (
+        request.sample_text
+        or (preset.sample_text if preset else None)
+        or (
+            "Xin chào, đây là giọng đọc thử nghiệm từ AIK Studio."
+            if request.language == "vi"
+            else "Hello, this is a voice audition preview from AIK Studio."
+        )
+    )
+    try:
+        file_path, _, _, _ = tts_pipeline.synthesize_slide_audio(
+            slide_index=0,
+            text=text,
+            language=request.language,
+            voice_settings=VoiceSettings(provider=request.provider, voice_id=request.voice_id),
+            job_id="voice_previews",
+        )
+        return FileResponse(path=file_path, media_type="audio/mpeg", filename=file_path.name)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/api/v1/jobs/compile", response_model=VideoJobResponse, status_code=202)
+async def compile_edited_script(
+    request: ScriptCompileRequest,
+    background_tasks: BackgroundTasks,
+    http_request: Request,
+):
+    """
+    Compiles user-reviewed/edited slides directly through TTS -> Remotion stages,
+    bypassing LLM generation while streaming progress over WebSockets.
+    """
+    job_id = f"job_{uuid.uuid4().hex[:12]}"
+    max_retries = int(os.getenv("MAX_JOB_RETRIES", "3"))
+
+    job_dir = TEMP_JOBS_DIR / job_id
+    job_dir.mkdir(parents=True, exist_ok=True)
+    script_path = job_dir / "script.json"
+    script_path.write_text(
+        json.dumps(request.script.model_dump(), ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    initial_job = JobStatusResponse(
+        job_id=job_id,
+        status="script_ready",
+        progress_percentage=40,
+        current_stage="tts",
+        render_requested=request.render_video,
+        model_used="studio-editor",
+        script=request.script,
+    )
+    queue_backend.save_job(initial_job)
+    queue_backend.emit_progress(
+        job_id=job_id,
+        step="script_ready",
+        progress_percentage=40,
+        message="Edited slide script accepted for audio & video compilation. (40%)",
+    )
+
+    video_req = VideoGenerateRequest(
+        prompt=request.script.title,
+        language=request.script.language,
+        aspect_ratio=request.aspect_ratio,
+        style=StyleSettings(theme=request.script.theme),
+        voice_settings=request.voice_settings,
+        render_video=request.render_video,
+    )
+    tts_task = QueueTaskPayload(
+        job_id=job_id,
+        stage="tts",
+        request=video_req,
+        attempt=1,
+        max_retries=max_retries,
+        created_at=utc_timestamp(),
+    )
+
+    if _should_dispatch_to_external_worker():
+        queue_backend.enqueue_task(tts_task)
+    else:
+        background_tasks.add_task(worker_coordinator.run_inline_pipeline, tts_task)
+
+    ws_scheme = "wss" if http_request.url.scheme == "https" else "ws"
+    host = http_request.headers.get("host") or f"localhost:{os.getenv('PORT', '8000')}"
+    return VideoJobResponse(
+        job_id=job_id,
+        status="queued",
+        estimated_time_seconds=35,
+        websocket_url=f"{ws_scheme}://{host}/ws/jobs/{job_id}",
+        message="Edited slide deck queued for audio synthesis and rendering.",
+    )
+
+
+@app.get("/api/v1/jobs/{job_id}/audio/{filename}")
+async def download_slide_audio(job_id: str, filename: str):
+    """Serves synthesized slide MP3 files safely for Web Studio slide preview playback."""
+    if Path(filename).name != filename or not filename.endswith(".mp3"):
+        raise HTTPException(status_code=400, detail="Invalid audio filename.")
+    audio_path = (TEMP_JOBS_DIR / job_id / "audio" / filename).resolve()
+    expected_parent = (TEMP_JOBS_DIR / job_id / "audio").resolve()
+    if audio_path.parent != expected_parent or not audio_path.exists():
+        raise HTTPException(status_code=404, detail="Audio asset not found.")
+    return FileResponse(path=audio_path, media_type="audio/mpeg", filename=filename)
+
+
+@app.get("/api/v1/jobs/{job_id}/video")
+async def download_rendered_video(job_id: str):
+    """Serves the rendered 1080p MP4 video for Web Studio playback and download."""
+    job = queue_backend.get_job(job_id)
+    if not job or not job.output_video_path:
+        raise HTTPException(status_code=404, detail="Rendered video not available for this job.")
+    video_path = Path(job.output_video_path).resolve()
+    if not video_path.exists():
+        raise HTTPException(status_code=404, detail="Rendered video file missing on disk.")
+    return FileResponse(
+        path=video_path,
+        media_type="video/mp4",
+        filename=f"{job_id}.mp4",
     )
 
 

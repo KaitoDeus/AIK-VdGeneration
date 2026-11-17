@@ -35,9 +35,9 @@ This roadmap breaks down the product development into 4 distinct phases, from an
 - [x] **M2.1: Asynchronous Queue Worker**
   - Redis-backed distributed job orchestration (`RedisQueueBackend` with automatic `LocalMemoryQueueBackend` fallback for zero-dependency local dev) and `docker-compose.yml` Redis infrastructure.
   - Dedicated modular stage workers (`LLMWorker`, `TTSWorker`, `RenderWorker`, and standalone `src.worker` daemon) with 3-attempt automatic retries, Dead-Letter Queue (DLQ), and realtime `/ws/jobs/{job_id}` WebSocket progress streaming.
-- [ ] **M2.2: Next.js Web Studio (apps/web)**
-  - Clean UI with prompt box, language selector, template picker, and voice audition preview.
-  - Realtime progress tracker via WebSockets (e.g. "Generating script... 20%", "Synthesizing voice... 50%", "Rendering video... 85%").
+- [x] **M2.2: Next.js Web Studio (apps/web)**
+  - Ultra-minimal StudioBlank Design System UI built with Next.js 15 App Router, TypeScript (strict), and Tailwind CSS (`0px` radius, zero shadows, `#FAFAFA`/`#0A0A0A` monochrome hierarchy, `Inter` + `IBM Plex Mono`).
+  - Prompt studio with quick templates, bilingual EN/VI voice audition preview (`POST /api/v1/voices/preview`), interactive slide canvas reviewer & editor (`POST /api/v1/jobs/compile`), realtime WebSocket progress tracker (`/ws/jobs/{job_id}`), and built-in 1080p MP4 playback & download.
 - [ ] **M2.3: Asset Integration & Background Visuals**
   - Integration with Unsplash / Pexels API for automated background imagery based on slide keywords.
   - Subtle Ken Burns effect (slow pan & zoom) on background images.

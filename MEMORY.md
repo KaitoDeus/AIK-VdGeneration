@@ -2,8 +2,8 @@
 
 ## 1. Project Identity & Status
 - **Project Name:** AIK-VdGeneration (AI-driven Prompt to Slide-Video Generator)
-- **Status:** Phase 2 In Progress (1/4 Milestones) — M2.1 Async Queue Worker & WebSockets Completed.
-- **Current Milestone:** M2.1 - Redis Asynchronous Queue Worker, Retry/DLQ & WebSocket Streaming Completed.
+- **Status:** Phase 2 In Progress (2/4 Milestones) — M2.2 Next.js Web Studio (StudioBlank Design System) Completed.
+- **Current Milestone:** M2.2 - Next.js Web Studio, Interactive Slide Reviewer & Live WebSocket UI Completed.
 - **Created Date:** 2026-11-14
 - **Working Root:** `D:\AIK-VdGeneration`
 
@@ -27,6 +27,9 @@
 - **ADR-005: LLM Engine Upgrade to Gemini 3.8 Flash (`google-genai` >= 3.2.0 Interactions API)**
   - *Context:* Legacy Gemini 1.5/2.5 Flash and `generateContent` API are outdated; strict JSON schema compliance is critical for the slide pipeline.
   - *Decision:* Adopted the unified `google-genai` >= 3.2.0 SDK (`client.interactions.create`) targeting `gemini-3.8-flash` (configurable via `GEMINI_MODEL` with automatic fallback to `gemini-4-hydrogen`) using native `response_format` JSON Schema Structured Outputs, exponential backoff retries, and local dev mock fallback.
+- **ADR-006: StudioBlank Monochrome Design System (`apps/web`)**
+  - *Context:* Phase 2 Web Studio requires a focused, distraction-free interface so generated slide visuals and video output command attention.
+  - *Decision:* Built `apps/web` with Next.js 15 App Router + Tailwind CSS adhering strictly to `StudioBlank` (`#FAFAFA`/`#0A0A0A` monochrome palette, `0px` border-radius, zero shadows, `<= 200ms` transitions, `Inter` + `IBM Plex Mono`) paired with FastAPI voice audition, edited-deck compilation, and media streaming endpoints.
 
 ---
 
@@ -69,4 +72,5 @@ AWS_SECRET_ACCESS_KEY=
 - [x] Implement `services/video-renderer` 5 Remotion slide layouts & dynamic metadata (M1.4)
 - [x] Build Local CLI Pipeline Runner & stateless Remotion MP4 render service (M1.5)
 - [x] Implement Redis Queue Workers (`LLMWorker`, `TTSWorker`, `RenderWorker`), Retry/DLQ & WebSocket streaming (M2.1)
-- [ ] Build `apps/web` prompt & studio interface (M2.2)
+- [x] Build `apps/web` Next.js Web Studio with StudioBlank UI & backend studio endpoints (M2.2)
+- [ ] Integrate Unsplash / Pexels stock background imagery & Ken Burns pipeline (M2.3)

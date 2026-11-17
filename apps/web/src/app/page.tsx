@@ -1,0 +1,413 @@
+'use client';
+
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { JobsArchiveFooter } from '@/components/JobsArchiveFooter';
+import { LiveProgressTracker } from '@/components/LiveProgressTracker';
+import { PromptStudioForm, StudioFormState } from '@/components/PromptStudioForm';
+import { SlideReviewer } from '@/components/SlideReviewer';
+import { StudioHeader } from '@/components/StudioHeader';
+import {
+  buildWebSocketUrl,
+  compileEditedScript,
+  fetchHealth,
+  fetchJobs,
+  fetchJobStatus,
+  fetchQueueStats,
+  fetchVoices,
+  generateScript,
+  generateVideoJob,
+  previewVoiceAudio,
+} from '@/lib/api';
+import { DEFAULT_VOICES } from '@/lib/templates';
+import {
+  HealthResponse,
+  JobStatusResponse,
+  PresentationScript,
+  PromptTemplate,
+  QueueStatsResponse,
+  VoiceOption,
+  WebSocketProgressEvent,
+} from '@/types/studio';
+
+export default function StudioWorkspacePage() {
+  const [formState, setFormState] = useState<StudioFormState>({
+    prompt: '',
+    language: 'vi',
+    aspectRatio: '16:9',
+    targetDuration: 45,
+    theme: 'modern_tech',
+    voiceProvider: 'edge_tts',
+    voiceId: 'vi-VN-HoaiMyNeural',
+    renderVideo: false,
+  });
+
+  const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [queueStats, setQueueStats] = useState<QueueStatsResponse | null>(null);
+  const [apiOnline, setApiOnline] = useState<boolean>(false);
+  const [voices, setVoices] = useState<VoiceOption[]>(DEFAULT_VOICES);
+
+  const [activeSection, setActiveSection] = useState<'studio' | 'archive'>('studio');
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isAuditioning, setIsAuditioning] = useState<boolean>(false);
+  const [auditionAudioUrl, setAuditionAudioUrl] = useState<string | null>(null);
+
+  const [activeJob, setActiveJob] = useState<JobStatusResponse | null>(null);
+  const [liveEvents, setLiveEvents] = useState<WebSocketProgressEvent[]>([]);
+  const [wsConnected, setWsConnected] = useState<boolean>(false);
+  const [draftScript, setDraftScript] = useState<PresentationScript | null>(null);
+  const [jobsArchive, setJobsArchive] = useState<JobStatusResponse[]>([]);
+
+  const wsRef = useRef<WebSocket | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const loadTelemetry = useCallback(async () => {
+    try {
+      const [h, stats, voiceCatalog, recentJobs] = await Promise.all([
+        fetchHealth(),
+        fetchQueueStats(),
+        fetchVoices(),
+        fetchJobs(20),
+      ]);
+      setHealth(h);
+      setQueueStats(stats);
+      if (voiceCatalog.length > 0) setVoices(voiceCatalog);
+      setJobsArchive(recentJobs);
+      setApiOnline(true);
+    } catch {
+      setApiOnline(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTelemetry();
+  }, [loadTelemetry]);
+
+  const teardownStream = useCallback(() => {
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    setWsConnected(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      teardownStream();
+      if (auditionAudioUrl) URL.revokeObjectURL(auditionAudioUrl);
+    };
+  }, [teardownStream, auditionAudioUrl]);
+
+  const attachJobTelemetry = useCallback(
+    (jobId: string, providedWsUrl?: string) => {
+      teardownStream();
+
+      const refreshJobRecord = async () => {
+        try {
+          const latest = await fetchJobStatus(jobId);
+          setActiveJob(latest);
+          if (latest.script) setDraftScript(latest.script);
+          if (
+            latest.status === 'completed' ||
+            latest.status === 'failed' ||
+            (latest.status === 'audio_ready' && !latest.render_requested)
+          ) {
+            teardownStream();
+            loadTelemetry();
+          }
+        } catch {
+          // ignore transient poll failures
+        }
+      };
+
+      try {
+        const wsUrl = buildWebSocketUrl(jobId, providedWsUrl);
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
+
+        ws.onopen = () => setWsConnected(true);
+        ws.onmessage = (msg) => {
+          try {
+            const evt = JSON.parse(msg.data) as WebSocketProgressEvent;
+            setLiveEvents((prev) => {
+              const dup = prev.some(
+                (p) =>
+                  p.step === evt.step &&
+                  p.progress_percentage === evt.progress_percentage &&
+                  p.message === evt.message
+              );
+              return dup ? prev : [...prev, evt];
+            });
+            setActiveJob((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    progress_percentage: evt.progress_percentage,
+                  }
+                : prev
+            );
+            if (
+              evt.step === 'script_ready' ||
+              evt.step === 'audio_ready' ||
+              evt.step === 'completed' ||
+              evt.step === 'failed'
+            ) {
+              refreshJobRecord();
+            }
+          } catch {
+            // ignore malformed websocket payload
+          }
+        };
+        ws.onclose = () => {
+          setWsConnected(false);
+          refreshJobRecord();
+        };
+      } catch {
+        // Fallback to polling if WebSocket constructor unavailable
+      }
+
+      pollIntervalRef.current = setInterval(refreshJobRecord, 1500);
+      refreshJobRecord();
+    },
+    [loadTelemetry, teardownStream]
+  );
+
+  const handleNavigate = (section: 'studio' | 'archive') => {
+    setActiveSection(section);
+    const target = document.getElementById(section);
+    if (target) target.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleApplyTemplate = (template: PromptTemplate) => {
+    setValidationError(null);
+    setFormState((prev) => ({
+      ...prev,
+      prompt: template.prompt,
+      language: template.language,
+      theme: template.theme,
+      targetDuration: template.duration,
+      voiceProvider: 'edge_tts',
+      voiceId: template.language === 'vi' ? 'vi-VN-HoaiMyNeural' : 'en-US-GuyNeural',
+    }));
+  };
+
+  const handleAuditionVoice = async () => {
+    setIsAuditioning(true);
+    setStatusMessage(null);
+    try {
+      const blob = await previewVoiceAudio({
+        provider: formState.voiceProvider,
+        voice_id: formState.voiceId,
+        language: formState.language,
+      });
+      if (auditionAudioUrl) URL.revokeObjectURL(auditionAudioUrl);
+      const url = URL.createObjectURL(blob);
+      setAuditionAudioUrl(url);
+    } catch (err) {
+      setStatusMessage(
+        err instanceof Error ? err.message : 'Unable to preview voice audio.'
+      );
+    } finally {
+      setIsAuditioning(false);
+    }
+  };
+
+  const validatePrompt = (): boolean => {
+    if (formState.prompt.trim().length < 3) {
+      setValidationError('Prompt must contain at least 3 characters.');
+      return false;
+    }
+    setValidationError(null);
+    return true;
+  };
+
+  const handleDraftScript = async () => {
+    if (!validatePrompt()) return;
+    setIsSubmitting(true);
+    setStatusMessage(null);
+    try {
+      const script = await generateScript({
+        prompt: formState.prompt.trim(),
+        language: formState.language,
+        target_duration_seconds: formState.targetDuration,
+        theme: formState.theme,
+      });
+      setDraftScript(script);
+      setActiveJob(null);
+      setLiveEvents([]);
+    } catch (err) {
+      setValidationError(err instanceof Error ? err.message : 'Script generation failed.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleGeneratePipeline = async () => {
+    if (!validatePrompt()) return;
+    setIsSubmitting(true);
+    setStatusMessage(null);
+    setLiveEvents([]);
+    try {
+      const resp = await generateVideoJob({
+        prompt: formState.prompt.trim(),
+        language: formState.language,
+        aspect_ratio: formState.aspectRatio,
+        target_duration_seconds: formState.targetDuration,
+        style: {
+          theme: formState.theme,
+          color_palette: 'indigo_slate',
+          font_pair: 'Inter_Roboto',
+        },
+        voice_settings: {
+          provider: formState.voiceProvider,
+          voice_id: formState.voiceId,
+          speed: 1.0,
+        },
+        render_video: formState.renderVideo,
+      });
+
+      setActiveJob({
+        job_id: resp.job_id,
+        status: 'queued',
+        progress_percentage: 0,
+        render_requested: formState.renderVideo,
+        retry_count: 0,
+        progress_events: [],
+      });
+      attachJobTelemetry(resp.job_id, resp.websocket_url);
+    } catch (err) {
+      setValidationError(err instanceof Error ? err.message : 'Failed to enqueue job.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCompileEditedSlides = async (renderVideo: boolean) => {
+    if (!draftScript) return;
+    setIsSubmitting(true);
+    setStatusMessage(null);
+    setLiveEvents([]);
+    try {
+      const resp = await compileEditedScript({
+        script: draftScript,
+        aspect_ratio: formState.aspectRatio,
+        voice_settings: {
+          provider: formState.voiceProvider,
+          voice_id: formState.voiceId,
+          speed: 1.0,
+        },
+        render_video: renderVideo,
+      });
+      setActiveJob({
+        job_id: resp.job_id,
+        status: 'queued',
+        progress_percentage: 40,
+        render_requested: renderVideo,
+        retry_count: 0,
+        script: draftScript,
+        progress_events: [],
+      });
+      attachJobTelemetry(resp.job_id, resp.websocket_url);
+    } catch (err) {
+      setStatusMessage(err instanceof Error ? err.message : 'Compilation failed.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSelectArchivedJob = (job: JobStatusResponse) => {
+    teardownStream();
+    setActiveJob(job);
+    setLiveEvents(job.progress_events || []);
+    if (job.script) setDraftScript(job.script);
+    setActiveSection('studio');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  return (
+    <div className="flex min-h-screen flex-col bg-[#FAFAFA] text-[#0A0A0A]">
+      <StudioHeader
+        health={health}
+        queueStats={queueStats}
+        apiOnline={apiOnline}
+        activeSection={activeSection}
+        onNavigate={handleNavigate}
+      />
+
+      <main className="mx-auto w-full max-w-[1360px] flex-1 px-6 md:px-12">
+        {/* Generous Hero Section (StudioBlank spacing: space-8 / 96px top, space-6 / 64px bottom) */}
+        <section className="py-16 md:py-24">
+          <p className="mb-4 font-mono text-[12px] uppercase tracking-[0.12em] text-[#71717A]">
+            PHASE 02 · WEB STUDIO WORKSPACE
+          </p>
+          <h1 className="max-w-4xl text-[40px] font-bold leading-[1.05] tracking-[-0.02em] text-[#0A0A0A] md:text-[64px]">
+            Prompt to Synchronized Slide Video.
+          </h1>
+          <p className="mt-6 max-w-2xl text-[16px] font-light leading-[1.65] text-[#71717A]">
+            Structured bilingual script synthesis with Gemini 3.8 Flash, precision audio-driven
+            timelines in English and Vietnamese, and automated 1080p Remotion rendering.
+          </p>
+        </section>
+
+        {statusMessage && (
+          <div
+            role="status"
+            className="mb-8 border border-[#CA8A04] bg-[#FFFFFF] px-6 py-4 font-mono text-[13px] text-[#0A0A0A]"
+          >
+            NOTE: {statusMessage}
+          </div>
+        )}
+
+        {/* Generous Section Stack (gap-16 = 64px minimum between major sections) */}
+        <div className="flex flex-col gap-16">
+          <PromptStudioForm
+            formState={formState}
+            voices={voices}
+            isSubmitting={isSubmitting}
+            isAuditioning={isAuditioning}
+            auditionAudioUrl={auditionAudioUrl}
+            validationError={validationError}
+            onChange={(patch) => setFormState((prev) => ({ ...prev, ...patch }))}
+            onApplyTemplate={handleApplyTemplate}
+            onAuditionVoice={handleAuditionVoice}
+            onDraftScript={handleDraftScript}
+            onGeneratePipeline={handleGeneratePipeline}
+          />
+
+          {activeJob && (
+            <LiveProgressTracker
+              job={activeJob}
+              events={liveEvents}
+              wsConnected={wsConnected}
+            />
+          )}
+
+          {draftScript && (
+            <SlideReviewer
+              jobId={activeJob?.job_id ?? null}
+              script={draftScript}
+              remotionProps={activeJob?.remotion_props ?? null}
+              aspectRatio={formState.aspectRatio}
+              isCompiling={isSubmitting}
+              onUpdateScript={setDraftScript}
+              onCompileSlides={handleCompileEditedSlides}
+            />
+          )}
+        </div>
+      </main>
+
+      <JobsArchiveFooter
+        jobs={jobsArchive}
+        activeJobId={activeJob?.job_id ?? null}
+        onSelectJob={handleSelectArchivedJob}
+        onRefresh={loadTelemetry}
+      />
+    </div>
+  );
+}
