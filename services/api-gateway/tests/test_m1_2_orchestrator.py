@@ -209,6 +209,29 @@ class TestLLMScriptGenerator:
         assert len(script.slides) == 3
         assert script.slides[0].layout == "title_intro"
 
+    def test_local_mock_fallback_vietnamese_uses_pure_vietnamese_and_clean_trim(self):
+        generator = LLMScriptGenerator(api_key="", default_model="gemini-3.8-flash")
+        long_prompt = (
+            "Giải thích nguyên lý hoạt động của Điện toán Đám mây (Cloud Computing) "
+            "và ba mô hình IaaS, PaaS, SaaS cho người mới bắt đầu."
+        )
+        script, model_used = generator.generate_script(
+            prompt=long_prompt,
+            language="vi",
+        )
+        assert "mock-fallback" in model_used
+        assert script.language == "vi"
+        assert script.title.startswith("Chuyên đề:")
+        # Ensures word-boundary truncation leaves no dangling open parenthesis like "(Cloud"
+        assert "(Cloud" not in script.title
+        joined_voiceovers = " ".join(s.voiceover_script for s in script.slides)
+        assert "Chào mừng bạn" in joined_voiceovers
+        assert "Welcome to this presentation" not in joined_voiceovers
+        assert "primary pillars" not in joined_voiceovers
+        for slide in script.slides:
+            assert "Welcome" not in slide.heading
+            assert "Overview" not in slide.heading
+
 
 class TestAPIGatewayEndpoints:
     """Verifies FastAPI Orchestrator HTTP endpoints and background job persistence."""

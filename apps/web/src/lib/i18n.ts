@@ -30,6 +30,8 @@ export interface StudioDictionary {
     languageLabel: string;
     languageVi: string;
     languageEn: string;
+    languageMismatchNotice: string;
+    languageMismatchSwitchBtn: string;
     aspectRatioLabel: string;
     aspect169: string;
     aspect916: string;
@@ -162,6 +164,9 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       languageLabel: 'Language',
       languageVi: 'VIETNAMESE',
       languageEn: 'ENGLISH',
+      languageMismatchNotice:
+        'Vietnamese characters detected in prompt while Video Language is set to English.',
+      languageMismatchSwitchBtn: 'Switch to Vietnamese',
       aspectRatioLabel: 'Aspect Ratio',
       aspect169: '16:9 WIDESCREEN (1920×1080)',
       aspect916: '9:16 VERTICAL (1080×1920)',
@@ -302,6 +307,9 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       languageLabel: 'Ngôn Ngữ Video',
       languageVi: 'TIẾNG VIỆT',
       languageEn: 'TIẾNG ANH',
+      languageMismatchNotice:
+        'Phát hiện nội dung Tiếng Việt trong khi Ngôn Ngữ Video đang chọn Tiếng Anh (giọng đọc sẽ bị ngọng).',
+      languageMismatchSwitchBtn: 'Chuyển sang Tiếng Việt',
       aspectRatioLabel: 'Tỷ Lệ Khung Hình',
       aspect169: '16:9 MÀN HÌNH NGANG (1920×1080)',
       aspect916: '9:16 DỌC DI ĐỘNG (1080×1920)',

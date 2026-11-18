@@ -77,6 +77,22 @@ export const DEFAULT_VOICES: VoiceOption[] = [
     sample_text: 'Audio drives the timeline with precision frame synchronization.',
   },
   {
+    voice_id: 'en-US-AndrewMultilingualNeural',
+    label: 'Andrew HD (US Warm Multilingual Male)',
+    language: 'en',
+    provider: 'edge_tts',
+    gender: 'male',
+    sample_text: 'Welcome to AIK Studio. Every slide stays synchronized with crystal-clear narration.',
+  },
+  {
+    voice_id: 'en-US-AvaMultilingualNeural',
+    label: 'Ava HD (US Expressive Multilingual Female)',
+    language: 'en',
+    provider: 'edge_tts',
+    gender: 'female',
+    sample_text: 'Discover smooth storytelling powered by studio-grade neural narration.',
+  },
+  {
     voice_id: '21m00Tcm4TlvDq8ikWAM',
     label: 'Rachel (ElevenLabs Multilingual)',
     language: 'en',

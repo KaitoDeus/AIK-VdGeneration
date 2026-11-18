@@ -336,6 +336,22 @@ VOICE_CATALOG: List[VoiceOption] = [
         sample_text="Audio drives the timeline with precision frame synchronization.",
     ),
     VoiceOption(
+        voice_id="en-US-AndrewMultilingualNeural",
+        label="Andrew HD (US Warm Multilingual Male)",
+        language="en",
+        provider="edge_tts",
+        gender="male",
+        sample_text="Welcome to AIK Studio. Every slide stays synchronized with crystal-clear narration.",
+    ),
+    VoiceOption(
+        voice_id="en-US-AvaMultilingualNeural",
+        label="Ava HD (US Expressive Multilingual Female)",
+        language="en",
+        provider="edge_tts",
+        gender="female",
+        sample_text="Discover smooth storytelling powered by studio-grade neural narration.",
+    ),
+    VoiceOption(
         voice_id="21m00Tcm4TlvDq8ikWAM",
         label="Rachel (ElevenLabs Multilingual)",
         language="en",
@@ -358,9 +374,12 @@ async def list_voices(language: str | None = None):
 async def preview_voice(request: VoicePreviewRequest):
     """Synthesizes or retrieves a cached voice audition MP3 sample for Web Studio playback."""
     preset = next((v for v in VOICE_CATALOG if v.voice_id == request.voice_id), None)
+    matching_preset_text = (
+        preset.sample_text if preset and preset.language == request.language else None
+    )
     text = (
         request.sample_text
-        or (preset.sample_text if preset else None)
+        or matching_preset_text
         or (
             "Xin chào, đây là giọng đọc thử nghiệm từ AIK Studio."
             if request.language == "vi"

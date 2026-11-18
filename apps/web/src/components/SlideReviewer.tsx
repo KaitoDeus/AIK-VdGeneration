@@ -126,9 +126,14 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
       {/* Reviewer Header */}
       <div className="flex flex-col justify-between gap-4 border-b border-[#E5E5E5] px-8 py-6 md:flex-row md:items-center">
         <div>
-          <span className="font-mono text-[12px] uppercase tracking-[0.08em] text-[#71717A]">
-            {t.sectionEyebrow}
-          </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="font-mono text-[12px] uppercase tracking-[0.08em] text-[#71717A]">
+              {t.sectionEyebrow}
+            </span>
+            <span className="border border-[#D4D4D8] px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[#0A0A0A]">
+              LANG: {script.language.toUpperCase()}
+            </span>
+          </div>
           <h2 id="reviewer-heading" className="mt-1 text-[20px] font-semibold text-[#0A0A0A]">
             {script.title}
           </h2>

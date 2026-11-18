@@ -31,10 +31,10 @@ Rules:
    - "slide_index": 1-based sequential integer (1, 2, 3...).
    - "heading": Catchy, concise title (under 8 words).
    - "bullet_points": 2 to 4 concise bullet points (each under 12 words, never more than 5).
-   - "voiceover_script": Natural, spoken narrative text (2 to 4 sentences). Use conversational, engaging language with clear punctuation (commas, periods) so TTS pauses naturally.
+   - "voiceover_script": Natural, spoken narrative text (2 to 4 sentences). Use conversational, engaging language with clear punctuation (commas, periods) so TTS pauses naturally. Do NOT include markdown syntax (`**`, `` ` ``, `#`) in spoken text.
    - "visual_keywords": 3 to 5 English keywords to search for relevant background photos or illustrations.
    - "layout": One of ["title_intro", "bullet_list", "split_card", "quote_highlight", "conclusion_cta"].
-3. Language: Match the requested language code ("vi" for Vietnamese, "en" for English) for title, heading, bullet_points, and voiceover_script. Keep "visual_keywords" in English.
+3. Strict Language Consistency: Write "title", "heading", "bullet_points", and "voiceover_script" 100% in the requested language ("vi" -> pure natural Vietnamese; "en" -> natural English). Never mix English sentences into Vietnamese scripts. Keep only "visual_keywords" in English.
 4. Output: Strict JSON matching the provided schema. No markdown formatting outside the JSON object.
 """
 
@@ -201,13 +201,79 @@ class LLMScriptGenerator:
         )
 
     @staticmethod
+    def _clean_topic_title(prompt: str, max_chars: int = 58) -> str:
+        """Normalizes whitespace and trims at word boundaries without dangling punctuation."""
+        normalized = " ".join(prompt.split())
+        if len(normalized) <= max_chars:
+            return normalized.rstrip("([:,;- ")
+
+        clipped = normalized[:max_chars]
+        if " " in clipped:
+            clipped = clipped.rsplit(" ", 1)[0]
+        return clipped.rstrip("([:,;- ") or normalized[:max_chars].strip()
+
+    @staticmethod
     def _generate_fallback_mock_script(
         prompt: str,
         language: SupportedLanguage,
         theme: str,
     ) -> PresentationScript:
-        """Deterministic dev fallback when GEMINI_API_KEY is not set in local environment."""
-        clean_topic = prompt.strip()[:60]
+        """Deterministic language-accurate dev fallback when GEMINI_API_KEY is not set."""
+        clean_topic = LLMScriptGenerator._clean_topic_title(prompt, max_chars=58)
+
+        if language == "vi":
+            slides = [
+                SlideScriptItem(
+                    slide_index=1,
+                    layout="title_intro",
+                    heading=f"Tổng Quan: {clean_topic}",
+                    bullet_points=[
+                        "Khái niệm cốt lõi và nguyên lý hoạt động",
+                        "Giá trị ứng dụng trong quy trình thực tế",
+                    ],
+                    voiceover_script=(
+                        f"Chào mừng bạn đến với bài thuyết trình về chủ đề {clean_topic}. "
+                        "Trong ít phút tới, chúng ta sẽ cùng khám phá những nguyên lý nền tảng và các điểm ứng dụng quan trọng nhất."
+                    ),
+                    visual_keywords="technology abstract digital network",
+                ),
+                SlideScriptItem(
+                    slide_index=2,
+                    layout="bullet_list",
+                    heading="Ba Trụ Cột & Lợi Ích Cốt Lõi",
+                    bullet_points=[
+                        "Tự động hóa quy trình, tiết kiệm thời gian",
+                        "Mở rộng linh hoạt theo nhu cầu thực tế",
+                        "Vận hành ổn định và dễ dàng tích hợp",
+                    ],
+                    voiceover_script=(
+                        "Cách tiếp cận này mang lại hiệu quả nhờ ba trụ cột chính. "
+                        "Hệ thống giúp tối ưu hóa năng suất xử lý, đồng thời đảm bảo sự ổn định khi triển khai ở quy mô lớn."
+                    ),
+                    visual_keywords="workflow analytics cloud servers",
+                ),
+                SlideScriptItem(
+                    slide_index=3,
+                    layout="conclusion_cta",
+                    heading="Tổng Kết & Hướng Ứng Dụng",
+                    bullet_points=[
+                        "Áp dụng từng bước vào công việc hằng ngày",
+                        "Theo dõi hiệu quả và cải tiến liên tục",
+                    ],
+                    voiceover_script=(
+                        "Đó là toàn bộ nội dung trọng tâm của chuyên đề hôm nay. "
+                        "Hãy áp dụng ngay những kiến thức này vào dự án tiếp theo của bạn, và hẹn gặp lại trong các video kế tiếp."
+                    ),
+                    visual_keywords="future horizon innovation team",
+                ),
+            ]
+            return PresentationScript(
+                title=f"Chuyên đề: {clean_topic}",
+                language="vi",
+                theme=theme,
+                slides=slides,
+            )
+
         slides = [
             SlideScriptItem(
                 slide_index=1,

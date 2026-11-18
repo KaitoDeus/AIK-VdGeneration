@@ -67,6 +67,12 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
 }) => {
   const t = STUDIO_DICTIONARY[locale].form;
   const [previewTrackId, setPreviewTrackId] = useState<string | null>(null);
+  const hasVietnameseDiacritics =
+    /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(
+      formState.prompt
+    );
+  const showLanguageMismatchBanner =
+    formState.language === 'en' && hasVietnameseDiacritics;
   const filteredVoices = voices.filter(
     (v) => v.language === formState.language || v.provider === 'elevenlabs'
   );
@@ -145,6 +151,30 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
           <p role="alert" className="mt-2 font-mono text-[12px] text-[#DC2626]">
             {validationError}
           </p>
+        )}
+        {showLanguageMismatchBanner && (
+          <div
+            data-testid="language-mismatch-warning"
+            className="mt-3 flex flex-col justify-between gap-3 border border-[#CA8A04] bg-[#FAFAFA] px-4 py-3 sm:flex-row sm:items-center"
+          >
+            <span className="font-mono text-[12px] text-[#0A0A0A]">
+              {t.languageMismatchNotice}
+            </span>
+            <button
+              type="button"
+              data-testid="switch-to-vi-btn"
+              onClick={() =>
+                onChange({
+                  language: 'vi',
+                  voiceProvider: 'edge_tts',
+                  voiceId: 'vi-VN-HoaiMyNeural',
+                })
+              }
+              className="h-7 shrink-0 border border-[#0A0A0A] bg-[#0A0A0A] px-3 font-mono text-[11px] uppercase tracking-[0.05em] text-[#FAFAFA] transition-colors duration-150 hover:bg-[#FFFFFF] hover:text-[#0A0A0A]"
+            >
+              {t.languageMismatchSwitchBtn}
+            </button>
+          </div>
         )}
       </div>
 

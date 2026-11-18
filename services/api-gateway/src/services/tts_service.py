@@ -11,8 +11,12 @@ import logging
 import math
 import os
 from pathlib import Path
+import re
+import shutil
+import subprocess
 import time
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
+import unicodedata
 
 from dotenv import load_dotenv
 import edge_tts
@@ -42,6 +46,16 @@ MIN_AUDIO_FILE_BYTES: int = 10 * 1024  # 10 KB minimum per audio-sync-rules.md
 DEFAULT_EDGE_VOICES: Dict[SupportedLanguage, str] = {
     "vi": "vi-VN-HoaiMyNeural",
     "en": "en-US-GuyNeural",
+}
+
+EDGE_PEER_FALLBACK_VOICES: Dict[SupportedLanguage, List[str]] = {
+    "vi": ["vi-VN-HoaiMyNeural", "vi-VN-NamMinhNeural", "en-US-AvaMultilingualNeural"],
+    "en": [
+        "en-US-AndrewMultilingualNeural",
+        "en-US-GuyNeural",
+        "en-US-JennyNeural",
+        "en-US-AvaMultilingualNeural",
+    ],
 }
 
 DEFAULT_ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # Rachel (Multilingual v2)
@@ -119,18 +133,131 @@ def verify_and_extract_duration(
     return round(float(audio.info.length), 3)
 
 
+def clean_tts_text(text: str) -> str:
+    """Normalizes Unicode (NFC) and removes markdown syntax before neural speech synthesis."""
+    normalized = unicodedata.normalize("NFC", text or "")
+    # Strip markdown emphasis/code wrappers so TTS never speaks formatting tokens
+    cleaned = re.sub(r"[`*_~]+", "", normalized)
+    cleaned = re.sub(r"(?m)^\s*#{1,6}\s+", "", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned or text.strip()
+
+
+def _normalize_mp3_audio_stream(file_path: Path, min_size_bytes: int = MIN_AUDIO_FILE_BYTES) -> None:
+    """
+    Transcodes synthesized speech to uniform 44.1kHz stereo 128kbps MP3 via ffmpeg
+    so Edge-TTS 24kHz mono streams mix cleanly with Remotion 48kHz audio pipelines
+    and never concatenate mismatched MPEG frame headers when short clips are padded.
+    """
+    ffmpeg_bin = shutil.which("ffmpeg")
+    if not ffmpeg_bin or not file_path.exists():
+        if file_path.exists() and file_path.stat().st_size < min_size_bytes:
+            existing_bytes = file_path.read_bytes()
+            silence_frame = b"\xff\xfb\x90\x00" + (b"\x00" * 413)
+            missing_bytes = min_size_bytes - len(existing_bytes) + 417
+            extra_frames = math.ceil(missing_bytes / 417)
+            file_path.write_bytes(existing_bytes + (silence_frame * extra_frames))
+        return
+
+    tmp_path = file_path.with_suffix(".norm.mp3")
+    try:
+        subprocess.run(
+            [
+                ffmpeg_bin,
+                "-y",
+                "-v",
+                "error",
+                "-i",
+                str(file_path),
+                "-ar",
+                "44100",
+                "-ac",
+                "2",
+                "-c:a",
+                "libmp3lame",
+                "-b:a",
+                "128k",
+                str(tmp_path),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        if tmp_path.exists() and tmp_path.stat().st_size < min_size_bytes:
+            padded_path = file_path.with_suffix(".pad.mp3")
+            subprocess.run(
+                [
+                    ffmpeg_bin,
+                    "-y",
+                    "-v",
+                    "error",
+                    "-i",
+                    str(tmp_path),
+                    "-af",
+                    "apad=pad_dur=0.8",
+                    "-ar",
+                    "44100",
+                    "-ac",
+                    "2",
+                    "-c:a",
+                    "libmp3lame",
+                    "-b:a",
+                    "128k",
+                    str(padded_path),
+                ],
+                check=True,
+                capture_output=True,
+            )
+            if padded_path.exists():
+                padded_path.replace(tmp_path)
+        if tmp_path.exists() and tmp_path.stat().st_size >= min_size_bytes:
+            tmp_path.replace(file_path)
+    except Exception as exc:
+        logger.debug("FFmpeg MP3 normalization skipped for '%s': %s", file_path.name, exc)
+    finally:
+        if tmp_path.exists():
+            tmp_path.unlink(missing_ok=True)
+
+
 def write_synthetic_mp3_fallback(file_path: Path, target_duration_seconds: float = 3.5) -> None:
     """
-    Writes a standards-compliant MPEG-1 Layer III (128kbps, 44.1kHz stereo) silent MP3 stream
-    when offline/air-gapped so mutagen header validation and duration math remain 100% accurate.
-    Each frame is 417 bytes and ~0.026122 seconds (1152 samples / 44100 Hz).
+    Writes a standards-compliant silent MP3 stream when completely offline/air-gapped
+    so mutagen header validation and duration math remain accurate without decoder buzz.
+    Uses ffmpeg libmp3lame anullsrc when available, falling back to valid MPEG frames.
     """
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    ffmpeg_bin = shutil.which("ffmpeg")
+    if ffmpeg_bin:
+        try:
+            subprocess.run(
+                [
+                    ffmpeg_bin,
+                    "-y",
+                    "-v",
+                    "error",
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    "anullsrc=r=44100:cl=stereo",
+                    "-t",
+                    f"{max(1.2, float(target_duration_seconds)):.2f}",
+                    "-c:a",
+                    "libmp3lame",
+                    "-b:a",
+                    "128k",
+                    str(file_path),
+                ],
+                check=True,
+                capture_output=True,
+            )
+            if file_path.exists() and file_path.stat().st_size >= MIN_AUDIO_FILE_BYTES:
+                return
+        except Exception as exc:
+            logger.debug("FFmpeg silent MP3 generation fallback triggered: %s", exc)
+
     frame_duration = 1152.0 / 44100.0
     num_frames = max(30, math.ceil(target_duration_seconds / frame_duration))
-    # Ensure > 10 KB (at least 26 frames = 10,842 bytes)
     num_frames = max(num_frames, 30)
     mpeg_frame = b"\xff\xfb\x90\x00" + (b"\x00" * 413)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
     file_path.write_bytes(mpeg_frame * num_frames)
 
 
@@ -142,7 +269,7 @@ class TTSAudioPipeline:
         output_base_dir: Optional[Path] = None,
         elevenlabs_api_key: Optional[str] = None,
         timeout_seconds: int = 25,
-        max_retries: int = 2,
+        max_retries: int = 4,
         allow_offline_fallback: bool = True,
     ) -> None:
         default_dir = Path(__file__).resolve().parent.parent.parent / ".temp" / "jobs"
@@ -195,14 +322,31 @@ class TTSAudioPipeline:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         communicate = edge_tts.Communicate(text=text, voice=voice_id, rate=rate_str)
         await asyncio.wait_for(communicate.save(str(output_path)), timeout=self.timeout_seconds)
+        _normalize_mp3_audio_stream(output_path, min_size_bytes=MIN_AUDIO_FILE_BYTES)
 
-        # Pad short clips if needed so file size always exceeds the 10KB verification gate
-        if output_path.exists() and output_path.stat().st_size < MIN_AUDIO_FILE_BYTES:
-            existing_bytes = output_path.read_bytes()
-            silence_frame = b"\xff\xfb\x90\x00" + (b"\x00" * 413)
-            missing_bytes = MIN_AUDIO_FILE_BYTES - len(existing_bytes) + 417
-            extra_frames = math.ceil(missing_bytes / 417)
-            output_path.write_bytes(existing_bytes + (silence_frame * extra_frames))
+    def _run_edge_tts_single_voice(
+        self,
+        text: str,
+        voice_id: str,
+        speed: float,
+        output_path: Path,
+    ) -> None:
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            import concurrent.futures
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(
+                    asyncio.run,
+                    self._synthesize_edge_tts_async(text, voice_id, speed, output_path),
+                )
+                future.result(timeout=self.timeout_seconds + 5)
+        else:
+            asyncio.run(self._synthesize_edge_tts_async(text, voice_id, speed, output_path))
 
     def _synthesize_with_edge_tts(
         self,
@@ -210,54 +354,51 @@ class TTSAudioPipeline:
         voice_id: str,
         speed: float,
         output_path: Path,
+        language: Optional[SupportedLanguage] = None,
     ) -> None:
+        inferred_lang: SupportedLanguage = language or ("vi" if voice_id.startswith("vi-") else "en")
+        candidate_voices: List[str] = [voice_id]
+        for peer in EDGE_PEER_FALLBACK_VOICES.get(inferred_lang, []):
+            if peer not in candidate_voices:
+                candidate_voices.append(peer)
+
         last_err: Optional[Exception] = None
-        for attempt in range(1, self.max_retries + 1):
-            try:
+        for idx, candidate in enumerate(candidate_voices):
+            attempts_for_voice = self.max_retries if idx == 0 else min(2, self.max_retries)
+            for attempt in range(1, attempts_for_voice + 1):
                 try:
-                    loop = asyncio.get_running_loop()
-                except RuntimeError:
-                    loop = None
-
-                if loop and loop.is_running():
-                    # Run in a dedicated thread if called inside an existing event loop
-                    import concurrent.futures
-
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                        future = pool.submit(
-                            asyncio.run,
-                            self._synthesize_edge_tts_async(text, voice_id, speed, output_path),
+                    self._run_edge_tts_single_voice(text, candidate, speed, output_path)
+                    if idx > 0:
+                        logger.info(
+                            "Edge-TTS succeeded using peer fallback voice '%s' after '%s' failed.",
+                            candidate,
+                            voice_id,
                         )
-                        future.result(timeout=self.timeout_seconds + 5)
-                else:
-                    asyncio.run(
-                        self._synthesize_edge_tts_async(text, voice_id, speed, output_path)
+                    return
+                except Exception as exc:
+                    last_err = exc
+                    logger.warning(
+                        "Edge-TTS attempt %d/%d failed for voice '%s': %s",
+                        attempt,
+                        attempts_for_voice,
+                        candidate,
+                        exc,
                     )
-                return
-            except Exception as exc:
-                last_err = exc
-                logger.warning(
-                    "Edge-TTS attempt %d/%d failed for voice '%s': %s",
-                    attempt,
-                    self.max_retries,
-                    voice_id,
-                    exc,
-                )
-                if attempt < self.max_retries:
-                    time.sleep(1)
+                    if attempt < attempts_for_voice:
+                        time.sleep(min(2.0, 0.5 * attempt))
 
         if self.allow_offline_fallback:
             word_count = max(6, len(text.split()))
             estimated_sec = max(3.2, round(word_count / 2.8, 2))
             logger.warning(
-                "Edge-TTS unreachable (%s). Generating valid synthetic MP3 fallback (%.2fs).",
+                "Edge-TTS unreachable across fallback chain (%s). Generating valid synthetic MP3 fallback (%.2fs).",
                 last_err,
                 estimated_sec,
             )
             write_synthetic_mp3_fallback(output_path, target_duration_seconds=estimated_sec)
             return
 
-        raise RuntimeError(f"Edge-TTS synthesis failed after {self.max_retries} attempts: {last_err}")
+        raise RuntimeError(f"Edge-TTS synthesis failed after retries: {last_err}")
 
     def _synthesize_with_elevenlabs(
         self,
@@ -327,6 +468,7 @@ class TTSAudioPipeline:
         requested_provider = voice_settings.provider
         provider_used = requested_provider
         voice_id = self.resolve_voice_id(requested_provider, language, voice_settings.voice_id)
+        spoken_text = clean_tts_text(text)
 
         filename = compute_audio_filename(slide_index, text, voice_id, voice_settings.speed)
         audio_dir = self.output_base_dir / job_id / "audio"
@@ -335,7 +477,7 @@ class TTSAudioPipeline:
 
         if requested_provider == "elevenlabs":
             try:
-                self._synthesize_with_elevenlabs(text, voice_id, file_path)
+                self._synthesize_with_elevenlabs(spoken_text, voice_id, file_path)
             except Exception as el_err:
                 fallback_voice = self.resolve_voice_id("edge_tts", language, None)
                 logger.warning(
@@ -349,7 +491,13 @@ class TTSAudioPipeline:
                 )
                 file_path = audio_dir / filename
                 relative_url = f"/audio_temp/{job_id}/{filename}"
-                self._synthesize_with_edge_tts(text, fallback_voice, voice_settings.speed, file_path)
+                self._synthesize_with_edge_tts(
+                    spoken_text,
+                    fallback_voice,
+                    voice_settings.speed,
+                    file_path,
+                    language=language,
+                )
         elif requested_provider == "fpt":
             fallback_voice = self.resolve_voice_id("edge_tts", language, None)
             logger.warning(
@@ -362,9 +510,21 @@ class TTSAudioPipeline:
             )
             file_path = audio_dir / filename
             relative_url = f"/audio_temp/{job_id}/{filename}"
-            self._synthesize_with_edge_tts(text, fallback_voice, voice_settings.speed, file_path)
+            self._synthesize_with_edge_tts(
+                spoken_text,
+                fallback_voice,
+                voice_settings.speed,
+                file_path,
+                language=language,
+            )
         else:
-            self._synthesize_with_edge_tts(text, voice_id, voice_settings.speed, file_path)
+            self._synthesize_with_edge_tts(
+                spoken_text,
+                voice_id,
+                voice_settings.speed,
+                file_path,
+                language=language,
+            )
 
         duration_seconds = verify_and_extract_duration(file_path)
         return file_path, relative_url, duration_seconds, provider_used

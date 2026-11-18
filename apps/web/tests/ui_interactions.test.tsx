@@ -344,4 +344,23 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
       );
     });
   });
+
+  it('detects Vietnamese prompt pasted while English video language is active and switches via 1-click button', async () => {
+    const user = userEvent.setup();
+    render(<StudioWorkspacePage />);
+
+    // Select ENGLISH video language
+    await user.click(screen.getByRole('button', { name: 'TIẾNG ANH' }));
+    const promptBox = screen.getByLabelText('Chủ Đề Thuyết Trình Hoặc Nội Dung Thô') as HTMLTextAreaElement;
+    await user.type(promptBox, 'Hướng dẫn sử dụng điện toán đám mây');
+
+    // Warning banner prompts switching to Vietnamese
+    expect(screen.getByTestId('language-mismatch-warning')).toBeInTheDocument();
+    await user.click(screen.getByTestId('switch-to-vi-btn'));
+
+    // Switching resolves mismatch and restores Vietnamese voice selection
+    expect(screen.queryByTestId('language-mismatch-warning')).not.toBeInTheDocument();
+    const voiceSelect = screen.getByLabelText('Narrator Voice Selection') as HTMLSelectElement;
+    expect(voiceSelect.value).toBe('vi-VN-HoaiMyNeural');
+  });
 });

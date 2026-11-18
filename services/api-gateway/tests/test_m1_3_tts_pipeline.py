@@ -12,12 +12,15 @@ from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 import pytest
 
+from mutagen.mp3 import MP3
+
 from src.main import JOBS_STORE, TEMP_JOBS_DIR, app
 from src.schemas import PresentationScript, RemotionCompositionProps, SlideScriptItem, VoiceSettings
 from src.services.tts_service import (
     MIN_AUDIO_FILE_BYTES,
     TTSAudioPipeline,
     calculate_slide_frames,
+    clean_tts_text,
     compute_audio_filename,
     verify_and_extract_duration,
     write_synthetic_mp3_fallback,
@@ -214,6 +217,51 @@ class TestTTSAudioPipeline:
         assert provider_used == "edge_tts (fallback)"
         assert file_path.exists()
         assert duration_sec > 1.5
+
+    def test_clean_tts_text_strips_markdown_and_normalizes_nfc(self):
+        # NFD decomposed Vietnamese 'o\u0302\u0301' + markdown formatting
+        raw = "## **Kiến trúc** `AI` to\u0302\u0301i ưu\ncho video"
+        cleaned = clean_tts_text(raw)
+        assert cleaned == "Kiến trúc AI tối ưu cho video"
+        assert "**" not in cleaned
+        assert "`" not in cleaned
+
+    def test_edge_tts_primary_voice_failure_falls_over_to_peer_voice(self, tmp_path: Path):
+        called_voices = []
+        valid_mp3_payload = (b"\xff\xfb\x90\x00" + (b"\x00" * 413)) * 140
+
+        def _mock_single_voice(self_obj, text: str, voice_id: str, speed: float, out_path: Path):
+            called_voices.append(voice_id)
+            if voice_id == "vi-VN-HoaiMyNeural":
+                raise RuntimeError("No audio was received. Please verify that your parameters are correct.")
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(valid_mp3_payload)
+
+        pipeline = TTSAudioPipeline(
+            output_base_dir=tmp_path,
+            max_retries=2,
+            allow_offline_fallback=False,
+        )
+        with patch("src.services.tts_service.time.sleep", return_value=None), patch.object(
+            TTSAudioPipeline, "_run_edge_tts_single_voice", new=_mock_single_voice
+        ):
+            file_path, _, duration_sec, provider_used = pipeline.synthesize_slide_audio(
+                slide_index=1,
+                text="Xin chào, kiểm tra cơ chế chuyển giọng dự phòng tiếng Việt.",
+                language="vi",
+                voice_settings=VoiceSettings(provider="edge_tts", voice_id="vi-VN-HoaiMyNeural"),
+                job_id="job_peer_fallback",
+            )
+
+        assert called_voices == [
+            "vi-VN-HoaiMyNeural",
+            "vi-VN-HoaiMyNeural",
+            "vi-VN-NamMinhNeural",
+        ]
+        assert provider_used == "edge_tts"
+        assert file_path.exists()
+        assert MP3(file_path).info.length > 2.5
+        assert duration_sec > 2.5
 
 
 class TestM13APIEndpoints:
