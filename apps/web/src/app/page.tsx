@@ -464,19 +464,7 @@ export default function StudioWorkspacePage() {
         onNavigate={handleNavigate}
       />
 
-      <main className="mx-auto w-full max-w-[1360px] flex-1 px-6 md:px-12">
-        {/* Generous Hero Section (StudioBlank spacing: space-8 / 96px top, space-6 / 64px bottom) */}
-        <section className="py-16 md:py-24">
-          <p className="mb-4 font-mono text-[12px] uppercase tracking-[0.12em] text-[#71717A]">
-            {t.hero.eyebrow}
-          </p>
-          <h1 className="max-w-4xl text-[40px] font-bold leading-[1.05] tracking-[-0.02em] text-[#0A0A0A] md:text-[64px]">
-            {t.hero.title}
-          </h1>
-          <p className="mt-6 max-w-2xl text-[16px] font-light leading-[1.65] text-[#71717A]">
-            {t.hero.subtitle}
-          </p>
-        </section>
+      <main className="mx-auto w-full max-w-[1360px] flex-1 px-6 pt-10 md:px-12 md:pt-12">
 
         {statusMessage && (
           <div

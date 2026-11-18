@@ -371,17 +371,17 @@ test.describe('AIK Web Studio Real Browser Verification (StudioBlank)', () => {
     // Click EN -> translates full UI & persists on reload
     await enBtn.click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-      'Prompt to Synchronized Slide Video.'
+      'Script & Voice Configuration'
     );
     await page.reload();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-      'Prompt to Synchronized Slide Video.'
+      'Script & Voice Configuration'
     );
 
     // Click VIE -> switches back cleanly to Vietnamese
     await vieBtn.click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-      'Biến Prompt thành Video Slide Đồng Bộ.'
+      'Thiết Lập Kịch Bản & Giọng Đọc'
     );
   });
 

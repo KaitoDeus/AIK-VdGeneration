@@ -56,7 +56,8 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     await user.click(enBtn);
     expect(enBtn).toHaveAttribute('aria-pressed', 'true');
     expect(window.localStorage.getItem('aik-studio-locale')).toBe('en');
-    expect(screen.getByText('Prompt to Synchronized Slide Video.')).toBeInTheDocument();
+    expect(screen.getByText('Script & Voice Configuration')).toBeInTheDocument();
+    expect(screen.queryByText('Prompt to Synchronized Slide Video.')).not.toBeInTheDocument();
     expect(screen.getByTestId('api-status-chip')).toHaveTextContent('API ONLINE');
     expect(screen.getByRole('button', { name: 'Generate Presentation' })).toBeInTheDocument();
 
@@ -64,7 +65,8 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     await user.click(vieBtn);
     expect(vieBtn).toHaveAttribute('aria-pressed', 'true');
     expect(window.localStorage.getItem('aik-studio-locale')).toBe('vi');
-    expect(screen.getByText('Biến Prompt thành Video Slide Đồng Bộ.')).toBeInTheDocument();
+    expect(screen.getByText('Thiết Lập Kịch Bản & Giọng Đọc')).toBeInTheDocument();
+    expect(screen.queryByText('Biến Prompt thành Video Slide Đồng Bộ.')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Tạo Video Thuyết Trình' })).toBeInTheDocument();
   });
 

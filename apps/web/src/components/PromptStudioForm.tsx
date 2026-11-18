@@ -96,9 +96,9 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
           <span className="font-mono text-[12px] uppercase tracking-[0.08em] text-[#71717A]">
             {t.sectionEyebrow}
           </span>
-          <h2 id="studio-heading" className="mt-1 text-[20px] font-semibold leading-[1.3] text-[#0A0A0A]">
+          <h1 id="studio-heading" className="mt-1 text-[20px] font-semibold leading-[1.3] text-[#0A0A0A]">
             {t.sectionTitle}
-          </h2>
+          </h1>
         </div>
 
         {/* Quick Prompt Template Filter Chips */}
