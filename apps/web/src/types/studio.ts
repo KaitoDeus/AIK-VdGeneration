@@ -14,6 +14,7 @@ export type SupportedLanguage = 'vi' | 'en';
 export type TTSProviderType = 'edge_tts' | 'elevenlabs' | 'fpt';
 export type AspectRatio = '16:9' | '9:16';
 export type VisualTheme = 'modern_tech' | 'corporate' | 'minimal';
+export type StorageProviderType = 'local' | 's3' | 'r2';
 
 export interface SlideScriptItem {
   slide_index: number;
@@ -124,8 +125,22 @@ export interface JobStatusResponse {
   script?: PresentationScript | null;
   remotion_props?: RemotionCompositionProps | null;
   output_video_path?: string | null;
+  storage_provider?: StorageProviderType | null;
+  storage_object_key?: string | null;
+  video_download_url?: string | null;
+  signed_url_expires_in_seconds?: number | null;
   progress_events: WebSocketProgressEvent[];
   error?: string | null;
+}
+
+export interface VideoDeliveryResponse {
+  job_id: string;
+  storage_provider: StorageProviderType;
+  download_url: string;
+  object_key?: string | null;
+  cdn_url?: string | null;
+  expires_in_seconds?: number | null;
+  file_size_bytes?: number | null;
 }
 
 export interface VideoJobResponse {
@@ -149,6 +164,7 @@ export interface HealthResponse {
   service: string;
   version: string;
   queue_backend: string;
+  storage_provider?: string;
   external_worker_enabled: boolean;
   default_llm_model: string;
   fallback_llm_model: string;

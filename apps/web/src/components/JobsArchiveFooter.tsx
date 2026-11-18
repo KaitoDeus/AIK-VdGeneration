@@ -81,6 +81,11 @@ export const JobsArchiveFooter: React.FC<JobsArchiveFooterProps> = ({
                   </div>
 
                   <div className="flex shrink-0 items-center gap-4 font-mono text-[12px]">
+                    {job.storage_provider && (
+                      <span className="border border-white/25 px-1.5 py-0.5 text-[10px] uppercase">
+                        {job.storage_provider}
+                      </span>
+                    )}
                     <span className="uppercase">
                       {statuses[job.status] || job.status.replace(/_/g, ' ')}
                     </span>

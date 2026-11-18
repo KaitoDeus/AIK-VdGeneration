@@ -7,6 +7,7 @@ import {
   QueueStatsResponse,
   SupportedLanguage,
   TTSProviderType,
+  VideoDeliveryResponse,
   VideoJobResponse,
   VisualTheme,
   VoiceOption,
@@ -36,6 +37,25 @@ export function getJobAudioUrl(jobId: string, audioUrlOrPath: string): string {
 
 export function getJobVideoUrl(jobId: string): string {
   return `${getApiBaseUrl()}/api/v1/jobs/${encodeURIComponent(jobId)}/video`;
+}
+
+export function getJobDownloadHref(job: JobStatusResponse): string {
+  if (
+    job.video_download_url &&
+    (job.video_download_url.startsWith('http://') || job.video_download_url.startsWith('https://'))
+  ) {
+    return job.video_download_url;
+  }
+  return getJobVideoUrl(job.job_id);
+}
+
+export async function fetchSignedVideoUrl(
+  jobId: string,
+  expiresInSeconds: number = 3600
+): Promise<VideoDeliveryResponse> {
+  return requestJson<VideoDeliveryResponse>(
+    `/api/v1/jobs/${encodeURIComponent(jobId)}/video/url?expires_in=${expiresInSeconds}`
+  );
 }
 
 export function getJobAssetUrl(jobId: string | null, assetUrlOrPath: string): string {

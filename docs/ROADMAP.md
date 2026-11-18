@@ -41,8 +41,9 @@ This roadmap breaks down the product development into 4 distinct phases, from an
 - [x] **M2.3: Asset Integration & Background Visuals**
   - Integration with Unsplash & Pexels API (`StockAssetService`) for automated slide background imagery based on `visual_keywords`, featuring timeout/retry protection, binary magic-header validation, disk caching, per-job staging in `RemotionRenderService`, and instant gradient fallback.
   - Alternating Ken Burns slow pan & zoom (`computeKenBurnsTransform`) with dark scrim contrast layer in Remotion `SlideCard` + interactive stock search & candidate picker (`POST /api/v1/assets/search`) in the `apps/web` Studio.
-- [ ] **M2.4: Storage & CDN Delivery**
-  - Direct upload of final `.mp4` to AWS S3 / Cloudflare R2 with signed download URLs.
+- [x] **M2.4: Storage & CDN Delivery**
+  - Direct upload of final `.mp4` to AWS S3 or S3-compatible Cloudflare R2 (`CloudStorageService` with `boto3` SigV4 signing, optional custom CDN base URL, retry protection, and graceful local serving fallback).
+  - Signed download URL endpoint (`GET /api/v1/jobs/{job_id}/video/url`), 307 redirect support for evicted local artifacts, and Studio delivery badge + signed link refresher in `apps/web`.
 
 ---
 

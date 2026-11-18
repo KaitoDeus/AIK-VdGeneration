@@ -182,6 +182,30 @@ export function installMockStudioServer(options?: {
         },
       ],
     },
+    {
+      job_id: 'job_archive_s3',
+      status: 'completed',
+      progress_percentage: 100,
+      current_stage: null,
+      render_requested: true,
+      retry_count: 0,
+      storage_provider: 's3',
+      storage_object_key: 'videos/job_archive_s3/job_archive_s3.mp4',
+      video_download_url: 'https://aik-bucket.s3.us-east-1.amazonaws.com/videos/job_archive_s3/job_archive_s3.mp4?X-Amz-Signature=initial',
+      signed_url_expires_in_seconds: 3600,
+      script: MOCK_SCRIPT,
+      remotion_props: MOCK_REMOTION_PROPS,
+      output_video_path: '/tmp/job_archive_s3.mp4',
+      progress_events: [
+        {
+          job_id: 'job_archive_s3',
+          step: 'completed',
+          progress_percentage: 100,
+          message: 'Uploaded to S3 storage (100%)',
+          timestamp: '2026-11-18T11:00:00Z',
+        },
+      ],
+    },
   ];
 
   const jsonResponse = (data: unknown, status = 200): Response =>
@@ -260,6 +284,17 @@ export function installMockStudioServer(options?: {
         },
         202
       );
+    }
+
+    if (url.includes('/video/url')) {
+      const targetJobId = url.split('/api/v1/jobs/')[1]?.split('/video/url')[0] || jobState.job_id;
+      return jsonResponse({
+        job_id: targetJobId,
+        storage_provider: 's3',
+        object_key: `videos/${targetJobId}/${targetJobId}.mp4`,
+        download_url: `https://aik-bucket.s3.us-east-1.amazonaws.com/videos/${targetJobId}/${targetJobId}.mp4?X-Amz-Signature=refreshed99`,
+        expires_in_seconds: 3600,
+      });
     }
 
     if (url.includes(`/api/v1/jobs/${jobState.job_id}`)) {

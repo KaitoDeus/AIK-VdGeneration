@@ -2,8 +2,8 @@
 
 ## 1. Project Identity & Status
 - **Project Name:** AIK-VdGeneration (AI-driven Prompt to Slide-Video Generator)
-- **Status:** Phase 2 In Progress (3/4 Milestones) — M2.3 Asset Integration & Background Visuals Completed.
-- **Current Milestone:** M2.3 - Unsplash / Pexels Stock Visual Pipeline, Alternating Ken Burns Effect & Web Studio Picker Completed.
+- **Status:** Phase 2 Completed (4/4 Milestones) — M2.4 Storage & CDN Delivery Completed (Ready for Phase 3).
+- **Current Milestone:** M2.4 - AWS S3 / Cloudflare R2 Storage Upload, Signed URLs & CDN Delivery Completed.
 - **Created Date:** 2026-11-14
 - **Working Root:** `D:\AIK-VdGeneration`
 
@@ -33,6 +33,9 @@
 - **ADR-007: Stock Visual Asset Pipeline & Alternating Ken Burns Effect (`M2.3`)**
   - *Context:* Slides need dynamic visual backdrops matching `visual_keywords` while preserving `SlideScriptItem` JSON Schema purity and rendering reliability offline or without stock API keys.
   - *Decision:* Kept `SlideScriptItem` free of URL fields and built `StockAssetService` in `services/api-gateway` (Unsplash/Pexels cascade with timeouts/retries, magic-header JPEG/PNG/WebP validation, `.temp/asset_cache` reuse, and immediate CSS gradient fallback), staged per-job visuals alongside audio in `RemotionRenderService`, implemented alternating Ken Burns pan/zoom (`computeKenBurnsTransform`) with a dark scrim in `SlideCard.tsx`, and added `/api/v1/assets/search` + thumbnail candidate picking in `apps/web`.
+- **ADR-008: Cloud Object Storage (`AWS S3` / `Cloudflare R2`) & Signed URL Delivery (`M2.4`)**
+  - *Context:* Rendered 1080p MP4 artifacts need durable cloud persistence and time-limited presigned download URLs without breaking local development when S3/R2 keys are unconfigured.
+  - *Decision:* Implemented `CloudStorageService` using `boto3` (`signature_version='s3v4'`) supporting AWS S3, Cloudflare R2 (`R2_ACCOUNT_ID` / custom endpoint), optional `CDN_PUBLIC_BASE_URL`, retry recovery, and seamless fallback to local `/api/v1/jobs/{job_id}/video` streaming; added `GET /api/v1/jobs/{job_id}/video/url`, 307 cloud redirects, and UI signed-link refresh in `apps/web`.
 
 ---
 
@@ -60,6 +63,12 @@ QUEUE_MODE=auto # auto | redis | memory
 USE_EXTERNAL_WORKER=false
 MAX_JOB_RETRIES=3
 AWS_S3_BUCKET=
+AWS_REGION=us-east-1
+STORAGE_PROVIDER=auto # auto | local | s3 | r2
+R2_ACCOUNT_ID=
+S3_ENDPOINT_URL=
+CDN_PUBLIC_BASE_URL=
+SIGNED_URL_EXPIRY_SECONDS=3600
 AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=
 ```
@@ -78,4 +87,5 @@ AWS_SECRET_ACCESS_KEY=
 - [x] Implement Redis Queue Workers (`LLMWorker`, `TTSWorker`, `RenderWorker`), Retry/DLQ & WebSocket streaming (M2.1)
 - [x] Build `apps/web` Next.js Web Studio with StudioBlank UI & backend studio endpoints (M2.2)
 - [x] Integrate Unsplash / Pexels stock background imagery & Ken Burns pipeline (M2.3)
-- [ ] Direct `.mp4` upload to AWS S3 / Cloudflare R2 with signed download URLs (M2.4)
+- [x] Direct `.mp4` upload to AWS S3 / Cloudflare R2 with signed download URLs (M2.4)
+- [ ] Serverless Render Farm with Remotion Lambda (M3.1)

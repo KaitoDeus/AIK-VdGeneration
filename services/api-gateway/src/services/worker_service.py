@@ -26,6 +26,7 @@ from .asset_service import StockAssetService
 from .llm_service import LLMScriptGenerator
 from .queue_service import BaseQueueBackend, STAGES_ORDER, utc_timestamp
 from .render_service import RemotionRenderService
+from .storage_service import CloudStorageService
 from .tts_service import TTSAudioPipeline
 
 logger = logging.getLogger(__name__)
@@ -195,12 +196,17 @@ class TTSWorker(BaseStageWorker):
 
 
 class RenderWorker(BaseStageWorker):
-    """Stage 3 Worker: Executes stateless Remotion CLI compilation to produce final MP4."""
+    """Stage 3 Worker: Executes stateless Remotion CLI compilation to produce final MP4 and uploads to cloud storage."""
 
     stage: WorkerStage = "render"
 
-    def __init__(self, render_service: RemotionRenderService) -> None:
+    def __init__(
+        self,
+        render_service: RemotionRenderService,
+        storage_service: Optional[CloudStorageService] = None,
+    ) -> None:
         self.render_service = render_service
+        self.storage_service = storage_service or CloudStorageService()
 
     def execute(
         self,
@@ -239,7 +245,26 @@ class RenderWorker(BaseStageWorker):
             props_json_path=props_path,
         )
 
+        if self.storage_service.resolve_provider() in ("s3", "r2"):
+            job.progress_percentage = 96
+            queue_backend.save_job(job)
+            queue_backend.emit_progress(
+                job_id=job.job_id,
+                step="uploading_video",
+                progress_percentage=96,
+                message=(
+                    f"Uploading 1080p MP4 to {self.storage_service.resolve_provider().upper()} "
+                    "storage & signing download URL... (96%)"
+                ),
+            )
+
+        delivery = self.storage_service.upload_video(rendered_path, job_id=job.job_id)
+
         job.output_video_path = str(rendered_path)
+        job.storage_provider = delivery.storage_provider
+        job.storage_object_key = delivery.object_key
+        job.video_download_url = delivery.cdn_url or delivery.download_url
+        job.signed_url_expires_in_seconds = delivery.expires_in_seconds
         job.status = "completed"
         job.current_stage = None
         job.progress_percentage = 100
@@ -248,9 +273,17 @@ class RenderWorker(BaseStageWorker):
             job_id=job.job_id,
             step="completed",
             progress_percentage=100,
-            message="Video rendering complete and ready for playback! (100%)",
+            message=(
+                f"Video rendering complete via {delivery.storage_provider.upper()} storage "
+                "and ready for playback! (100%)"
+            ),
         )
-        logger.info("Job %s [RenderWorker] completed render -> %s", job.job_id, rendered_path)
+        logger.info(
+            "Job %s [RenderWorker] completed render (%s) -> %s",
+            job.job_id,
+            delivery.storage_provider,
+            rendered_path,
+        )
         return None
 
 
@@ -268,6 +301,7 @@ class PipelineWorkerCoordinator:
         tts_pipeline: Optional[TTSAudioPipeline] = None,
         render_service: Optional[RemotionRenderService] = None,
         asset_service: Optional[StockAssetService] = None,
+        storage_service: Optional[CloudStorageService] = None,
         retry_delay_seconds: float = 0.0,
     ) -> None:
         self.queue_backend = queue_backend
@@ -279,7 +313,10 @@ class PipelineWorkerCoordinator:
             tts_pipeline or TTSAudioPipeline(output_base_dir=temp_jobs_dir),
             asset_service=asset_service or StockAssetService(output_base_dir=temp_jobs_dir),
         )
-        self.render_worker = RenderWorker(render_service or RemotionRenderService())
+        self.render_worker = RenderWorker(
+            render_service or RemotionRenderService(),
+            storage_service=storage_service or CloudStorageService(),
+        )
 
         self.workers: Dict[WorkerStage, BaseStageWorker] = {
             "llm": self.llm_worker,

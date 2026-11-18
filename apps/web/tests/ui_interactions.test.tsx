@@ -248,4 +248,34 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
       expect(screen.getByTestId('stock-fallback-note')).toBeInTheDocument();
     });
   });
+
+  it('displays S3 signed URL badge for cloud-stored job and refreshes presigned download link', async () => {
+    const user = userEvent.setup();
+    render(<StudioWorkspacePage />);
+
+    const cloudArchiveRow = await screen.findByRole('button', { name: /job_archive_s3/i });
+    await user.click(cloudArchiveRow);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('storage-provider-chip')).toHaveTextContent('AWS S3 SIGNED');
+    });
+
+    const downloadLink = screen.getByRole('link', { name: 'Tải Xuống MP4 1080p' });
+    expect(downloadLink).toHaveAttribute(
+      'href',
+      'https://aik-bucket.s3.us-east-1.amazonaws.com/videos/job_archive_s3/job_archive_s3.mp4?X-Amz-Signature=initial'
+    );
+
+    await user.click(screen.getByTestId('refresh-signed-url-btn'));
+    await waitFor(() => {
+      expect(downloadLink).toHaveAttribute(
+        'href',
+        'https://aik-bucket.s3.us-east-1.amazonaws.com/videos/job_archive_s3/job_archive_s3.mp4?X-Amz-Signature=refreshed99'
+      );
+      expect(screen.getByTestId('rendered-video-player')).toHaveAttribute(
+        'src',
+        'https://aik-bucket.s3.us-east-1.amazonaws.com/videos/job_archive_s3/job_archive_s3.mp4?X-Amz-Signature=refreshed99'
+      );
+    });
+  });
 });

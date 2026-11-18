@@ -19,6 +19,7 @@ SlideLayout = Literal[
 SupportedLanguage = Literal["vi", "en"]
 TTSProviderType = Literal["edge_tts", "elevenlabs", "fpt"]
 WorkerStage = Literal["llm", "tts", "render"]
+StorageProviderType = Literal["local", "s3", "r2"]
 
 
 class SlideScriptItem(BaseModel):
@@ -355,8 +356,24 @@ class JobStatusResponse(BaseModel):
     script: Optional[PresentationScript] = None
     remotion_props: Optional[RemotionCompositionProps] = None
     output_video_path: Optional[str] = None
+    storage_provider: Optional[StorageProviderType] = None
+    storage_object_key: Optional[str] = None
+    video_download_url: Optional[str] = None
+    signed_url_expires_in_seconds: Optional[int] = None
     progress_events: List[WebSocketProgressEvent] = Field(default_factory=list)
     error: Optional[str] = None
+
+
+class VideoDeliveryResponse(BaseModel):
+    """Signed download URL and storage telemetry for a completed video job (M2.4)."""
+
+    job_id: str
+    storage_provider: StorageProviderType
+    download_url: str
+    object_key: Optional[str] = None
+    cdn_url: Optional[str] = None
+    expires_in_seconds: Optional[int] = None
+    file_size_bytes: Optional[int] = None
 
 
 class QueueStatsResponse(BaseModel):

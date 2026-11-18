@@ -195,6 +195,19 @@ async function attachMockApiGateway(page: Page) {
       });
     }
 
+    if (url.includes('/video/url')) {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          job_id: 'job_e2e_01',
+          storage_provider: 'local',
+          download_url: '/api/v1/jobs/job_e2e_01/video',
+          expires_in_seconds: null,
+        }),
+      });
+    }
+
     if (url.includes('/api/v1/jobs') && !url.includes('/jobs/job_e2e_01')) {
       return route.fulfill({
         status: 200,
@@ -357,6 +370,7 @@ test.describe('AIK Web Studio Real Browser Verification (StudioBlank)', () => {
     // Compile edited deck -> streams WebSocket progress to 100% and reveals MP4 download
     await page.getByRole('button', { name: 'Biên Dịch & Xuất MP4 1080p' }).click();
     await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100');
+    await expect(page.getByTestId('storage-provider-chip')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Tải Xuống MP4 1080p' })).toBeVisible();
     await expect(page.locator('video')).toBeVisible();
   });

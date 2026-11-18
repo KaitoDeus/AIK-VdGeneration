@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
-import { getJobVideoUrl } from '@/lib/api';
+import React, { useEffect, useState } from 'react';
+import { fetchSignedVideoUrl, getJobDownloadHref, getJobVideoUrl } from '@/lib/api';
 import { STUDIO_DICTIONARY, UiLocale } from '@/lib/i18n';
-import { JobStatusResponse, WebSocketProgressEvent } from '@/types/studio';
+import { JobStatusResponse, VideoDeliveryResponse, WebSocketProgressEvent } from '@/types/studio';
 
 interface LiveProgressTrackerProps {
   locale: UiLocale;
@@ -30,8 +30,46 @@ export const LiveProgressTracker: React.FC<LiveProgressTrackerProps> = ({
   wsConnected,
 }) => {
   const t = STUDIO_DICTIONARY[locale].progress;
+  const [signedDelivery, setSignedDelivery] = useState<VideoDeliveryResponse | null>(null);
+  const [isSigningUrl, setIsSigningUrl] = useState(false);
+
+  useEffect(() => {
+    setSignedDelivery(null);
+  }, [job.job_id]);
+
   const chipStyle =
     STATUS_CHIP_STYLE[job.status] || 'border-[#D4D4D8] bg-transparent text-[#71717A]';
+
+  const activeStorageProvider = signedDelivery?.storage_provider || job.storage_provider || 'local';
+  const storageLabel =
+    activeStorageProvider === 's3'
+      ? t.storageS3
+      : activeStorageProvider === 'r2'
+      ? t.storageR2
+      : t.storageLocal;
+
+  const resolvedVideoHref = (() => {
+    const freshUrl = signedDelivery?.cdn_url || signedDelivery?.download_url;
+    if (freshUrl && (freshUrl.startsWith('http://') || freshUrl.startsWith('https://'))) {
+      return freshUrl;
+    }
+    if (freshUrl && freshUrl.startsWith('/api/v1/')) {
+      return getJobVideoUrl(job.job_id);
+    }
+    return getJobDownloadHref(job);
+  })();
+
+  const handleRefreshSignedUrl = async () => {
+    setIsSigningUrl(true);
+    try {
+      const delivery = await fetchSignedVideoUrl(job.job_id);
+      setSignedDelivery(delivery);
+    } catch {
+      // keep existing fallback URL if Gateway does not support dynamic signing
+    } finally {
+      setIsSigningUrl(false);
+    }
+  };
 
   const pipelineSteps = [
     { id: '01', label: t.steps.queued, threshold: 0 },
@@ -131,13 +169,21 @@ export const LiveProgressTracker: React.FC<LiveProgressTrackerProps> = ({
       )}
 
       {/* Built-in 1080p Video Player & Export Controls (When MP4 is compiled) */}
-      {job.output_video_path && job.status === 'completed' && (
+      {(job.output_video_path || job.video_download_url) && job.status === 'completed' && (
         <div className="border-b border-[#E5E5E5] p-8">
           <div className="mb-4 flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
-              <span className="font-mono text-[12px] uppercase tracking-[0.08em] text-[#16A34A]">
-                {t.masterComplete}
-              </span>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="font-mono text-[12px] uppercase tracking-[0.08em] text-[#16A34A]">
+                  {t.masterComplete}
+                </span>
+                <span
+                  data-testid="storage-provider-chip"
+                  className="border border-[#E5E5E5] bg-[#FAFAFA] px-2 py-0.5 font-mono text-[11px] uppercase text-[#0A0A0A]"
+                >
+                  {storageLabel}
+                </span>
+              </div>
               {job.remotion_props && (
                 <p className="mt-1 font-mono text-[13px] text-[#71717A]">
                   {job.remotion_props.width}×{job.remotion_props.height} @ {job.remotion_props.fps}FPS ·{' '}
@@ -156,8 +202,19 @@ export const LiveProgressTracker: React.FC<LiveProgressTrackerProps> = ({
                   {t.exportPropsBtn}
                 </button>
               )}
+              {(activeStorageProvider === 's3' || activeStorageProvider === 'r2') && (
+                <button
+                  type="button"
+                  data-testid="refresh-signed-url-btn"
+                  disabled={isSigningUrl}
+                  onClick={handleRefreshSignedUrl}
+                  className="h-10 border border-[#0A0A0A] px-5 text-[12px] uppercase tracking-[0.05em] text-[#0A0A0A] transition-colors duration-150 hover:bg-[#0A0A0A] hover:text-[#FAFAFA] disabled:opacity-40"
+                >
+                  {isSigningUrl ? t.refreshingSignedUrlBtn : t.refreshSignedUrlBtn}
+                </button>
+              )}
               <a
-                href={getJobVideoUrl(job.job_id)}
+                href={resolvedVideoHref}
                 download={`${job.job_id}.mp4`}
                 className="inline-flex h-10 items-center bg-[#0A0A0A] px-6 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#FAFAFA] transition-colors duration-150 hover:bg-[#27272A]"
               >
@@ -170,7 +227,7 @@ export const LiveProgressTracker: React.FC<LiveProgressTrackerProps> = ({
             <video
               data-testid="rendered-video-player"
               controls
-              src={getJobVideoUrl(job.job_id)}
+              src={resolvedVideoHref}
               className="aspect-video w-full"
               aria-label="Rendered presentation video playback"
             />

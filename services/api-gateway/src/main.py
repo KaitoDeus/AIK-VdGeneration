@@ -16,12 +16,13 @@ from fastapi import (
     BackgroundTasks,
     FastAPI,
     HTTPException,
+    Query,
     Request,
     WebSocket,
     WebSocketDisconnect,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 try:
     from .schemas import (
@@ -36,6 +37,7 @@ try:
         ScriptCompileRequest,
         ScriptGenerateRequest,
         StyleSettings,
+        VideoDeliveryResponse,
         VideoGenerateRequest,
         VideoJobResponse,
         VoiceOption,
@@ -50,6 +52,7 @@ try:
         utc_timestamp,
     )
     from .services.render_service import RemotionRenderService
+    from .services.storage_service import CloudStorageService
     from .services.tts_service import TTSAudioPipeline
     from .services.worker_service import PipelineWorkerCoordinator
 except ImportError:
@@ -65,6 +68,7 @@ except ImportError:
         ScriptCompileRequest,
         ScriptGenerateRequest,
         StyleSettings,
+        VideoDeliveryResponse,
         VideoGenerateRequest,
         VideoJobResponse,
         VoiceOption,
@@ -79,6 +83,7 @@ except ImportError:
         utc_timestamp,
     )
     from services.render_service import RemotionRenderService  # type: ignore
+    from services.storage_service import CloudStorageService  # type: ignore
     from services.tts_service import TTSAudioPipeline  # type: ignore
     from services.worker_service import PipelineWorkerCoordinator  # type: ignore
 
@@ -115,6 +120,7 @@ llm_generator = LLMScriptGenerator()
 tts_pipeline = TTSAudioPipeline(output_base_dir=TEMP_JOBS_DIR)
 render_service = RemotionRenderService()
 asset_service = StockAssetService(output_base_dir=TEMP_JOBS_DIR)
+storage_service = CloudStorageService()
 
 queue_backend: BaseQueueBackend = create_queue_backend(shared_jobs_store=JOBS_STORE)
 worker_coordinator = PipelineWorkerCoordinator(
@@ -124,6 +130,7 @@ worker_coordinator = PipelineWorkerCoordinator(
     tts_pipeline=tts_pipeline,
     render_service=render_service,
     asset_service=asset_service,
+    storage_service=storage_service,
 )
 
 
@@ -138,6 +145,7 @@ def configure_queue_backend(new_backend: BaseQueueBackend) -> None:
         tts_pipeline=tts_pipeline,
         render_service=render_service,
         asset_service=asset_service,
+        storage_service=storage_service,
     )
 
 
@@ -154,6 +162,7 @@ async def health_check():
         "service": "AIK-VdGeneration API Gateway",
         "version": app.version,
         "queue_backend": queue_backend.backend_name,
+        "storage_provider": storage_service.resolve_provider(),
         "external_worker_enabled": _should_dispatch_to_external_worker(),
         "default_llm_model": llm_generator.default_model,
         "fallback_llm_model": llm_generator.fallback_model,
@@ -459,20 +468,83 @@ async def download_slide_asset(job_id: str, filename: str):
     return FileResponse(path=image_path, media_type=media_type, filename=filename)
 
 
-@app.get("/api/v1/jobs/{job_id}/video")
-async def download_rendered_video(job_id: str):
-    """Serves the rendered 1080p MP4 video for Web Studio playback and download."""
+@app.get("/api/v1/jobs/{job_id}/video/url", response_model=VideoDeliveryResponse)
+async def get_signed_video_download_url(
+    job_id: str,
+    expires_in: int = Query(default=3600, ge=60, le=604800),
+):
+    """
+    Generates a fresh presigned S3 / Cloudflare R2 download URL (or local fallback path)
+    for a completed rendered video job (Milestone M2.4).
+    """
     job = queue_backend.get_job(job_id)
-    if not job or not job.output_video_path:
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found.")
+
+    local_path = Path(job.output_video_path).resolve() if job.output_video_path else None
+    local_exists = bool(local_path and local_path.exists())
+    if not local_exists and not job.storage_object_key:
         raise HTTPException(status_code=404, detail="Rendered video not available for this job.")
-    video_path = Path(job.output_video_path).resolve()
-    if not video_path.exists():
-        raise HTTPException(status_code=404, detail="Rendered video file missing on disk.")
-    return FileResponse(
-        path=video_path,
-        media_type="video/mp4",
-        filename=f"{job_id}.mp4",
+
+    file_size = local_path.stat().st_size if local_exists and local_path else None
+    if not job.storage_object_key and job.storage_provider in (None, "local"):
+        return VideoDeliveryResponse(
+            job_id=job_id,
+            storage_provider="local",
+            download_url=f"/api/v1/jobs/{job_id}/video",
+            file_size_bytes=file_size,
+        )
+
+    delivery = storage_service.create_presigned_download_url(
+        job_id=job_id,
+        object_key=job.storage_object_key,
+        expires_in_seconds=expires_in,
+        file_size_bytes=file_size,
     )
+    job.video_download_url = delivery.cdn_url or delivery.download_url
+    job.signed_url_expires_in_seconds = delivery.expires_in_seconds
+    queue_backend.save_job(job)
+    return delivery
+
+
+@app.get("/api/v1/jobs/{job_id}/video")
+async def download_rendered_video(job_id: str, redirect: bool = False):
+    """
+    Serves the rendered 1080p MP4 video from local storage or redirects transparently
+    to a signed S3/R2 URL when hosted in cloud object storage.
+    """
+    job = queue_backend.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Rendered video not available for this job.")
+
+    if redirect and job.storage_object_key:
+        delivery = storage_service.create_presigned_download_url(
+            job_id=job_id,
+            object_key=job.storage_object_key,
+        )
+        target_url = delivery.cdn_url or delivery.download_url
+        if target_url.startswith(("http://", "https://")):
+            return RedirectResponse(url=target_url, status_code=307)
+
+    if job.output_video_path:
+        video_path = Path(job.output_video_path).resolve()
+        if video_path.exists():
+            return FileResponse(
+                path=video_path,
+                media_type="video/mp4",
+                filename=f"{job_id}.mp4",
+            )
+
+    if job.storage_object_key:
+        delivery = storage_service.create_presigned_download_url(
+            job_id=job_id,
+            object_key=job.storage_object_key,
+        )
+        target_url = delivery.cdn_url or delivery.download_url
+        if target_url.startswith(("http://", "https://")):
+            return RedirectResponse(url=target_url, status_code=307)
+
+    raise HTTPException(status_code=404, detail="Rendered video file missing on disk.")
 
 
 @app.get("/api/v1/jobs", response_model=List[JobStatusResponse])

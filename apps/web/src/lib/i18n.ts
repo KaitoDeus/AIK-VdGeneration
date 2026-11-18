@@ -67,6 +67,11 @@ export interface StudioDictionary {
     masterComplete: string;
     exportPropsBtn: string;
     downloadMp4Btn: string;
+    refreshSignedUrlBtn: string;
+    refreshingSignedUrlBtn: string;
+    storageLocal: string;
+    storageS3: string;
+    storageR2: string;
     eventLogTitle: string;
     waitingEvents: string;
     durationLabel: string;
@@ -186,6 +191,11 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       masterComplete: 'MASTER RENDER COMPLETE',
       exportPropsBtn: 'Export Remotion Props JSON',
       downloadMp4Btn: 'Download 1080p MP4',
+      refreshSignedUrlBtn: 'Refresh Signed URL',
+      refreshingSignedUrlBtn: 'Signing URL...',
+      storageLocal: 'LOCAL STREAM',
+      storageS3: 'AWS S3 SIGNED',
+      storageR2: 'CLOUDFLARE R2',
       eventLogTitle: 'WebSocket Event Log',
       waitingEvents: 'Waiting for pipeline telemetry events...',
       durationLabel: 'DURATION',
@@ -304,6 +314,11 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       masterComplete: 'KẾT XUẤT VIDEO HOÀN TẤT',
       exportPropsBtn: 'Xuất JSON Remotion Props',
       downloadMp4Btn: 'Tải Xuống MP4 1080p',
+      refreshSignedUrlBtn: 'Làm Mới Link Signed',
+      refreshingSignedUrlBtn: 'Đang Ký URL...',
+      storageLocal: 'PHÁT NỘI BỘ',
+      storageS3: 'AWS S3 SIGNED',
+      storageR2: 'CLOUDFLARE R2',
       eventLogTitle: 'Nhật Ký Sự Kiện WebSocket',
       waitingEvents: 'Đang chờ sự kiện tiến độ từ pipeline...',
       durationLabel: 'THỜI LƯỢNG',

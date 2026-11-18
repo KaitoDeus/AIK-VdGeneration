@@ -26,6 +26,7 @@ from src.schemas import SupportedLanguage, TTSProviderType, VoiceSettings
 from src.services.asset_service import StockAssetService
 from src.services.llm_service import LLMScriptGenerator
 from src.services.render_service import RemotionRenderService, verify_mp4_output
+from src.services.storage_service import CloudStorageService
 from src.services.tts_service import TTSAudioPipeline
 
 logging.basicConfig(
@@ -113,6 +114,13 @@ def parse_cli_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         "--no-stock-visuals",
         action="store_true",
         help="Disable Unsplash/Pexels stock background fetching and use pure CSS gradient backgrounds.",
+    )
+    parser.add_argument(
+        "--storage-provider",
+        type=str,
+        choices=["auto", "local", "s3", "r2"],
+        default=None,
+        help="Storage delivery provider override ('auto', 'local', 's3', or 'r2').",
     )
     return parser.parse_args(argv)
 
@@ -203,9 +211,11 @@ def run_cli_pipeline(argv: Optional[List[str]] = None) -> dict:
         provider_used,
     )
 
-    # Stage 3: Remotion MP4 Video Compilation (M1.4 + M1.5)
+    # Stage 3: Remotion MP4 Video Compilation (M1.4 + M1.5 + M2.4)
     rendered_mp4: Optional[Path] = None
     mp4_size_bytes: int = 0
+    storage_provider: str = "local"
+    video_download_url: Optional[str] = None
 
     if args.skip_render:
         logger.info("[3/3] Skipping Remotion MP4 encoding (--skip-render enabled).")
@@ -227,6 +237,17 @@ def run_cli_pipeline(argv: Optional[List[str]] = None) -> dict:
             mp4_size_bytes / 1024.0,
         )
 
+        storage_service = CloudStorageService(provider_mode=args.storage_provider)
+        delivery = storage_service.upload_video(rendered_mp4, job_id=job_id)
+        storage_provider = delivery.storage_provider
+        video_download_url = delivery.cdn_url or delivery.download_url
+        if delivery.storage_provider != "local":
+            logger.info(
+                "  -> Cloud delivery ready (%s): %s",
+                delivery.storage_provider.upper(),
+                video_download_url,
+            )
+
     elapsed = round(time.time() - start_time, 2)
     logger.info("==============================================================")
     logger.info(" Pipeline finished in %.2fs!", elapsed)
@@ -240,6 +261,8 @@ def run_cli_pipeline(argv: Optional[List[str]] = None) -> dict:
         "props_path": str(props_path),
         "output_video_path": str(rendered_mp4) if rendered_mp4 else None,
         "output_video_size_bytes": mp4_size_bytes,
+        "storage_provider": storage_provider,
+        "video_download_url": video_download_url,
         "total_frames": remotion_props.total_frames,
         "total_duration_seconds": remotion_props.total_duration_seconds,
         "elapsed_seconds": elapsed,
