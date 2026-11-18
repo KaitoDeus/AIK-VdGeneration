@@ -1,38 +1,39 @@
 # AIK-VdGeneration: Web Studio Client (`apps/web`)
 
 ## Overview
-Web Studio built with **Next.js 15 (App Router)**, **TypeScript (Strict Mode)**, and **Tailwind CSS**, designed strictly following the **StudioBlank Design System** (ultra-minimal monochrome palette `#FAFAFA`/`#0A0A0A`, zero border-radius, zero shadows, `Inter` + `IBM Plex Mono` typography, generous spacing).
+Web Studio built with **Next.js 15 (App Router)**, **TypeScript (Strict Mode)**, and **Tailwind CSS**, strictly adhering to the **StudioBlank Design System** (monochrome palette `#FAFAFA`/`#0A0A0A`, `0px` border-radius, zero shadows, `Inter` + `IBM Plex Mono` typography, and responsive layouts).
 
-## Implemented Features (Phase 2 M2.2)
+## Implemented Features (Phases 2 & 3)
 1. **Top-Right Bilingual UI Switcher (`VIE` / `EN`):**
-   - Instant client-side localization between Vietnamese (`VIE` + geometric Vietnam flag SVG) and English (`EN` + geometric Union Jack UK flag SVG) persisted across sessions.
-2. **Prompt & Script Studio:**
-   - Topic prompt editor with quick templates (`TECH EXPLAINER`, `EDUCATIONAL`, `PITCH DECK`, `MARKETING`).
-   - Bilingual language selector (`VI` / `EN`), aspect ratio (`16:9` / `9:16`), visual theme, and target duration controls.
-   - Live Voice Audition Player (`POST /api/v1/voices/preview`) for previewing narrator voices before rendering.
-2. **Realtime Live Render Telemetry (`WS /ws/jobs/{job_id}`):**
-   - Live WebSocket progress bar, 4-stage pipeline checklist, and `IBM Plex Mono` event console.
-   - Built-in HTML5 1080p MP4 video player, direct MP4 download, and Remotion Props JSON export.
-3. **Interactive Slide Reviewer & Canvas Preview:**
-   - Master-detail 48px-row slide selector paired with a live 16:9 / 9:16 slide canvas preview mirroring Remotion layouts.
-   - Inline editor for slide headings, layout templates, bullet points, and voiceover scripts, plus direct slide compilation (`POST /api/v1/jobs/compile`).
-4. **Inverse Monochrome Jobs Archive:**
-   - Recent render history synced with `GET /api/v1/jobs` with one-click job restoration into the studio.
+   - Instant client-side switching between Vietnamese (`VIE` with geometric Vietnam flag SVG) and English (`EN` with geometric UK Union Jack SVG), persisted in `localStorage`.
+2. **Prompt, Sound Design & Subtitles Studio (`PromptStudioForm`):**
+   - Topic editor with quick templates (`TECH EXPLAINER`, `EDUCATIONAL`, `PITCH DECK`, `MARKETING`), aspect ratio (`16:9` / `9:16`), visual theme, and target duration controls.
+   - Narrator voice audition player (`POST /api/v1/voices/preview`).
+   - Royalty-free mood BGM selector (`INSPIRING`, `TECH`, `CORPORATE`, `RELAXED`) with track audition (`/api/v1/bgm/tracks/{id}/preview`) and automatic `-18 dB` speech ducking toggle.
+   - Automatic Whisper karaoke subtitle controls (`karaoke_pill`, `minimal_line`, `bold_highlight`).
+3. **Interactive Slide Reviewer, Canvas & Stock Visuals (`SlideReviewer`):**
+   - Master-detail 48px slide selector paired with a live 16:9 / 9:16 preview canvas matching Remotion slide layouts.
+   - Inline editor for slide headings, layouts, bullets, voiceover text, and Unsplash/Pexels stock background search (`POST /api/v1/assets/search`) with dark scrim canvas preview and CSS gradient fallback.
+4. **Live Pipeline Telemetry, Cloud Storage & Exports (`LiveProgressTracker`):**
+   - Live `WS /ws/jobs/{job_id}` progress bar, 4-stage matrix, and `IBM Plex Mono` log console.
+   - Delivery badges for storage provider (`LOCAL STREAM`, `AWS S3 SIGNED`, `CLOUDFLARE R2`) and render engine (`LOCAL REMOTION`, `LAMBDA · CHUNKS`).
+   - Built-in 1080p MP4 player with Remotion Props JSON export, SubRip `.SRT` subtitle download, Presigned URL refresher, and MP4 download.
+5. **Inverse Monochrome Jobs Archive (`JobsArchiveFooter`):**
+   - Lists recent jobs via `GET /api/v1/jobs` with one-click session restoration.
 
-## Quickstart
+## Quickstart & Verification
 ```bash
-# From apps/web
+# Development server (from apps/web or repo root via `npm run dev:web`)
 npm install
 npm run dev
 
-# Run interactive DOM & component tests (Vitest + jsdom + Testing Library)
+# Interactive DOM & component test suite (Vitest + jsdom + Testing Library)
+npm run typecheck
 npm test
 
-# Run real Chrome browser E2E & StudioBlank geometry audit (Playwright)
-npm run build && npm run test:e2e
-
-# Or from repository root
-npm run dev:web
+# Production build & real headless Chrome E2E suite (Playwright: desktop & mobile)
+npm run build
+npm run test:e2e
 ```
 
-Open `http://localhost:3000` while running `npm run dev:api` on port `8000`.
+Open `http://localhost:3000` alongside `npm run dev:api` running on port `8000`.

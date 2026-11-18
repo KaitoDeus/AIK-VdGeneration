@@ -1,6 +1,6 @@
 # AIK-VdGeneration: Text-to-Speech (TTS) Setup Guide
 
-This guide details how to integrate and configure high-quality English and Vietnamese voiceovers for video slide narrations.
+This guide details how to configure bilingual English and Vietnamese voiceover synthesis and extract exact durations for audio-driven Remotion frame timing.
 
 ---
 
@@ -8,94 +8,51 @@ This guide details how to integrate and configure high-quality English and Vietn
 
 | Provider | Vietnamese Quality | English Quality | Pricing | Setup Difficulty | Best Use Case |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Edge-TTS** (Microsoft Neural) | ⭐⭐⭐⭐ (Natural, clear intonation) | ⭐⭐⭐⭐ (Native studio standard) | **Free** | Very easy (No API key required) | **MVP, Local dev, Testing** |
-| **ElevenLabs** | ⭐⭐⭐⭐⭐ (High emotional fidelity) | ⭐⭐⭐⭐⭐ (Industry gold standard) | Paid per character | Easy (API key required) | **Production, Premium Video** |
-| **FPT.AI / Vbee** | ⭐⭐⭐⭐ (Regional VN broadcast accent) | ⭐⭐ (Basic) | Paid | Moderate | **Domestic Vietnamese Enterprise** |
+| **Edge-TTS** (`edge-tts >= 7.3.1`) | High (Natural, clear intonation) | High (Native neural studio voices) | Free | Minimal (No API key required) | Local dev, testing, zero-cost production |
+| **ElevenLabs** (`eleven_multilingual_v2`) | Studio (High emotional fidelity) | Studio (Industry benchmark) | Paid per character | Easy (API key required) | Commercial narrations, expressive tone |
+| **FPT.AI / Vbee** | High (Regional VN accents) | Basic | Paid | Moderate | Domestic Vietnamese enterprise workloads |
 
 ---
 
-## 2. Option A: Edge-TTS (Zero-Cost Setup for MVP)
+## 2. Option A: Edge-TTS (Zero-Cost Neural Default)
 
-Edge-TTS uses Microsoft Edge's cloud speech service. It provides studio-grade neural voices without requiring an API key or subscription.
+Edge-TTS (`edge-tts >= 7.3.1`) connects directly to Microsoft's neural speech synthesis endpoints without requiring a subscription key.
 
-### Recommended Voice IDs:
-- **Vietnamese (Female - Standard Northern):** `vi-VN-HoaiMyNeural`
-- **Vietnamese (Male - Standard Northern):** `vi-VN-NamMinhNeural`
-- **English (Male - Natural US):** `en-US-GuyNeural`
-- **English (Female - Expressive US):** `en-US-JennyNeural`
+### Configured Default Voice IDs:
+- **Vietnamese Female (Standard Northern):** `vi-VN-HoaiMyNeural`
+- **Vietnamese Male (Standard Northern):** `vi-VN-NamMinhNeural`
+- **English Male (Standard US):** `en-US-GuyNeural`
+- **English Female (Expressive US):** `en-US-JennyNeural`
 
-### Python Implementation Example:
+### Python Usage Example:
 ```python
 import asyncio
 import edge_tts
 
-async def synthesize_speech(text: str, voice: str, output_path: str):
+async def synthesize_speech(text: str, voice: str, output_path: str) -> None:
     communicate = edge_tts.Communicate(text, voice)
     await communicate.save(output_path)
     print(f"Audio saved to: {output_path}")
 
-# Run:
-# asyncio.run(synthesize_speech("Welcome to the AIK-VdGeneration video platform", "vi-VN-HoaiMyNeural", "output.mp3"))
+# asyncio.run(synthesize_speech("Welcome to AIK-VdGeneration", "en-US-GuyNeural", "slide_1.mp3"))
 ```
-
-### Node.js Implementation Example:
-Install: `npm install edge-tts` or invoke via CLI child process.
 
 ---
 
-## 3. Option B: ElevenLabs (Production Grade)
+## 3. Option B: ElevenLabs (Commercial Production)
 
-ElevenLabs provides human-like breathing, natural pauses, and dynamic emotional coloring.
+Set `ELEVENLABS_API_KEY` in `services/api-gateway/.env`. If `ELEVENLABS_API_KEY` is blank or unreachable, `TTSAudioPipeline` logs a warning and falls back cleanly to `edge-tts` so jobs do not fail.
 
-### Voice Settings for Vietnamese & English:
+### Recommended Voice Settings:
 - **Model:** `eleven_multilingual_v2`
-- **Recommended Voice IDs:**
-  - `21m00Tcm4TlvDq8ikWAM` (Rachel - Friendly narrator)
-  - `ErXwobaYiN019PkySvjV` (Antoni - Professional presenter)
-
-### Node.js Example:
-```typescript
-import axios from 'axios';
-import fs from 'fs';
-
-export async function generateElevenLabsAudio(text: string, voiceId: string, outputPath: string) {
-  const response = await axios({
-    method: 'post',
-    url: `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
-    data: {
-      text,
-      model_id: 'eleven_multilingual_v2',
-      voice_settings: {
-        stability: 0.5,
-        similarity_boost: 0.8,
-        style: 0.2,
-      },
-    },
-    headers: {
-      'xi-api-key': process.env.ELEVENLABS_API_KEY,
-      'Content-Type': 'application/json',
-    },
-    responseType: 'arraybuffer',
-  });
-
-  fs.writeFileSync(outputPath, Buffer.from(response.data));
-}
-```
+- **Voice IDs:** `21m00Tcm4TlvDq8ikWAM` (Rachel), `ErXwobaYiN019PkySvjV` (Antoni)
 
 ---
 
-## 4. Extracting Exact Duration in Node.js
+## 4. Audio Duration Verification & Timeline Sync
 
-To calculate video frames dynamically, the exact audio length in seconds/milliseconds is extracted:
+All synthesized slide files are verified against minimum size (`> 10 KB`) and valid MP3 frames via `mutagen` (`services/api-gateway/src/services/tts_service.py`) before computing Remotion frame counts:
 
-```typescript
-import { parseFile } from 'music-metadata';
+$$\text{calculated\_frames} = \max\left(90,\; \lceil (0.2 + \text{audioDurationSeconds} + 0.5) \times 30 \rceil\right)$$
 
-export async function getAudioDuration(filePath: string): Promise<number> {
-  const metadata = await parseFile(filePath);
-  if (!metadata.format.duration) {
-    throw new Error(`Failed to extract duration for ${filePath}`);
-  }
-  return metadata.format.duration; // e.g. 7.34 seconds
-}
-```
+During video rendering, `SlidePresentation.tsx` also mixes optional royalty-free background music (`BGMService`) applying `-18 dB` voiceover attenuation during active speech windows and `+3 dB` transition swells between slides.

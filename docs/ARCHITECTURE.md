@@ -1,40 +1,42 @@
 # AIK-VdGeneration: System Architecture & Design
 
 ## 1. Executive Summary
-AIK-VdGeneration transforms high-level prompts into presentation videos with AI-generated slides and synchronized bilingual voiceovers. The system is architected as an asynchronous, event-driven pipeline separating prompt decomposition, asset synthesis, and video rendering.
+AIK-VdGeneration transforms high-level prompts into presentation videos with AI-generated slides, synchronized bilingual (English/Vietnamese) voiceovers, dynamic Ken Burns stock photography, mood-based BGM audio ducking, and word-level karaoke captions. The platform operates as an asynchronous, event-driven pipeline decoupling script generation, media synthesis, and video compilation across independent services.
 
 ---
 
-## 2. Architecture Diagram
+## 2. Architecture Diagram (Phases 1 - 3)
 
 ```mermaid
 flowchart TD
-    User([User: Web or Mobile App]) -->|1. Submit Prompt & Settings| Gateway[API Gateway / Orchestrator]
-    Gateway -->|2. Enqueue Job| RedisQueue[(Redis / BullMQ Job Queue)]
-    Gateway -.->|Return Job ID| User
+    User([User: Next.js Web Studio / CLI]) -->|1. Submit Prompt or Edited Slides| Gateway[FastAPI API Gateway]
+    Gateway -->|2. Enqueue Stage Task| RedisQueue[(Redis Stage Queues + DLQ / Memory Fallback)]
+    Gateway -.->|Return Job ID + WS URL| User
 
-    subgraph Workers [Async Worker Pool]
-        RedisQueue -->|3. Consume Job| LLMWorker[LLM Worker]
-        LLMWorker -->|4. Generate JSON Script| GeminiAPI["Gemini 3.8 Flash (google-genai SDK)"]
-        GeminiAPI -->|Structured JSON| LLMWorker
-        
-        LLMWorker -->|5. Dispatch Media Generation| MediaPool[Media Synthesis]
-        
-        subgraph MediaPool [Media Synthesis Pool]
-            TTSWorker[TTS Worker] -->|Synthesize Voice| TTSProvider[ElevenLabs / Edge-TTS / FPT.AI]
-            TTSProvider -->|MP3 Audio Files| AudioStorage[(Local / S3 Cache)]
-            
-            AssetWorker[Asset Worker] -->|Fetch Images / Icons| StockAPI[Unsplash / Pexels API]
-            StockAPI -->|Image Assets| AssetStorage[(Local / S3 Cache)]
+    subgraph Workers [Async Stage Worker Pool]
+        RedisQueue -->|3. Consume LLM Task| LLMWorker[LLM Worker]
+        LLMWorker -->|4. Generate Script JSON| GeminiAPI["Gemini 3.8 Flash (google-genai SDK)"]
+        GeminiAPI -->|Validated PresentationScript| LLMWorker
+
+        LLMWorker -->|5. Enqueue TTS Stage| TTSWorker[TTS & Media Enrichment Worker]
+
+        subgraph MediaPool [Bilingual Audio, Visual & Caption Synthesis]
+            TTSWorker -->|Voiceover MP3 + mutagen duration| TTSProvider[Edge-TTS / ElevenLabs / FPT.AI]
+            TTSWorker -->|Slide Keywords + Cache| StockService[StockAssetService: Unsplash / Pexels]
+            TTSWorker -->|Mood Track + Stereo WAV Loop| BGMService[BGMService: Inspiring/Tech/Corporate/Relaxed]
+            TTSWorker -->|Word Timestamps + SRT| SubtitleService[WhisperSubtitleService: OpenAI Whisper / Alignment]
         end
 
-        MediaPool -->|6. Bundle Assets + Metadata| RenderWorker[Remotion Render Worker]
-        RenderWorker -->|7. Compile Frames| RemotionEngine[Remotion Engine / AWS Lambda]
-        RemotionEngine -->|8. Final MP4 Video| CloudStorage[(AWS S3 / Cloudflare R2)]
+        MediaPool -->|6. RemotionCompositionProps JSON| RenderWorker[Render Worker]
+        RenderWorker -->|Local Mode| LocalRemotion[Remotion CLI Engine]
+        RenderWorker -->|Lambda Mode: 50 Chunks + HTTPS Assets| LambdaRemotion[Remotion Lambda Farm on AWS]
+        LocalRemotion -->|7. Final 1080p MP4| StorageService[CloudStorageService: AWS S3 / Cloudflare R2 / Local]
+        LambdaRemotion -->|7. Final 1080p MP4| StorageService
     end
 
-    RenderWorker -->|9. Job Completed Webhook| Gateway
-    Gateway -->|10. Push Notification / WebSocket| User
+    RenderWorker -->|8. Completed Metadata + Signed URL| Gateway
+    Gateway -->|9. Live Telemetry| WS[WebSocket /ws/jobs/job_id]
+    WS --> User
 ```
 
 ---
@@ -43,39 +45,41 @@ flowchart TD
 
 ### 3.1. API Gateway & Orchestrator (`services/api-gateway`)
 - **Responsibilities:**
-  - Authenticate clients and validate incoming prompt requests.
-  - Enqueue video generation tasks onto Redis with priority flags.
-  - Expose WebSocket endpoints for streaming progress (0% -> 100%).
-  - Deliver signed URLs for completed `.mp4` downloads.
+  - Validates requests against strict Pydantic v2 models aligned with [docs/API_SPEC.md](API_SPEC.md).
+  - Enqueues modular tasks (`llm` -> `tts` -> `render`) onto Redis or `LocalMemoryQueueBackend` with automatic 3-attempt retries and Dead-Letter Queue (`aik:queue:dlq`).
+  - Streams progress history and real-time events via `/ws/jobs/{job_id}`.
+  - Provides interactive Studio endpoints: voice audition, BGM mood catalog & audio streaming, Unsplash/Pexels stock search, job artifact streaming (`/audio`, `/assets`, `/subtitles.srt`, `/video`), and S3/R2 SigV4 signed download URL generation (`/video/url`).
 
-### 3.2. Script Generation Worker (LLM)
+### 3.2. Script Generation Worker (`LLMScriptGenerator`)
 - **Responsibilities:**
-  - Call Gemini 3.8 Flash (`google-genai` >= 3.2.0 Interactions API) with native JSON Schema Structured Outputs (`response_format`).
-  - Break down themes into 3-8 logical slide scenes.
-  - Craft natural, spoken-word scripts for the voiceover narrator.
-  - Generate search keywords for visual backdrops.
+  - Uses `google-genai >= 3.2.0` (`client.interactions.create`) targeting `gemini-3.8-flash` (with automatic `gemini-4-hydrogen` fallback) and native JSON Schema Structured Outputs (`response_format`).
+  - Decomposes prompts into 3-8 structured slides constrained to 5 layout templates with clean `visual_keywords` for backdrop enrichment.
 
-### 3.3. Bilingual Audio Pipeline (TTS)
-- **Responsibilities:**
-  - Convert per-slide text to audio files (`slide_1.mp3`, `slide_2.mp3`).
-  - Read exact duration (using `ffprobe` / `music-metadata`).
-  - Normalize volume and format to 44.1kHz / 48kHz stereo MP3.
+### 3.3. Media Enrichment Pipeline (`TTSAudioPipeline`, `StockAssetService`, `BGMService`, `WhisperSubtitleService`)
+- **Audio-First Duration Sync:** Synthesizes slide MP3s via Edge-TTS or ElevenLabs, validates file size (`> 10KB`) and audio headers, measures exact duration via `mutagen`, and sets `calculated_frames = Math.max(90, Math.ceil((0.2 + durationSec + 0.5) * 30))`.
+- **Visual Assets:** Queries Unsplash then Pexels with timeout/retry handling, validates magic headers (JPEG/PNG/WebP >= 1024 bytes), caches locally in `.temp/asset_cache/`, and leaves slides cleanly set to `null` for radial-gradient rendering when unavailable.
+- **BGM & Sound Design:** Resolves curated tracks across 4 moods (`inspiring`, `tech`, `corporate`, `relaxed`), generates seamless 44.1kHz stereo WAV loops when local MP3/WAV overrides are not present, and injects `-18 dB` speech ducking / `+3 dB` transition swell metadata.
+- **Subtitles:** Extracts word-by-word timestamps via OpenAI Whisper (`whisper-1` with `timestamp_granularities=["word"]`) or monotonic syllable/punctuation-weighted forced alignment fallback, compiling `word_timestamps` and SubRip `.srt` transcripts.
 
-### 3.4. Video Composition & Render Worker (`services/video-renderer`)
-- **Responsibilities:**
-  - Consume slide metadata + audio durations.
-  - Dynamically compute composition length in frames:
-    $$\text{durationInFrames} = \sum_{i=1}^{N} \lceil (\text{audioDuration}_i + \text{padding}) \times \text{FPS} \rceil$$
-  - Render React components via Remotion CLI or Remotion Lambda.
-  - Encode final video using H.264 / AAC at 1080p, 30fps.
+### 3.4. Video Rendering Engine (`services/video-renderer`)
+- Consumes compiled `remotion_props.json` strictly without importing Python gateway code (`architecture-rules.md`).
+- Renders 5 slide templates (`SlideLayouts.tsx`) with Spring entrance/exit animations, alternating Ken Burns slow pan/zoom + dark scrim (`SlideCard.tsx`), dynamic frame-level BGM envelope modulation (`computeDuckedBgmVolume`), and real-time active word highlighting (`KaraokeCaptions.tsx`).
+- Supports stateless single-machine CLI rendering (`RemotionRenderService`) and 50-chunk distributed cloud rendering (`@remotion/lambda@4.0.543` via `scripts/lambda-render.mjs`).
+
+### 3.5. Storage & Delivery (`CloudStorageService`)
+- Uploads finished `.mp4` videos and Lambda stage assets via `boto3` (`signature_version="s3v4"`) to AWS S3 or Cloudflare R2 (`R2_ACCOUNT_ID`), mints time-limited presigned URLs (`60s`–`604800s`), and optionally resolves custom `CDN_PUBLIC_BASE_URL` links.
 
 ---
 
-## 4. Fault Tolerance & Fallbacks
+## 4. Fault Tolerance & Fallback Matrix
 
-| Failure Scenario | Recovery Strategy |
+| Failure Scenario | Automatic Recovery Strategy |
 | :--- | :--- |
-| **Stock image API failure** | Fallback immediately to high-aesthetic CSS gradients or geometric SVG patterns. |
-| **Primary TTS API timeout** | Fallback to secondary provider (e.g. ElevenLabs -> Edge-TTS) with logged warning. |
-| **Worker node crash** | BullMQ automatically retries the task up to 3 times on another healthy worker instance. |
-| **Remotion OOM / Frame timeout** | Remotion Lambda isolates rendering per 50 frames; a single frame retry doesn't ruin the entire render. |
+| **Missing Gemini API key / 404 model** | Cascades from `gemini-3.8-flash` to `gemini-4-hydrogen`, then structured local mock generator. |
+| **ElevenLabs / primary TTS error** | Automatically degrades to free neural `edge-tts` (`vi-VN-HoaiMyNeural` / `en-US-GuyNeural`). |
+| **Unsplash / Pexels API failure or missing key** | Cascades Unsplash -> Pexels -> graceful CSS radial-gradient backdrop without failing the render. |
+| **Redis server unreachable** | `QUEUE_MODE=auto` transparently selects `LocalMemoryQueueBackend` + FastAPI background tasks. |
+| **Transient worker stage failure** | Worker retries up to `max_retries=3` before persisting structured failure in Dead-Letter Queue. |
+| **OpenAI Whisper timeout / missing key** | Falls back deterministically to `align_words_proportionally` calibrated to exact `mutagen` MP3 length. |
+| **Remotion Lambda unavailable / failure** | With `REMOTION_LAMBDA_FALLBACK_TO_LOCAL=true`, falls back automatically to local Remotion CLI. |
+| **S3 / R2 upload failure or offline mode** | Preserves rendered MP4 on local disk and serves `/api/v1/jobs/{job_id}/video` directly. |
