@@ -25,6 +25,7 @@ import { DEFAULT_VOICES } from '@/lib/templates';
 import {
   BGMTrackOption,
   HealthResponse,
+  JobLifecycleStatus,
   JobStatusResponse,
   PresentationScript,
   PromptTemplate,
@@ -161,7 +162,17 @@ export default function StudioWorkspacePage() {
         try {
           const latest = await fetchJobStatus(jobId);
           if (activeStreamJobRef.current !== jobId) return;
-          setActiveJob(latest);
+          setActiveJob((prev) => {
+            if (!prev || prev.job_id !== latest.job_id) return latest;
+            // Preserve higher realtime WebSocket progress while actively streaming non-terminal states
+            const keepWsPct =
+              latest.status !== 'completed' &&
+              latest.status !== 'failed' &&
+              prev.progress_percentage > latest.progress_percentage;
+            return keepWsPct
+              ? { ...latest, progress_percentage: prev.progress_percentage }
+              : latest;
+          });
           if (latest.script) setDraftScript(latest.script);
           if (
             latest.status === 'completed' ||
@@ -194,11 +205,27 @@ export default function StudioWorkspacePage() {
               );
               return dup ? prev : [...prev, evt];
             });
+            const lifecycleSteps = new Set<JobLifecycleStatus>([
+              'queued',
+              'generating_script',
+              'script_ready',
+              'synthesizing_audio',
+              'audio_ready',
+              'rendering_video',
+              'completed',
+              'failed',
+            ]);
             setActiveJob((prev) =>
               prev
                 ? {
                     ...prev,
-                    progress_percentage: evt.progress_percentage,
+                    status: lifecycleSteps.has(evt.step as JobLifecycleStatus)
+                      ? (evt.step as JobLifecycleStatus)
+                      : prev.status,
+                    progress_percentage:
+                      evt.step === 'failed'
+                        ? evt.progress_percentage
+                        : Math.max(prev.progress_percentage, evt.progress_percentage),
                   }
                 : prev
             );

@@ -15,7 +15,7 @@ import re
 import shutil
 import subprocess
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 import unicodedata
 
 from dotenv import load_dotenv
@@ -355,7 +355,7 @@ class TTSAudioPipeline:
         speed: float,
         output_path: Path,
         language: Optional[SupportedLanguage] = None,
-    ) -> None:
+    ) -> str:
         inferred_lang: SupportedLanguage = language or ("vi" if voice_id.startswith("vi-") else "en")
         candidate_voices: List[str] = [voice_id]
         for peer in EDGE_PEER_FALLBACK_VOICES.get(inferred_lang, []):
@@ -374,7 +374,7 @@ class TTSAudioPipeline:
                             candidate,
                             voice_id,
                         )
-                    return
+                    return candidate
                 except Exception as exc:
                     last_err = exc
                     logger.warning(
@@ -396,7 +396,7 @@ class TTSAudioPipeline:
                 estimated_sec,
             )
             write_synthetic_mp3_fallback(output_path, target_duration_seconds=estimated_sec)
-            return
+            return voice_id
 
         raise RuntimeError(f"Edge-TTS synthesis failed after retries: {last_err}")
 
@@ -457,6 +457,7 @@ class TTSAudioPipeline:
         language: SupportedLanguage,
         voice_settings: VoiceSettings,
         job_id: str,
+        resolved_voice_out: Optional[List[str]] = None,
     ) -> Tuple[Path, str, float, str]:
         """
         Synthesizes MP3 audio for a single slide, verifies its headers, and extracts its exact duration.
@@ -474,6 +475,7 @@ class TTSAudioPipeline:
         audio_dir = self.output_base_dir / job_id / "audio"
         file_path = audio_dir / filename
         relative_url = f"/audio_temp/{job_id}/{filename}"
+        actual_voice = voice_id
 
         if requested_provider == "elevenlabs":
             try:
@@ -491,7 +493,7 @@ class TTSAudioPipeline:
                 )
                 file_path = audio_dir / filename
                 relative_url = f"/audio_temp/{job_id}/{filename}"
-                self._synthesize_with_edge_tts(
+                actual_voice = self._synthesize_with_edge_tts(
                     spoken_text,
                     fallback_voice,
                     voice_settings.speed,
@@ -510,7 +512,7 @@ class TTSAudioPipeline:
             )
             file_path = audio_dir / filename
             relative_url = f"/audio_temp/{job_id}/{filename}"
-            self._synthesize_with_edge_tts(
+            actual_voice = self._synthesize_with_edge_tts(
                 spoken_text,
                 fallback_voice,
                 voice_settings.speed,
@@ -518,13 +520,17 @@ class TTSAudioPipeline:
                 language=language,
             )
         else:
-            self._synthesize_with_edge_tts(
+            actual_voice = self._synthesize_with_edge_tts(
                 spoken_text,
                 voice_id,
                 voice_settings.speed,
                 file_path,
                 language=language,
             )
+
+        if resolved_voice_out is not None:
+            resolved_voice_out.clear()
+            resolved_voice_out.append(actual_voice)
 
         duration_seconds = verify_and_extract_duration(file_path)
         return file_path, relative_url, duration_seconds, provider_used
@@ -536,12 +542,14 @@ class TTSAudioPipeline:
         job_id: str = "job_local",
         aspect_ratio: str = "16:9",
         fps: int = 30,
+        progress_callback: Optional[Callable[[int, int, str], None]] = None,
     ) -> Tuple[RemotionCompositionProps, str]:
         """
         Synthesizes voiceover MP3s for every slide in a PresentationScript and compiles
         the final RemotionCompositionProps with dynamic frame calculations.
         """
         settings = voice_settings or VoiceSettings()
+        active_settings = settings
         width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
         theme_props = THEME_PRESETS.get(script.theme, THEME_PRESETS["modern_tech"])
 
@@ -549,15 +557,29 @@ class TTSAudioPipeline:
         total_frames = 0
         total_duration_seconds = 0.0
         provider_used = settings.provider
+        total_slides = len(script.slides)
 
-        for slide in script.slides:
+        for idx, slide in enumerate(script.slides, start=1):
+            if progress_callback:
+                progress_callback(
+                    idx - 1,
+                    total_slides,
+                    f"Synthesizing voiceover for slide {idx}/{total_slides}...",
+                )
+            resolved_voice_holder: List[str] = []
             file_path, relative_url, duration_sec, used_prov = self.synthesize_slide_audio(
                 slide_index=slide.slide_index,
                 text=slide.voiceover_script,
                 language=script.language,
-                voice_settings=settings,
+                voice_settings=active_settings,
                 job_id=job_id,
+                resolved_voice_out=resolved_voice_holder,
             )
+            if resolved_voice_holder and resolved_voice_holder[0]:
+                # Keep voice consistent and avoid repeated timeouts on subsequent slides
+                chosen = resolved_voice_holder[0]
+                if chosen != active_settings.voice_id and active_settings.provider == "edge_tts":
+                    active_settings = active_settings.model_copy(update={"voice_id": chosen})
             provider_used = used_prov
             frames = calculate_slide_frames(duration_sec, fps=fps)
             slide_total_sec = round(frames / fps, 3)
@@ -579,6 +601,12 @@ class TTSAudioPipeline:
                     background_image_url=None,
                 )
             )
+            if progress_callback:
+                progress_callback(
+                    idx,
+                    total_slides,
+                    f"Voiceover slide {idx}/{total_slides} ready ({duration_sec:.1f}s).",
+                )
 
         props = RemotionCompositionProps(
             project_title=script.title,

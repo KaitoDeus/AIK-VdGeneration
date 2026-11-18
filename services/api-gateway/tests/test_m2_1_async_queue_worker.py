@@ -123,7 +123,7 @@ class TestDedicatedStageWorkersAndRetries:
         backend = RedisQueueBackend(redis_client=fake_redis)
 
         mock_renderer = MagicMock(spec=RemotionRenderService)
-        def _fake_render(props, job_id, output_mp4_path, props_json_path=None):
+        def _fake_render(props, job_id, output_mp4_path, props_json_path=None, **_kwargs):
             return _create_dummy_mp4_file(output_mp4_path)
 
         mock_renderer.render_presentation.side_effect = _fake_render
@@ -182,7 +182,13 @@ class TestDedicatedStageWorkersAndRetries:
         assert after_render.progress_percentage == 100
         assert after_render.output_video_path is not None
         assert Path(after_render.output_video_path).exists()
-        assert [e.step for e in after_render.progress_events] == [
+
+        # Verify ordered milestone transitions while allowing fine-grained per-slide realtime TTS ticks
+        distinct_steps = []
+        for evt in after_render.progress_events:
+            if not distinct_steps or distinct_steps[-1] != evt.step:
+                distinct_steps.append(evt.step)
+        assert distinct_steps == [
             "generating_script",
             "script_ready",
             "synthesizing_audio",
@@ -190,6 +196,11 @@ class TestDedicatedStageWorkersAndRetries:
             "rendering_video",
             "completed",
         ]
+        tts_events = [e for e in after_render.progress_events if e.step == "synthesizing_audio"]
+        assert len(tts_events) >= 4
+        assert [e.progress_percentage for e in tts_events] == sorted(
+            e.progress_percentage for e in tts_events
+        )
 
     def test_transient_worker_failure_retries_and_recovers_within_3_attempts(self, tmp_path: Path):
         fake_redis = fakeredis.FakeRedis(decode_responses=True)

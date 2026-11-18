@@ -8,9 +8,11 @@ JSON props files, temporary `public/audio_temp/{job_id}` asset staging, and
 import json
 import logging
 from pathlib import Path
+import re
 import shutil
 import subprocess
-from typing import List, Optional
+import time
+from typing import Callable, List, Optional
 
 from ..schemas import RemotionCompositionProps
 
@@ -51,7 +53,7 @@ class RemotionRenderService:
     def __init__(
         self,
         video_renderer_dir: Optional[Path] = None,
-        timeout_seconds: int = 300,
+        timeout_seconds: int = 600,
     ) -> None:
         repo_root = Path(__file__).resolve().parents[4]
         self.video_renderer_dir = (
@@ -133,6 +135,7 @@ class RemotionRenderService:
         props_file: Path,
         output_mp4_path: Path,
         frame_range: Optional[str] = None,
+        log_level: str = "error",
     ) -> List[str]:
         """Constructs the cross-platform `remotion render` CLI command array."""
         cli_js = (
@@ -155,12 +158,101 @@ class RemotionRenderService:
                 "SlidePresentation",
                 str(output_mp4_path.resolve()),
                 f"--props={props_file.resolve()}",
-                "--log=error",
+                f"--log={log_level}",
             ]
         )
         if frame_range:
             cmd.append(f"--frames={frame_range}")
         return cmd
+
+    def _run_remotion_with_progress(
+        self,
+        cmd: List[str],
+        effective_timeout: int,
+        progress_callback: Callable[[int, str], None],
+    ) -> None:
+        """Executes Remotion CLI streaming stdout lines and reporting monotonic 81%..98% progress."""
+        proc = subprocess.Popen(
+            cmd,
+            cwd=str(self.video_renderer_dir),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            bufsize=1,
+        )
+        tail_lines: List[str] = []
+        last_pct = 81
+        last_emit_ts = 0.0
+        start_ts = time.monotonic()
+
+        bundle_re = re.compile(r"Bundling\s+(\d+)%")
+        render_re = re.compile(r"Rendered\s+(\d+)/(\d+)(?:,\s*time remaining:\s*([^\r\n]+))?")
+        encode_re = re.compile(r"Encoded\s+(\d+)/(\d+)")
+
+        def _maybe_emit(pct: int, msg: str, force: bool = False) -> None:
+            nonlocal last_pct, last_emit_ts
+            bounded = max(last_pct, min(98, pct))
+            now = time.monotonic()
+            if force or bounded > last_pct or (now - last_emit_ts >= 1.5 and msg):
+                last_pct = bounded
+                last_emit_ts = now
+                progress_callback(bounded, f"{msg} ({bounded}%)")
+
+        try:
+            assert proc.stdout is not None
+            for raw_line in proc.stdout:
+                if time.monotonic() - start_ts > effective_timeout:
+                    proc.kill()
+                    raise subprocess.TimeoutExpired(cmd=cmd, timeout=effective_timeout)
+
+                line = raw_line.strip()
+                if not line:
+                    continue
+                tail_lines.append(line)
+                if len(tail_lines) > 30:
+                    tail_lines.pop(0)
+
+                m_bundle = bundle_re.search(line)
+                if m_bundle:
+                    bpct = int(m_bundle.group(1))
+                    mapped = 81 + round(4 * (bpct / 100.0))
+                    _maybe_emit(mapped, f"Bundling Remotion templates ({bpct}%)...")
+                    continue
+
+                if "Getting composition" in line:
+                    _maybe_emit(85, "Preparing headless Chromium renderer...", force=True)
+                    continue
+
+                m_render = render_re.search(line)
+                if m_render:
+                    cur = int(m_render.group(1))
+                    tot = max(1, int(m_render.group(2)))
+                    eta = m_render.group(3)
+                    ratio = min(1.0, cur / tot)
+                    mapped = 86 + round(9 * ratio)
+                    eta_note = f", ETA {eta.strip()}" if eta else ""
+                    _maybe_emit(mapped, f"Rendering frame {cur}/{tot}{eta_note}...")
+                    continue
+
+                m_encode = encode_re.search(line)
+                if m_encode:
+                    cur = int(m_encode.group(1))
+                    tot = max(1, int(m_encode.group(2)))
+                    ratio = min(1.0, cur / tot)
+                    mapped = 95 + round(3 * ratio)
+                    _maybe_emit(mapped, f"Encoding 1080p MP4 ({cur}/{tot} frames)...")
+
+            returncode = proc.wait(timeout=max(5, int(effective_timeout - (time.monotonic() - start_ts))))
+            if returncode != 0:
+                raise RuntimeError(
+                    f"Remotion CLI render exited with code {returncode}: {' '.join(tail_lines[-8:])}"
+                )
+        except Exception:
+            if proc.poll() is None:
+                proc.kill()
+            raise
 
     def render_presentation(
         self,
@@ -170,6 +262,7 @@ class RemotionRenderService:
         props_json_path: Optional[Path] = None,
         frame_range: Optional[str] = None,
         cleanup_staging: bool = True,
+        progress_callback: Optional[Callable[[int, str], None]] = None,
     ) -> Path:
         """
         Stages audio assets, writes the Remotion input props JSON, invokes the Remotion CLI
@@ -190,31 +283,41 @@ class RemotionRenderService:
         )
 
         self.stage_audio_assets(props, job_id)
+        effective_timeout = max(self.timeout_seconds, 120 + (props.total_frames // 6))
 
         try:
+            log_mode = "info" if progress_callback is not None else "error"
             cmd = self.build_remotion_command(
                 props_file=props_json_path,
                 output_mp4_path=output_mp4_path,
                 frame_range=frame_range,
+                log_level=log_mode,
             )
             logger.info(
                 "Starting Remotion render for job '%s': %s",
                 job_id,
                 " ".join(cmd),
             )
-            result = subprocess.run(
-                cmd,
-                cwd=str(self.video_renderer_dir),
-                capture_output=True,
-                text=True,
-                timeout=self.timeout_seconds,
-                check=False,
-            )
-            if result.returncode != 0:
-                stderr_out = (result.stderr or result.stdout or "").strip()
-                raise RuntimeError(
-                    f"Remotion CLI render exited with code {result.returncode}: {stderr_out}"
+            if progress_callback is not None:
+                self._run_remotion_with_progress(
+                    cmd=cmd,
+                    effective_timeout=effective_timeout,
+                    progress_callback=progress_callback,
                 )
+            else:
+                result = subprocess.run(
+                    cmd,
+                    cwd=str(self.video_renderer_dir),
+                    capture_output=True,
+                    text=True,
+                    timeout=effective_timeout,
+                    check=False,
+                )
+                if result.returncode != 0:
+                    stderr_out = (result.stderr or result.stdout or "").strip()
+                    raise RuntimeError(
+                        f"Remotion CLI render exited with code {result.returncode}: {stderr_out}"
+                    )
 
             verify_mp4_output(output_mp4_path)
             logger.info(

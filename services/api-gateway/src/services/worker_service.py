@@ -141,14 +141,30 @@ class TTSWorker(BaseStageWorker):
 
         job.status = "synthesizing_audio"
         job.current_stage = "tts"
-        job.progress_percentage = 60
+        job.progress_percentage = 45
         queue_backend.save_job(job)
         queue_backend.emit_progress(
             job_id=job.job_id,
             step="synthesizing_audio",
-            progress_percentage=60,
-            message="Synthesizing bilingual voiceovers and fetching slide visuals... (60%)",
+            progress_percentage=45,
+            message=f"Starting bilingual voiceover synthesis ({len(script.slides)} slides)... (45%)",
         )
+
+        last_tts_pct = 45
+
+        def _on_tts_slide_progress(completed: int, total: int, detail: str) -> None:
+            nonlocal last_tts_pct
+            ratio = (completed / total) if total > 0 else 1.0
+            pct = max(last_tts_pct, min(72, 45 + round(27 * ratio)))
+            last_tts_pct = pct
+            job.progress_percentage = pct
+            queue_backend.save_job(job)
+            queue_backend.emit_progress(
+                job_id=job.job_id,
+                step="synthesizing_audio",
+                progress_percentage=pct,
+                message=f"{detail} ({pct}%)",
+            )
 
         remotion_props, provider_used = self.tts_pipeline.synthesize_presentation(
             script=script,
@@ -156,10 +172,19 @@ class TTSWorker(BaseStageWorker):
             job_id=job.job_id,
             aspect_ratio=task.request.aspect_ratio,
             fps=30,
+            progress_callback=_on_tts_slide_progress,
         )
 
         # MediaPool AssetWorker step (M2.3): Enrich slides with stock photography or fallback cleanly
         if self.asset_service and (task.request.include_stock_visuals or task.slide_backgrounds):
+            job.progress_percentage = 75
+            queue_backend.save_job(job)
+            queue_backend.emit_progress(
+                job_id=job.job_id,
+                step="synthesizing_audio",
+                progress_percentage=75,
+                message=f"Enriching stock visuals for {len(script.slides)} slides... (75%)",
+            )
             remotion_props = self.asset_service.enrich_remotion_props(
                 props=remotion_props,
                 script=script,
@@ -175,6 +200,14 @@ class TTSWorker(BaseStageWorker):
 
         # Automatic Animated Subtitles / Whisper Timestamps (M3.3)
         if self.subtitle_service and task.request.subtitle_settings and task.request.subtitle_settings.enabled:
+            job.progress_percentage = 78
+            queue_backend.save_job(job)
+            queue_backend.emit_progress(
+                job_id=job.job_id,
+                step="synthesizing_audio",
+                progress_percentage=78,
+                message="Compiling BGM audio ducking & karaoke subtitle timestamps... (78%)",
+            )
             remotion_props = self.subtitle_service.enrich_remotion_props(
                 props=remotion_props,
                 settings=task.request.subtitle_settings,
@@ -247,11 +280,23 @@ class RenderWorker(BaseStageWorker):
         queue_backend: BaseQueueBackend,
     ) -> None:
         output_mp4 = job_dir / f"{job.job_id}.mp4"
+
+        def _on_local_render_progress(pct: int, msg: str) -> None:
+            job.progress_percentage = pct
+            queue_backend.save_job(job)
+            queue_backend.emit_progress(
+                job_id=job.job_id,
+                step="rendering_video",
+                progress_percentage=pct,
+                message=msg,
+            )
+
         rendered_path = self.render_service.render_presentation(
             props=props,
             job_id=job.job_id,
             output_mp4_path=output_mp4,
             props_json_path=props_path,
+            progress_callback=_on_local_render_progress,
         )
 
         if self.storage_service.resolve_provider() in ("s3", "r2"):
@@ -315,13 +360,13 @@ class RenderWorker(BaseStageWorker):
 
         job.status = "rendering_video"
         job.current_stage = "render"
-        job.progress_percentage = 90
+        job.progress_percentage = 81
         queue_backend.save_job(job)
         queue_backend.emit_progress(
             job_id=job.job_id,
             step="rendering_video",
-            progress_percentage=90,
-            message="Rendering 1080p video frames via Remotion Engine... (90%)",
+            progress_percentage=81,
+            message="Initializing Remotion 1080p render engine... (81%)",
         )
 
         if self.lambda_service.resolve_active_engine() == "lambda":

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { fetchSignedVideoUrl, getJobDownloadHref, getJobSubtitlesUrl, getJobVideoUrl } from '@/lib/api';
 import { STUDIO_DICTIONARY, UiLocale } from '@/lib/i18n';
 import { JobStatusResponse, VideoDeliveryResponse, WebSocketProgressEvent } from '@/types/studio';
@@ -32,10 +32,18 @@ export const LiveProgressTracker: React.FC<LiveProgressTrackerProps> = ({
   const t = STUDIO_DICTIONARY[locale].progress;
   const [signedDelivery, setSignedDelivery] = useState<VideoDeliveryResponse | null>(null);
   const [isSigningUrl, setIsSigningUrl] = useState(false);
+  const consoleContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setSignedDelivery(null);
   }, [job.job_id]);
+
+  useEffect(() => {
+    const el = consoleContainerRef.current;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [events.length]);
 
   const chipStyle =
     STATUS_CHIP_STYLE[job.status] || 'border-[#D4D4D8] bg-transparent text-[#71717A]';
@@ -74,9 +82,14 @@ export const LiveProgressTracker: React.FC<LiveProgressTrackerProps> = ({
   const pipelineSteps = [
     { id: '01', label: t.steps.queued, threshold: 0 },
     { id: '02', label: t.steps.script, threshold: 40 },
-    { id: '03', label: t.steps.audio, threshold: 80 },
-    { id: '04', label: t.steps.render, threshold: 100 },
+    { id: '03', label: t.steps.audio, threshold: 75 },
+    { id: '04', label: t.steps.render, threshold: 81 },
   ];
+  const latestEvent = events.length > 0 ? events[events.length - 1] : null;
+  const isActivelyProcessing =
+    job.status !== 'completed' &&
+    job.status !== 'failed' &&
+    !(job.status === 'audio_ready' && !job.render_requested);
 
   const handleDownloadProps = () => {
     if (!job.remotion_props) return;
@@ -136,11 +149,21 @@ export const LiveProgressTracker: React.FC<LiveProgressTrackerProps> = ({
           aria-valuemin={0}
           aria-valuemax={100}
           style={{ width: `${job.progress_percentage}%` }}
-          className={`h-[4px] transition-all duration-150 ${
+          className={`h-[6px] transition-[width] duration-150 ${
             job.status === 'failed' ? 'bg-[#DC2626]' : 'bg-[#0A0A0A]'
           }`}
         />
       </div>
+
+      {isActivelyProcessing && latestEvent && (
+        <div
+          data-testid="live-activity-ticker"
+          className="flex items-center justify-between gap-4 border-b border-[#E5E5E5] bg-[#FAFAFA] px-8 py-2.5 font-mono text-[12px] text-[#0A0A0A]"
+        >
+          <span className="truncate">{latestEvent.message}</span>
+          <span className="shrink-0 font-semibold">{job.progress_percentage}%</span>
+        </div>
+      )}
 
       {/* 4-Stage Milestone Matrix */}
       <div className="grid grid-cols-2 divide-x divide-[#E5E5E5] border-b border-[#E5E5E5] md:grid-cols-4">
@@ -278,7 +301,10 @@ export const LiveProgressTracker: React.FC<LiveProgressTrackerProps> = ({
           )}
         </div>
 
-        <div className="max-h-48 overflow-y-auto border border-[#E5E5E5] bg-[#FAFAFA] p-4 font-mono text-[13px] leading-[1.5]">
+        <div
+          ref={consoleContainerRef}
+          className="max-h-48 overflow-y-auto border border-[#E5E5E5] bg-[#FAFAFA] p-4 font-mono text-[13px] leading-[1.5]"
+        >
           {events.length === 0 ? (
             <p className="text-[#71717A]">{t.waitingEvents}</p>
           ) : (

@@ -162,17 +162,32 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
 
     const ws = MockWebSocket.instances[0];
 
-    // Emit live progress events over WebSocket
+    // Emit live fine-grained progress events over WebSocket (TTS slide -> Remotion render)
     await act(async () => {
       ws.emitEvent({
         job_id: server.jobState.job_id,
-        step: 'generating_script',
-        progress_percentage: 20,
-        message: 'Generating script via Gemini 3.8 Flash... (20%)',
-        timestamp: '2026-11-17T11:05:00Z',
+        step: 'synthesizing_audio',
+        progress_percentage: 58,
+        message: 'Voiceover slide 3/5 ready (4.2s). (58%)',
+        timestamp: '2026-11-17T11:05:05Z',
       });
     });
-    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '20');
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '58');
+    expect(screen.getByTestId('job-status-chip')).toHaveTextContent('ĐANG TẠO GIỌNG ĐỌC');
+    expect(screen.getByTestId('live-activity-ticker')).toHaveTextContent('Voiceover slide 3/5 ready');
+
+    await act(async () => {
+      ws.emitEvent({
+        job_id: server.jobState.job_id,
+        step: 'rendering_video',
+        progress_percentage: 91,
+        message: 'Rendering frame 180/300, ETA 8s... (91%)',
+        timestamp: '2026-11-17T11:05:15Z',
+      });
+    });
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '91');
+    expect(screen.getByTestId('job-status-chip')).toHaveTextContent('ĐANG KẾT XUẤT VIDEO');
+    expect(screen.getByTestId('live-activity-ticker')).toHaveTextContent('Rendering frame 180/300');
 
     // Update backend job state and emit completion over WebSocket
     server.jobState.status = 'completed';

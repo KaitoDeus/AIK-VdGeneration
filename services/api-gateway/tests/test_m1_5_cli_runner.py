@@ -178,6 +178,72 @@ class TestRemotionRenderService:
         # Confirm staged audio directory was automatically cleaned up after render
         assert not (renderer.public_audio_temp_dir / "job_mock_render").exists()
 
+    @patch("src.services.render_service.subprocess.Popen")
+    def test_render_presentation_streams_realtime_progress_via_popen(
+        self, mock_popen_cls, tmp_path: Path
+    ):
+        audio_file = tmp_path / "slide_1_realtime.mp3"
+        write_synthetic_mp3_fallback(audio_file, target_duration_seconds=3.5)
+        output_mp4 = tmp_path / "out" / "realtime_streamed.mp4"
+
+        def _fake_popen(*_args, **_kwargs):
+            _create_dummy_mp4(output_mp4, size_bytes=16384)
+            proc = MagicMock()
+            proc.stdout = iter(
+                [
+                    "Bundling 25%\n",
+                    "Bundling 100%\n",
+                    "Getting composition\n",
+                    "Rendered 50/100, time remaining: 6s\n",
+                    "Rendered 100/100\n",
+                    "Encoded 60/100\n",
+                    "Encoded 100/100\n",
+                ]
+            )
+            proc.wait.return_value = 0
+            proc.poll.return_value = 0
+            return proc
+
+        mock_popen_cls.side_effect = _fake_popen
+
+        props = RemotionCompositionProps(
+            project_title="Realtime Popen Stream Test",
+            fps=30,
+            width=1920,
+            height=1080,
+            total_duration_seconds=4.2,
+            total_frames=126,
+            slides=[
+                RemotionSlideProps(
+                    slide_index=1,
+                    layout="title_intro",
+                    heading="Slide 1",
+                    bullet_points=["Realtime progress"],
+                    voiceover_script="Streaming render frames over WebSocket.",
+                    voiceover_audio_url="/audio_temp/job_rt/slide_1_realtime.mp3",
+                    voiceover_audio_path=str(audio_file),
+                    voiceover_duration_seconds=3.5,
+                    calculated_frames=126,
+                )
+            ],
+        )
+
+        emitted = []
+        renderer = RemotionRenderService()
+        renderer.render_presentation(
+            props=props,
+            job_id="job_rt",
+            output_mp4_path=output_mp4,
+            progress_callback=lambda pct, msg: emitted.append((pct, msg)),
+        )
+
+        assert emitted, "Expected realtime progress emissions during Remotion Popen streaming"
+        pcts = [p for p, _ in emitted]
+        assert pcts == sorted(pcts)
+        assert pcts[0] >= 81 and pcts[-1] == 98
+        assert any("Rendering frame 50/100" in msg for _, msg in emitted)
+        assert any("Encoding 1080p MP4 (100/100 frames)" in msg for _, msg in emitted)
+
 
 class TestEndToEndCLIRunner:
     """Verifies end-to-end execution of `src/cli.py` including a real Remotion MP4 render."""
