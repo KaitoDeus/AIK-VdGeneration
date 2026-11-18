@@ -364,8 +364,10 @@ test.describe('AIK Web Studio Real Browser Verification (StudioBlank)', () => {
     await attachMockApiGateway(page);
     await page.goto('/');
 
-    // Select quick template and draft script
+    // Select quick template, enable BGM & Whisper captions, and draft script
     await page.getByRole('button', { name: 'GIẢI THÍCH CÔNG NGHỆ' }).click();
+    await page.getByTestId('bgm-mood-tech').click();
+    await page.getByTestId('subtitles-enable-toggle').click();
     await page.getByRole('button', { name: 'Soạn Kịch Bản Trước' }).click();
 
     const canvas = page.getByTestId('live-slide-canvas');

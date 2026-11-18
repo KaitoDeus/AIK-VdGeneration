@@ -22,13 +22,14 @@ GATEWAY_ROOT = Path(__file__).resolve().parent.parent
 if str(GATEWAY_ROOT) not in sys.path:
     sys.path.insert(0, str(GATEWAY_ROOT))
 
-from src.schemas import BGMSettings, SupportedLanguage, TTSProviderType, VoiceSettings
+from src.schemas import BGMSettings, SubtitleSettings, SupportedLanguage, TTSProviderType, VoiceSettings
 from src.services.asset_service import StockAssetService
 from src.services.bgm_service import BGMService
 from src.services.lambda_render_service import RemotionLambdaRenderService
 from src.services.llm_service import LLMScriptGenerator
 from src.services.render_service import RemotionRenderService, verify_mp4_output
 from src.services.storage_service import CloudStorageService
+from src.services.subtitle_service import WhisperSubtitleService
 from src.services.tts_service import TTSAudioPipeline
 
 logging.basicConfig(
@@ -143,6 +144,18 @@ def parse_cli_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         action="store_true",
         help="Disable automatic -18dB speech ducking when BGM is enabled.",
     )
+    parser.add_argument(
+        "--subtitles",
+        action="store_true",
+        help="Enable dynamic karaoke animated captions (OpenAI Whisper with forced-alignment fallback).",
+    )
+    parser.add_argument(
+        "--subtitle-style",
+        type=str,
+        choices=["karaoke_pill", "minimal_line", "bold_highlight"],
+        default="karaoke_pill",
+        help="Karaoke caption styling preset.",
+    )
     return parser.parse_args(argv)
 
 
@@ -230,6 +243,15 @@ def run_cli_pipeline(argv: Optional[List[str]] = None) -> dict:
             job_id=job_id,
         )
         remotion_props = remotion_props.model_copy(update={"bgm": bgm_props})
+
+    if args.subtitles:
+        subtitle_service = WhisperSubtitleService()
+        remotion_props = subtitle_service.enrich_remotion_props(
+            props=remotion_props,
+            settings=SubtitleSettings(enabled=True, style=args.subtitle_style),
+            language=args.lang,
+            job_dir=job_dir,
+        )
 
     props_path = job_dir / "remotion_props.json"
     props_path.write_text(

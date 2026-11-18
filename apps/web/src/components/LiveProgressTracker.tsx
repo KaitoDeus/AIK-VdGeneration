@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { fetchSignedVideoUrl, getJobDownloadHref, getJobVideoUrl } from '@/lib/api';
+import { fetchSignedVideoUrl, getJobDownloadHref, getJobSubtitlesUrl, getJobVideoUrl } from '@/lib/api';
 import { STUDIO_DICTIONARY, UiLocale } from '@/lib/i18n';
 import { JobStatusResponse, VideoDeliveryResponse, WebSocketProgressEvent } from '@/types/studio';
 
@@ -211,6 +211,16 @@ export const LiveProgressTracker: React.FC<LiveProgressTrackerProps> = ({
                 >
                   {t.exportPropsBtn}
                 </button>
+              )}
+              {job.remotion_props?.subtitles?.enabled && (
+                <a
+                  data-testid="download-srt-link"
+                  href={getJobSubtitlesUrl(job.job_id)}
+                  download={`${job.job_id}.srt`}
+                  className="inline-flex h-10 items-center border border-[#0A0A0A] px-5 text-[12px] uppercase tracking-[0.05em] text-[#0A0A0A] transition-colors duration-150 hover:bg-[#0A0A0A] hover:text-[#FAFAFA]"
+                >
+                  {t.downloadSrtBtn}
+                </a>
               )}
               {(activeStorageProvider === 's3' || activeStorageProvider === 'r2') && (
                 <button

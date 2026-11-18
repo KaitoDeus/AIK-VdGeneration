@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { AbsoluteFill, Audio, Sequence, Series, useVideoConfig } from 'remotion';
+import { KaraokeCaptions } from '../components/KaraokeCaptions';
 import { SlideCard } from '../components/SlideCard';
 import { VideoPresentationProps } from '../types';
 import {
@@ -25,6 +26,7 @@ export const SlidePresentation: React.FC<VideoPresentationProps> = ({
   slides,
   theme,
   bgm,
+  subtitles,
 }) => {
   const videoConfig = useVideoConfig();
   const fps = videoConfig?.fps || DEFAULT_FPS;
@@ -71,6 +73,16 @@ export const SlidePresentation: React.FC<VideoPresentationProps> = ({
                 projectTitle={project_title}
                 totalSlides={slides.length}
               />
+              {subtitles?.enabled &&
+                Array.isArray(slide.word_timestamps) &&
+                slide.word_timestamps.length > 0 && (
+                  <KaraokeCaptions
+                    words={slide.word_timestamps}
+                    captionStyle={subtitles.style}
+                    maxWordsPerLine={subtitles.max_words_per_line}
+                    highlightColor={subtitles.highlight_color}
+                  />
+                )}
             </Series.Sequence>
           );
         })}

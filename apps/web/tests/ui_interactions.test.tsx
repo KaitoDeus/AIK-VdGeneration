@@ -308,4 +308,40 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
       });
     });
   });
+
+  it('enables Whisper karaoke subtitles, selects bold_highlight style, and shows .SRT export link', async () => {
+    const user = userEvent.setup();
+    render(<StudioWorkspacePage />);
+
+    // Enable subtitles & pick bold_highlight style
+    await user.click(screen.getByTestId('subtitles-enable-toggle'));
+    await user.click(screen.getByTestId('subtitle-style-bold_highlight'));
+    await user.click(screen.getByRole('button', { name: 'GIẢI THÍCH CÔNG NGHỆ' }));
+    await user.click(screen.getByRole('button', { name: 'Tạo Video Thuyết Trình' }));
+
+    await waitFor(() => {
+      const genCall = server.fetchMock.mock.calls.find(
+        ([url, init]) => String(url).endsWith('/api/v1/videos/generate') && init?.method === 'POST'
+      );
+      expect(genCall).toBeDefined();
+      const body = JSON.parse(String(genCall?.[1]?.body));
+      expect(body.subtitle_settings).toEqual({
+        enabled: true,
+        style: 'bold_highlight',
+      });
+    });
+
+    // Wait for generateVideoJob state transition to settle before restoring archive job
+    await screen.findByRole('progressbar');
+
+    // Restore cloud job with subtitles enabled -> .SRT export link appears
+    const cloudArchiveRow = await screen.findByRole('button', { name: /job_archive_s3/i });
+    await user.click(cloudArchiveRow);
+    await waitFor(() => {
+      expect(screen.getByTestId('download-srt-link')).toHaveAttribute(
+        'href',
+        'http://localhost:8000/api/v1/jobs/job_archive_s3/subtitles.srt'
+      );
+    });
+  });
 });

@@ -8,6 +8,7 @@ import {
   JobStatusResponse,
   PresentationScript,
   QueueStatsResponse,
+  SubtitleSettings,
   SupportedLanguage,
   TTSProviderType,
   VideoDeliveryResponse,
@@ -40,6 +41,10 @@ export function getJobAudioUrl(jobId: string, audioUrlOrPath: string): string {
 
 export function getJobVideoUrl(jobId: string): string {
   return `${getApiBaseUrl()}/api/v1/jobs/${encodeURIComponent(jobId)}/video`;
+}
+
+export function getJobSubtitlesUrl(jobId: string): string {
+  return `${getApiBaseUrl()}/api/v1/jobs/${encodeURIComponent(jobId)}/subtitles.srt`;
 }
 
 export function getJobDownloadHref(job: JobStatusResponse): string {
@@ -179,6 +184,7 @@ export async function generateVideoJob(params: {
   render_video: boolean;
   include_stock_visuals?: boolean;
   bgm_settings?: BGMSettings;
+  subtitle_settings?: SubtitleSettings;
 }): Promise<VideoJobResponse> {
   return requestJson<VideoJobResponse>('/api/v1/videos/generate', {
     method: 'POST',
@@ -197,6 +203,7 @@ export async function compileEditedScript(params: {
   render_video: boolean;
   include_stock_visuals?: boolean;
   bgm_settings?: BGMSettings;
+  subtitle_settings?: SubtitleSettings;
   slide_backgrounds?: Record<number, string>;
 }): Promise<VideoJobResponse> {
   return requestJson<VideoJobResponse>('/api/v1/jobs/compile', {

@@ -9,6 +9,7 @@ import {
   AspectRatio,
   BGMMood,
   BGMTrackOption,
+  CaptionStyle,
   PromptTemplate,
   SupportedLanguage,
   TTSProviderType,
@@ -29,6 +30,8 @@ export interface StudioFormState {
   bgmMood?: BGMMood;
   bgmTrackId?: string;
   bgmDuckingEnabled?: boolean;
+  subtitlesEnabled?: boolean;
+  subtitleStyle?: CaptionStyle;
 }
 
 interface PromptStudioFormProps {
@@ -414,6 +417,52 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
             />
           </div>
         )}
+
+        {/* Whisper Karaoke Subtitles Row (M3.3) */}
+        <div className="mt-4 flex flex-col justify-between gap-3 border-t border-[#E5E5E5] pt-4 sm:flex-row sm:items-center">
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={Boolean(formState.subtitlesEnabled)}
+            data-testid="subtitles-enable-toggle"
+            onClick={() => onChange({ subtitlesEnabled: !formState.subtitlesEnabled })}
+            className="flex items-center gap-2 text-[13px] font-medium text-[#0A0A0A]"
+          >
+            <span
+              className={`flex h-[16px] w-[16px] items-center justify-center border text-[11px] font-bold ${
+                formState.subtitlesEnabled
+                  ? 'border-[#0A0A0A] bg-[#0A0A0A] text-[#FAFAFA]'
+                  : 'border-[#D4D4D8] bg-[#FFFFFF]'
+              }`}
+            >
+              {formState.subtitlesEnabled ? '✓' : ''}
+            </span>
+            <span>{t.subtitlesEnableLabel}</span>
+          </button>
+
+          {formState.subtitlesEnabled && (
+            <div className="flex flex-wrap items-center gap-2">
+              {(['karaoke_pill', 'minimal_line', 'bold_highlight'] as CaptionStyle[]).map((styleKey) => {
+                const active = (formState.subtitleStyle || 'karaoke_pill') === styleKey;
+                return (
+                  <button
+                    key={styleKey}
+                    type="button"
+                    data-testid={`subtitle-style-${styleKey}`}
+                    onClick={() => onChange({ subtitleStyle: styleKey })}
+                    className={`h-7 border px-3 font-mono text-[11px] uppercase transition-colors duration-150 ${
+                      active
+                        ? 'border-[#0A0A0A] bg-[#0A0A0A] text-[#FAFAFA]'
+                        : 'border-[#D4D4D8] bg-[#FFFFFF] text-[#71717A] hover:border-[#0A0A0A] hover:text-[#0A0A0A]'
+                    }`}
+                  >
+                    {t.subtitleStyles[styleKey]}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Execution Action Bar */}

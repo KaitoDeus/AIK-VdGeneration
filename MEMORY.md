@@ -2,8 +2,8 @@
 
 ## 1. Project Identity & Status
 - **Project Name:** AIK-VdGeneration (AI-driven Prompt to Slide-Video Generator)
-- **Status:** Phase 3 In Progress (2/3 Milestones) — M3.2 Sound Design & BGM Ducking Completed.
-- **Current Milestone:** M3.2 - Royalty-Free Mood BGM Library & Automatic -18dB Speech Ducking Completed.
+- **Status:** Phase 3 Completed (3/3 Milestones) — M3.3 Automatic Animated Subtitles / Captions Completed (Ready for Phase 4).
+- **Current Milestone:** M3.3 - OpenAI Whisper Word Timestamps, Karaoke Captions & SRT Export Completed.
 - **Created Date:** 2026-11-14
 - **Working Root:** `D:\AIK-VdGeneration`
 
@@ -42,6 +42,9 @@
 - **ADR-010: Sound Design & Automatic BGM Ducking (`M3.2`)**
   - *Context:* Background music elevates presentation polish but must never mask bilingual narration or rely on external broken stock audio URLs.
   - *Decision:* Built `BGMService` cataloging 4 mood tiers (`inspiring`, `tech`, `corporate`, `relaxed`) with deterministic 44.1kHz stereo WAV loop synthesis/caching (overridable via `assets/bgm/`), staged loops cleanly into `public/music/`, and implemented per-frame Remotion `<Audio volume={...} loop />` envelope math (`computeDuckedBgmVolume`) attenuating music `-18 dB` during voiceover speech windows and swelling `+3 dB` in slide transitions.
+- **ADR-011: Word-Level Karaoke Subtitles via OpenAI Whisper + Alignment Fallback (`M3.3`)**
+  - *Context:* Animated karaoke captions require exact word start/end timestamps while remaining operational without an active OpenAI API key in local development.
+  - *Decision:* Implemented `WhisperSubtitleService` calling `OpenAI.audio.transcriptions.create(model="whisper-1", timestamp_granularities=["word"])` with retry recovery and monotonic syllable/punctuation-weighted alignment fallback, exporting `.srt` tracks (`/api/v1/jobs/{job_id}/subtitles.srt`) and rendering `KaraokeCaptions.tsx` inside `SlidePresentation.tsx`.
 
 ---
 
@@ -96,4 +99,5 @@ AWS_SECRET_ACCESS_KEY=
 - [x] Direct `.mp4` upload to AWS S3 / Cloudflare R2 with signed download URLs (M2.4)
 - [x] Serverless Render Farm with Remotion Lambda (`@remotion/lambda`, 50-chunk split, S3 asset staging) (M3.1)
 - [x] Royalty-free Sound Design & Automatic BGM Audio Ducking (M3.2)
-- [ ] OpenAI Whisper Word-Level Timestamps & Karaoke Subtitles (M3.3)
+- [x] OpenAI Whisper Word-Level Timestamps & Karaoke Subtitles (M3.3)
+- [ ] Phase 4: Slide Editor Canvas Inspection, Mobile Client & AI Avatar (M4.1 - M4.3)

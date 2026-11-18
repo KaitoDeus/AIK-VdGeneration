@@ -48,6 +48,8 @@ export default function StudioWorkspacePage() {
     bgmEnabled: false,
     bgmMood: 'tech',
     bgmDuckingEnabled: true,
+    subtitlesEnabled: false,
+    subtitleStyle: 'karaoke_pill',
   });
 
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -73,6 +75,7 @@ export default function StudioWorkspacePage() {
 
   const wsRef = useRef<WebSocket | null>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const activeStreamJobRef = useRef<string | null>(null);
 
   const t = STUDIO_DICTIONARY[locale];
 
@@ -124,7 +127,11 @@ export default function StudioWorkspacePage() {
   }, [loadTelemetry]);
 
   const teardownStream = useCallback(() => {
+    activeStreamJobRef.current = null;
     if (wsRef.current) {
+      wsRef.current.onopen = null;
+      wsRef.current.onmessage = null;
+      wsRef.current.onclose = null;
       wsRef.current.close();
       wsRef.current = null;
     }
@@ -145,10 +152,13 @@ export default function StudioWorkspacePage() {
   const attachJobTelemetry = useCallback(
     (jobId: string, providedWsUrl?: string) => {
       teardownStream();
+      activeStreamJobRef.current = jobId;
 
       const refreshJobRecord = async () => {
+        if (activeStreamJobRef.current !== jobId) return;
         try {
           const latest = await fetchJobStatus(jobId);
+          if (activeStreamJobRef.current !== jobId) return;
           setActiveJob(latest);
           if (latest.script) setDraftScript(latest.script);
           if (
@@ -313,6 +323,10 @@ export default function StudioWorkspacePage() {
           track_id: formState.bgmTrackId ?? null,
           ducking_enabled: formState.bgmDuckingEnabled !== false,
         },
+        subtitle_settings: {
+          enabled: Boolean(formState.subtitlesEnabled),
+          style: formState.subtitleStyle || 'karaoke_pill',
+        },
       });
 
       setActiveJob({
@@ -352,6 +366,10 @@ export default function StudioWorkspacePage() {
           mood: formState.bgmMood || 'tech',
           track_id: formState.bgmTrackId ?? null,
           ducking_enabled: formState.bgmDuckingEnabled !== false,
+        },
+        subtitle_settings: {
+          enabled: Boolean(formState.subtitlesEnabled),
+          style: formState.subtitleStyle || 'karaoke_pill',
         },
         slide_backgrounds: slideBackgrounds,
       });

@@ -17,6 +17,29 @@ export type VisualTheme = 'modern_tech' | 'corporate' | 'minimal';
 export type StorageProviderType = 'local' | 's3' | 'r2';
 export type RenderEngineType = 'local' | 'lambda';
 export type BGMMood = 'inspiring' | 'tech' | 'corporate' | 'relaxed';
+export type CaptionStyle = 'karaoke_pill' | 'minimal_line' | 'bold_highlight';
+
+export interface WordTimestamp {
+  word: string;
+  start_seconds: number;
+  end_seconds: number;
+  confidence?: number | null;
+}
+
+export interface SubtitleSettings {
+  enabled: boolean;
+  style: CaptionStyle;
+  max_words_per_line?: number;
+  highlight_color?: string;
+}
+
+export interface RemotionSubtitleProps {
+  enabled: boolean;
+  style: CaptionStyle;
+  provider_used?: 'openai_whisper' | 'forced_alignment' | null;
+  max_words_per_line?: number;
+  highlight_color?: string;
+}
 
 export interface BGMSettings {
   enabled: boolean;
@@ -65,6 +88,7 @@ export interface RemotionSlideProps {
   background_image_url?: string | null;
   background_image_path?: string | null;
   background_asset_provider?: string | null;
+  word_timestamps?: WordTimestamp[];
 }
 
 export interface StockImageCandidate {
@@ -110,6 +134,7 @@ export interface RemotionCompositionProps {
     duck_attenuation_db?: number;
     transition_swell_db?: number;
   };
+  subtitles?: RemotionSubtitleProps;
 }
 
 export interface VoiceOption {

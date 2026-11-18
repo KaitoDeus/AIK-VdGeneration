@@ -57,9 +57,9 @@ This roadmap breaks down the product development into 4 distinct phases, from an
 - [x] **M3.2: Sound Design & BGM Ducking**
   - Royalty-free mood BGM library (`BGMService`: `inspiring`, `tech`, `corporate`, `relaxed`) with stereo WAV synthesis/caching, Remotion `public/music/` staging, and `/api/v1/bgm/tracks` audition endpoints.
   - Automatic audio ducking (`computeDuckedBgmVolume`): BGM smoothly attenuates `-18 dB` during speech windows and swells `+3 dB` during inter-slide transitions, configurable in `apps/web` Studio.
-- [ ] **M3.3: Automatic Animated Subtitles / Captions**
-  - OpenAI Whisper integration to generate word-by-word timestamps.
-  - Dynamic karaoke-style subtitle rendering in Remotion.
+- [x] **M3.3: Automatic Animated Subtitles / Captions**
+  - OpenAI Whisper (`WhisperSubtitleService`) integration with word-by-word timestamps (`timestamp_granularities=["word"]`), retry recovery, monotonic proportional forced-alignment fallback, and synchronized `.srt` export (`GET /api/v1/jobs/{job_id}/subtitles.srt`).
+  - Dynamic karaoke-style animated subtitle overlay (`KaraokeCaptions.tsx`) supporting `karaoke_pill`, `minimal_line`, and `bold_highlight` styles in Remotion + Studio controls in `apps/web`.
 
 ---
 

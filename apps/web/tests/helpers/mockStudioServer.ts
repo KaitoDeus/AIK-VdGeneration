@@ -194,7 +194,16 @@ export function installMockStudioServer(options?: {
       video_download_url: 'https://aik-bucket.s3.us-east-1.amazonaws.com/videos/job_archive_s3/job_archive_s3.mp4?X-Amz-Signature=initial',
       signed_url_expires_in_seconds: 3600,
       script: MOCK_SCRIPT,
-      remotion_props: MOCK_REMOTION_PROPS,
+      remotion_props: {
+        ...MOCK_REMOTION_PROPS,
+        subtitles: {
+          enabled: true,
+          style: 'karaoke_pill',
+          provider_used: 'openai_whisper',
+          max_words_per_line: 6,
+          highlight_color: '#38bdf8',
+        },
+      },
       output_video_path: '/tmp/job_archive_s3.mp4',
       progress_events: [
         {

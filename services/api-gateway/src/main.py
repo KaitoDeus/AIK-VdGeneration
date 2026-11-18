@@ -22,7 +22,7 @@ from fastapi import (
     WebSocketDisconnect,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
 
 try:
     from .schemas import (
@@ -58,6 +58,7 @@ try:
     )
     from .services.render_service import RemotionRenderService
     from .services.storage_service import CloudStorageService
+    from .services.subtitle_service import WhisperSubtitleService
     from .services.tts_service import TTSAudioPipeline
     from .services.worker_service import PipelineWorkerCoordinator
 except ImportError:
@@ -94,6 +95,7 @@ except ImportError:
     )
     from services.render_service import RemotionRenderService  # type: ignore
     from services.storage_service import CloudStorageService  # type: ignore
+    from services.subtitle_service import WhisperSubtitleService  # type: ignore
     from services.tts_service import TTSAudioPipeline  # type: ignore
     from services.worker_service import PipelineWorkerCoordinator  # type: ignore
 
@@ -131,6 +133,7 @@ tts_pipeline = TTSAudioPipeline(output_base_dir=TEMP_JOBS_DIR)
 render_service = RemotionRenderService()
 asset_service = StockAssetService(output_base_dir=TEMP_JOBS_DIR)
 bgm_service = BGMService(output_base_dir=TEMP_JOBS_DIR)
+subtitle_service = WhisperSubtitleService()
 storage_service = CloudStorageService()
 lambda_service = RemotionLambdaRenderService(
     video_renderer_dir=render_service.video_renderer_dir,
@@ -148,6 +151,7 @@ worker_coordinator = PipelineWorkerCoordinator(
     storage_service=storage_service,
     lambda_service=lambda_service,
     bgm_service=bgm_service,
+    subtitle_service=subtitle_service,
 )
 
 
@@ -165,6 +169,7 @@ def configure_queue_backend(new_backend: BaseQueueBackend) -> None:
         storage_service=storage_service,
         lambda_service=lambda_service,
         bgm_service=bgm_service,
+        subtitle_service=subtitle_service,
     )
 
 
@@ -449,6 +454,7 @@ async def compile_edited_script(
         render_video=request.render_video,
         include_stock_visuals=request.include_stock_visuals,
         bgm_settings=request.bgm_settings,
+        subtitle_settings=request.subtitle_settings,
     )
     tts_task = QueueTaskPayload(
         job_id=job_id,
@@ -510,6 +516,28 @@ async def download_slide_asset(job_id: str, filename: str):
         "image/png" if ext == ".png" else "image/webp" if ext == ".webp" else "image/jpeg"
     )
     return FileResponse(path=image_path, media_type=media_type, filename=filename)
+
+
+@app.get("/api/v1/jobs/{job_id}/subtitles.srt")
+async def download_job_subtitles_srt(job_id: str):
+    """Serves synchronized SubRip (.srt) subtitles compiled by Whisper / alignment (M3.3)."""
+    job = queue_backend.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found.")
+
+    srt_file = TEMP_JOBS_DIR / job_id / "subtitles.srt"
+    if srt_file.exists():
+        srt_text = srt_file.read_text(encoding="utf-8")
+    elif job.remotion_props and job.remotion_props.subtitles and job.remotion_props.subtitles.enabled:
+        srt_text = subtitle_service.export_srt(job.remotion_props)
+    else:
+        raise HTTPException(status_code=404, detail="Subtitles were not generated for this job.")
+
+    return PlainTextResponse(
+        content=srt_text,
+        media_type="application/x-subrip",
+        headers={"Content-Disposition": f'attachment; filename="{job_id}.srt"'},
+    )
 
 
 @app.get("/api/v1/jobs/{job_id}/video/url", response_model=VideoDeliveryResponse)

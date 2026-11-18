@@ -29,6 +29,7 @@ from .llm_service import LLMScriptGenerator
 from .queue_service import BaseQueueBackend, STAGES_ORDER, utc_timestamp
 from .render_service import RemotionRenderService
 from .storage_service import CloudStorageService
+from .subtitle_service import WhisperSubtitleService
 from .tts_service import TTSAudioPipeline
 
 logger = logging.getLogger(__name__)
@@ -116,10 +117,12 @@ class TTSWorker(BaseStageWorker):
         tts_pipeline: TTSAudioPipeline,
         asset_service: Optional[StockAssetService] = None,
         bgm_service: Optional[BGMService] = None,
+        subtitle_service: Optional[WhisperSubtitleService] = None,
     ) -> None:
         self.tts_pipeline = tts_pipeline
         self.asset_service = asset_service
         self.bgm_service = bgm_service
+        self.subtitle_service = subtitle_service
 
     def execute(
         self,
@@ -168,6 +171,15 @@ class TTSWorker(BaseStageWorker):
         if self.bgm_service and task.request.bgm_settings and task.request.bgm_settings.enabled:
             bgm_props = self.bgm_service.compile_bgm_props(task.request.bgm_settings, job_id=job.job_id)
             remotion_props = remotion_props.model_copy(update={"bgm": bgm_props})
+
+        # Automatic Animated Subtitles / Whisper Timestamps (M3.3)
+        if self.subtitle_service and task.request.subtitle_settings and task.request.subtitle_settings.enabled:
+            remotion_props = self.subtitle_service.enrich_remotion_props(
+                props=remotion_props,
+                settings=task.request.subtitle_settings,
+                language=script.language,
+                job_dir=job_dir,
+            )
 
         job_dir.mkdir(parents=True, exist_ok=True)
         props_path = job_dir / "remotion_props.json"
@@ -396,6 +408,7 @@ class PipelineWorkerCoordinator:
         storage_service: Optional[CloudStorageService] = None,
         lambda_service: Optional[RemotionLambdaRenderService] = None,
         bgm_service: Optional[BGMService] = None,
+        subtitle_service: Optional[WhisperSubtitleService] = None,
         retry_delay_seconds: float = 0.0,
     ) -> None:
         self.queue_backend = queue_backend
@@ -414,6 +427,7 @@ class PipelineWorkerCoordinator:
             tts_pipeline or TTSAudioPipeline(output_base_dir=temp_jobs_dir),
             asset_service=asset_service or StockAssetService(output_base_dir=temp_jobs_dir),
             bgm_service=bgm_service or BGMService(output_base_dir=temp_jobs_dir),
+            subtitle_service=subtitle_service or WhisperSubtitleService(),
         )
         self.render_worker = RenderWorker(
             active_renderer,

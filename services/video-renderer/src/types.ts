@@ -31,6 +31,23 @@ export interface BGMConfig {
   transition_swell_db?: number;
 }
 
+export type CaptionStyle = 'karaoke_pill' | 'minimal_line' | 'bold_highlight';
+
+export interface WordTimestamp {
+  word: string;
+  start_seconds: number;
+  end_seconds: number;
+  confidence?: number | null;
+}
+
+export interface SubtitleConfig {
+  enabled: boolean;
+  style?: CaptionStyle;
+  provider_used?: 'openai_whisper' | 'forced_alignment' | null;
+  max_words_per_line?: number;
+  highlight_color?: string;
+}
+
 export interface SlideData {
   slide_index: number;
   layout: SlideLayout;
@@ -42,6 +59,7 @@ export interface SlideData {
   voiceover_duration_seconds: number;
   calculated_frames?: number;
   background_image_url?: string | null;
+  word_timestamps?: WordTimestamp[];
 }
 
 export interface VideoPresentationProps {
@@ -54,4 +72,5 @@ export interface VideoPresentationProps {
   theme?: ThemeConfig;
   slides: SlideData[];
   bgm?: BGMConfig;
+  subtitles?: SubtitleConfig;
 }

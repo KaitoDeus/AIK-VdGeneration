@@ -53,6 +53,12 @@ export interface StudioDictionary {
       corporate: string;
       relaxed: string;
     };
+    subtitlesEnableLabel: string;
+    subtitleStyles: {
+      karaoke_pill: string;
+      minimal_line: string;
+      bold_highlight: string;
+    };
     renderImmediateCheckbox: string;
     draftScriptBtn: string;
     generateBtn: string;
@@ -76,6 +82,7 @@ export interface StudioDictionary {
     errorPrefix: string;
     masterComplete: string;
     exportPropsBtn: string;
+    downloadSrtBtn: string;
     downloadMp4Btn: string;
     refreshSignedUrlBtn: string;
     refreshingSignedUrlBtn: string;
@@ -178,6 +185,12 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
         corporate: 'CORPORATE',
         relaxed: 'RELAXED',
       },
+      subtitlesEnableLabel: 'Auto Karaoke Subtitles (Whisper)',
+      subtitleStyles: {
+        karaoke_pill: 'KARAOKE PILL',
+        minimal_line: 'MINIMAL LINE',
+        bold_highlight: 'BOLD HIGHLIGHT',
+      },
       renderImmediateCheckbox: 'Compile final 1080p MP4 via Remotion immediately',
       draftScriptBtn: 'Draft Script First',
       generateBtn: 'Generate Presentation',
@@ -210,6 +223,7 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       errorPrefix: 'ERROR',
       masterComplete: 'MASTER RENDER COMPLETE',
       exportPropsBtn: 'Export Remotion Props JSON',
+      downloadSrtBtn: 'Download Subtitles (.SRT)',
       downloadMp4Btn: 'Download 1080p MP4',
       refreshSignedUrlBtn: 'Refresh Signed URL',
       refreshingSignedUrlBtn: 'Signing URL...',
@@ -311,6 +325,12 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
         corporate: 'DOANH NGHIỆP',
         relaxed: 'THƯ GIÃN',
       },
+      subtitlesEnableLabel: 'Tạo Phụ Đề Karaoke Tự Động (Whisper)',
+      subtitleStyles: {
+        karaoke_pill: 'KARAOKE PILL',
+        minimal_line: 'TỐI GIẢN LINE',
+        bold_highlight: 'NỔI BẬT ĐẬM',
+      },
       renderImmediateCheckbox: 'Kết xuất ngay video MP4 1080p bằng Remotion',
       draftScriptBtn: 'Soạn Kịch Bản Trước',
       generateBtn: 'Tạo Video Thuyết Trình',
@@ -343,6 +363,7 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       errorPrefix: 'LỖI',
       masterComplete: 'KẾT XUẤT VIDEO HOÀN TẤT',
       exportPropsBtn: 'Xuất JSON Remotion Props',
+      downloadSrtBtn: 'Tải Phụ Đề (.SRT)',
       downloadMp4Btn: 'Tải Xuống MP4 1080p',
       refreshSignedUrlBtn: 'Làm Mới Link Signed',
       refreshingSignedUrlBtn: 'Đang Ký URL...',
