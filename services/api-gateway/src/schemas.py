@@ -21,6 +21,7 @@ TTSProviderType = Literal["edge_tts", "elevenlabs", "fpt"]
 WorkerStage = Literal["llm", "tts", "render"]
 StorageProviderType = Literal["local", "s3", "r2"]
 RenderEngineType = Literal["local", "lambda"]
+BGMMood = Literal["inspiring", "tech", "corporate", "relaxed"]
 
 
 class SlideScriptItem(BaseModel):
@@ -124,11 +125,39 @@ class RemotionThemeProps(BaseModel):
 
 
 class RemotionBGMProps(BaseModel):
-    """Background music configuration for Remotion composition."""
+    """Background music configuration & audio ducking curve for Remotion composition."""
 
     enabled: bool = Field(default=False)
     audio_url: Optional[str] = Field(default=None)
-    volume: float = Field(default=0.15, ge=0.0, le=1.0)
+    audio_path: Optional[str] = Field(default=None)
+    volume: float = Field(default=0.22, ge=0.0, le=1.0)
+    mood: Optional[BGMMood] = Field(default=None)
+    track_id: Optional[str] = Field(default=None)
+    ducking_enabled: bool = Field(default=True)
+    duck_attenuation_db: float = Field(default=18.0, ge=0.0, le=36.0)
+    transition_swell_db: float = Field(default=3.0, ge=0.0, le=12.0)
+
+
+class BGMSettings(BaseModel):
+    """User request preferences for royalty-free background music & ducking (M3.2)."""
+
+    enabled: bool = Field(default=False)
+    mood: BGMMood = Field(default="tech")
+    track_id: Optional[str] = Field(default=None)
+    volume: float = Field(default=0.22, ge=0.0, le=1.0)
+    ducking_enabled: bool = Field(default=True)
+
+
+class BGMTrackOption(BaseModel):
+    """Metadata descriptor for a curated royalty-free BGM track."""
+
+    track_id: str
+    title: str
+    mood: BGMMood
+    bpm: int
+    duration_seconds: float
+    description: str
+    preview_url: str
 
 
 class RemotionSlideProps(BaseModel):
@@ -258,6 +287,7 @@ class ScriptCompileRequest(BaseModel):
     voice_settings: VoiceSettings = Field(default_factory=VoiceSettings)
     render_video: bool = Field(default=True)
     include_stock_visuals: bool = Field(default=True)
+    bgm_settings: BGMSettings = Field(default_factory=BGMSettings)
     slide_backgrounds: Dict[int, str] = Field(
         default_factory=dict,
         description="Optional mapping of 1-based slide_index to custom stock image URL.",
@@ -299,6 +329,10 @@ class VideoGenerateRequest(BaseModel):
     include_stock_visuals: bool = Field(
         default=True,
         description="When True, fetches Unsplash/Pexels stock background visuals per slide (graceful gradient fallback).",
+    )
+    bgm_settings: BGMSettings = Field(
+        default_factory=BGMSettings,
+        description="Optional mood-based royalty-free background music & speech ducking settings.",
     )
 
 

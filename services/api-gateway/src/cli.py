@@ -22,8 +22,9 @@ GATEWAY_ROOT = Path(__file__).resolve().parent.parent
 if str(GATEWAY_ROOT) not in sys.path:
     sys.path.insert(0, str(GATEWAY_ROOT))
 
-from src.schemas import SupportedLanguage, TTSProviderType, VoiceSettings
+from src.schemas import BGMSettings, SupportedLanguage, TTSProviderType, VoiceSettings
 from src.services.asset_service import StockAssetService
+from src.services.bgm_service import BGMService
 from src.services.lambda_render_service import RemotionLambdaRenderService
 from src.services.llm_service import LLMScriptGenerator
 from src.services.render_service import RemotionRenderService, verify_mp4_output
@@ -130,6 +131,18 @@ def parse_cli_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         default="auto",
         help="Render engine mode ('auto', 'local', or 'lambda' for Remotion Lambda farm).",
     )
+    parser.add_argument(
+        "--bgm-mood",
+        type=str,
+        choices=["inspiring", "tech", "corporate", "relaxed"],
+        default=None,
+        help="Optional royalty-free BGM mood ('inspiring', 'tech', 'corporate', or 'relaxed').",
+    )
+    parser.add_argument(
+        "--no-bgm-ducking",
+        action="store_true",
+        help="Disable automatic -18dB speech ducking when BGM is enabled.",
+    )
     return parser.parse_args(argv)
 
 
@@ -205,6 +218,18 @@ def run_cli_pipeline(argv: Optional[List[str]] = None) -> dict:
             job_id=job_id,
             aspect_ratio=args.aspect_ratio,
         )
+
+    if args.bgm_mood:
+        bgm_service = BGMService(output_base_dir=temp_jobs_dir)
+        bgm_props = bgm_service.compile_bgm_props(
+            BGMSettings(
+                enabled=True,
+                mood=args.bgm_mood,
+                ducking_enabled=not args.no_bgm_ducking,
+            ),
+            job_id=job_id,
+        )
+        remotion_props = remotion_props.model_copy(update={"bgm": bgm_props})
 
     props_path = job_dir / "remotion_props.json"
     props_path.write_text(

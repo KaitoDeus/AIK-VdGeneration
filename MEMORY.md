@@ -2,8 +2,8 @@
 
 ## 1. Project Identity & Status
 - **Project Name:** AIK-VdGeneration (AI-driven Prompt to Slide-Video Generator)
-- **Status:** Phase 3 In Progress (1/3 Milestones) — M3.1 Serverless Render Farm (Remotion Lambda) Completed.
-- **Current Milestone:** M3.1 - Remotion Lambda 50-Chunk Parallel Farm & Gateway Integration Completed.
+- **Status:** Phase 3 In Progress (2/3 Milestones) — M3.2 Sound Design & BGM Ducking Completed.
+- **Current Milestone:** M3.2 - Royalty-Free Mood BGM Library & Automatic -18dB Speech Ducking Completed.
 - **Created Date:** 2026-11-14
 - **Working Root:** `D:\AIK-VdGeneration`
 
@@ -39,6 +39,9 @@
 - **ADR-009: Serverless Render Farm (`@remotion/lambda` 50-Chunk Parallelism) (`M3.1`)**
   - *Context:* Single-node Chrome rendering bottlenecks 2-minute 1080p videos (~120s); `services/video-renderer` must remain isolated from `services/api-gateway` imports.
   - *Decision:* Added `@remotion/lambda@4.0.543` deploy/render Node scripts inside `services/video-renderer` with `calculateLambdaChunkPlan` targeting 50 parallel chunks (`framesPerLambda >= 20`) and built `RemotionLambdaRenderService` in `services/api-gateway` to upload local media assets to S3 HTTPS URLs before dispatching Lambda jobs, with automatic local CLI fallback when Lambda is unconfigured or fails.
+- **ADR-010: Sound Design & Automatic BGM Ducking (`M3.2`)**
+  - *Context:* Background music elevates presentation polish but must never mask bilingual narration or rely on external broken stock audio URLs.
+  - *Decision:* Built `BGMService` cataloging 4 mood tiers (`inspiring`, `tech`, `corporate`, `relaxed`) with deterministic 44.1kHz stereo WAV loop synthesis/caching (overridable via `assets/bgm/`), staged loops cleanly into `public/music/`, and implemented per-frame Remotion `<Audio volume={...} loop />` envelope math (`computeDuckedBgmVolume`) attenuating music `-18 dB` during voiceover speech windows and swelling `+3 dB` in slide transitions.
 
 ---
 
@@ -92,4 +95,5 @@ AWS_SECRET_ACCESS_KEY=
 - [x] Integrate Unsplash / Pexels stock background imagery & Ken Burns pipeline (M2.3)
 - [x] Direct `.mp4` upload to AWS S3 / Cloudflare R2 with signed download URLs (M2.4)
 - [x] Serverless Render Farm with Remotion Lambda (`@remotion/lambda`, 50-chunk split, S3 asset staging) (M3.1)
-- [ ] Royalty-free Sound Design & Automatic BGM Audio Ducking (M3.2)
+- [x] Royalty-free Sound Design & Automatic BGM Audio Ducking (M3.2)
+- [ ] OpenAI Whisper Word-Level Timestamps & Karaoke Subtitles (M3.3)

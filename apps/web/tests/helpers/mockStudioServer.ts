@@ -248,6 +248,29 @@ export function installMockStudioServer(options?: {
       });
     }
 
+    if (url.includes('/api/v1/bgm/tracks')) {
+      return jsonResponse([
+        {
+          track_id: 'inspiring-horizon',
+          title: 'Horizon Lift',
+          mood: 'inspiring',
+          bpm: 112,
+          duration_seconds: 8.0,
+          description: 'Warm uplifting ambient progression.',
+          preview_url: '/api/v1/bgm/tracks/inspiring-horizon/preview',
+        },
+        {
+          track_id: 'tech-circuit',
+          title: 'Circuit Pulse',
+          mood: 'tech',
+          bpm: 120,
+          duration_seconds: 8.0,
+          description: 'Clean electronic pentatonic texture.',
+          preview_url: '/api/v1/bgm/tracks/tech-circuit/preview',
+        },
+      ]);
+    }
+
     if (url.includes('/api/v1/voices')) {
       return jsonResponse(DEFAULT_VOICES);
     }

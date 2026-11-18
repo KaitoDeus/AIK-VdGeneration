@@ -63,6 +63,9 @@ class RemotionRenderService:
         self.public_assets_dir = (
             self.video_renderer_dir / "public" / "assets"
         )
+        self.public_music_dir = (
+            self.video_renderer_dir / "public" / "music"
+        )
         self.timeout_seconds = timeout_seconds
 
     def stage_audio_assets(
@@ -100,10 +103,19 @@ class RemotionRenderService:
                     if img_src.resolve() != img_target.resolve():
                         shutil.copy2(img_src, img_target)
 
+        if props.bgm and props.bgm.enabled and props.bgm.audio_path:
+            bgm_src = Path(props.bgm.audio_path)
+            if bgm_src.exists():
+                self.public_music_dir.mkdir(parents=True, exist_ok=True)
+                target_name = Path(props.bgm.audio_url or bgm_src.name).name
+                bgm_target = self.public_music_dir / target_name
+                if bgm_src.resolve() != bgm_target.resolve():
+                    shutil.copy2(bgm_src, bgm_target)
+
         return job_stage_dir
 
     def cleanup_staged_assets(self, job_id: str) -> None:
-        """Removes staged temporary audio and background image files after rendering."""
+        """Removes staged temporary audio, visual, and music files after rendering."""
         for stage_dir in (
             self.public_audio_temp_dir / job_id,
             self.public_assets_dir / job_id,
@@ -111,6 +123,10 @@ class RemotionRenderService:
             if stage_dir.exists():
                 shutil.rmtree(stage_dir, ignore_errors=True)
                 logger.info("Cleaned up staged assets at %s", stage_dir)
+
+        if self.public_music_dir.exists():
+            for music_file in self.public_music_dir.glob(f"{job_id}_*"):
+                music_file.unlink(missing_ok=True)
 
     def build_remotion_command(
         self,

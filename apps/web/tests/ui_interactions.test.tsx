@@ -278,4 +278,34 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
       );
     });
   });
+
+  it('enables mood-based BGM with -18dB speech ducking, mounts preview audio, and submits bgm_settings', async () => {
+    const user = userEvent.setup();
+    render(<StudioWorkspacePage />);
+
+    await user.click(screen.getByRole('button', { name: 'GIẢI THÍCH CÔNG NGHỆ' }));
+    await user.click(screen.getByTestId('bgm-mood-inspiring'));
+
+    expect(screen.getByTestId('bgm-ducking-toggle')).toBeInTheDocument();
+
+    await user.click(screen.getByTestId('bgm-preview-btn'));
+    const bgmPlayer = screen.getByTestId('bgm-audition-player') as HTMLAudioElement;
+    expect(bgmPlayer).toBeInTheDocument();
+    expect(bgmPlayer.getAttribute('src')).toContain('/api/v1/bgm/tracks/inspiring-horizon/preview');
+
+    await user.click(screen.getByRole('button', { name: 'Tạo Video Thuyết Trình' }));
+    await waitFor(() => {
+      const genCall = server.fetchMock.mock.calls.find(
+        ([url, init]) => String(url).endsWith('/api/v1/videos/generate') && init?.method === 'POST'
+      );
+      expect(genCall).toBeDefined();
+      const body = JSON.parse(String(genCall?.[1]?.body));
+      expect(body.bgm_settings).toEqual({
+        enabled: true,
+        mood: 'inspiring',
+        track_id: null,
+        ducking_enabled: true,
+      });
+    });
+  });
 });

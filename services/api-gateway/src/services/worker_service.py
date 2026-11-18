@@ -23,6 +23,7 @@ from ..schemas import (
     WorkerStage,
 )
 from .asset_service import StockAssetService
+from .bgm_service import BGMService
 from .lambda_render_service import RemotionLambdaRenderService
 from .llm_service import LLMScriptGenerator
 from .queue_service import BaseQueueBackend, STAGES_ORDER, utc_timestamp
@@ -114,9 +115,11 @@ class TTSWorker(BaseStageWorker):
         self,
         tts_pipeline: TTSAudioPipeline,
         asset_service: Optional[StockAssetService] = None,
+        bgm_service: Optional[BGMService] = None,
     ) -> None:
         self.tts_pipeline = tts_pipeline
         self.asset_service = asset_service
+        self.bgm_service = bgm_service
 
     def execute(
         self,
@@ -160,6 +163,11 @@ class TTSWorker(BaseStageWorker):
                 aspect_ratio=task.request.aspect_ratio,
                 slide_backgrounds=task.slide_backgrounds,
             )
+
+        # Sound Design & BGM Ducking (M3.2): Resolve royalty-free mood loop when enabled
+        if self.bgm_service and task.request.bgm_settings and task.request.bgm_settings.enabled:
+            bgm_props = self.bgm_service.compile_bgm_props(task.request.bgm_settings, job_id=job.job_id)
+            remotion_props = remotion_props.model_copy(update={"bgm": bgm_props})
 
         job_dir.mkdir(parents=True, exist_ok=True)
         props_path = job_dir / "remotion_props.json"
@@ -387,6 +395,7 @@ class PipelineWorkerCoordinator:
         asset_service: Optional[StockAssetService] = None,
         storage_service: Optional[CloudStorageService] = None,
         lambda_service: Optional[RemotionLambdaRenderService] = None,
+        bgm_service: Optional[BGMService] = None,
         retry_delay_seconds: float = 0.0,
     ) -> None:
         self.queue_backend = queue_backend
@@ -404,6 +413,7 @@ class PipelineWorkerCoordinator:
         self.tts_worker = TTSWorker(
             tts_pipeline or TTSAudioPipeline(output_base_dir=temp_jobs_dir),
             asset_service=asset_service or StockAssetService(output_base_dir=temp_jobs_dir),
+            bgm_service=bgm_service or BGMService(output_base_dir=temp_jobs_dir),
         )
         self.render_worker = RenderWorker(
             active_renderer,

@@ -54,9 +54,9 @@ This roadmap breaks down the product development into 4 distinct phases, from an
 - [x] **M3.1: Serverless Render Farm (Remotion Lambda)**
   - Deploy Remotion bundle & Chrome render function to AWS Lambda (`@remotion/lambda@4.0.543`, `scripts/lambda-deploy.mjs`, `scripts/lambda-render.mjs`, `RemotionLambdaRenderService`) splitting long renders across up to 50 parallel chunks with S3 HTTPS asset staging and automatic local fallback.
   - Exposes `GET /api/v1/render/lambda/config`, CLI `--render-engine`, and `LAMBDA · CHUNKS` badge in `apps/web`.
-- [ ] **M3.2: Sound Design & BGM Ducking**
-  - Royalty-free background music library categorized by mood (Inspiring, Tech, Corporate, Relaxed).
-  - Automatic audio ducking: music volume drops during speech and swells during slide transitions.
+- [x] **M3.2: Sound Design & BGM Ducking**
+  - Royalty-free mood BGM library (`BGMService`: `inspiring`, `tech`, `corporate`, `relaxed`) with stereo WAV synthesis/caching, Remotion `public/music/` staging, and `/api/v1/bgm/tracks` audition endpoints.
+  - Automatic audio ducking (`computeDuckedBgmVolume`): BGM smoothly attenuates `-18 dB` during speech windows and swells `+3 dB` during inter-slide transitions, configurable in `apps/web` Studio.
 - [ ] **M3.3: Automatic Animated Subtitles / Captions**
   - OpenAI Whisper integration to generate word-by-word timestamps.
   - Dynamic karaoke-style subtitle rendering in Remotion.

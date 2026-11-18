@@ -219,7 +219,26 @@ class RemotionLambdaRenderService:
 
             updated_slides.append(slide.model_copy(update=updates) if updates else slide)
 
-        return props.model_copy(update={"slides": updated_slides})
+        updated_bgm = props.bgm
+        if props.bgm and props.bgm.enabled and props.bgm.audio_path:
+            bgm_path = Path(props.bgm.audio_path)
+            if bgm_path.exists():
+                mime = "audio/wav" if bgm_path.suffix.lower() == ".wav" else "audio/mpeg"
+                bgm_key = self.storage_service.build_object_key(job_id, filename=bgm_path.name)
+                client.upload_file(
+                    str(bgm_path),
+                    self.storage_service.bucket_name,
+                    bgm_key,
+                    ExtraArgs={"ContentType": mime},
+                )
+                signed_bgm = self.storage_service.create_presigned_download_url(
+                    job_id=job_id,
+                    object_key=bgm_key,
+                    filename=bgm_path.name,
+                ).download_url
+                updated_bgm = props.bgm.model_copy(update={"audio_url": signed_bgm})
+
+        return props.model_copy(update={"slides": updated_slides, "bgm": updated_bgm})
 
     def build_lambda_command(
         self,

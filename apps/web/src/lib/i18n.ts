@@ -43,6 +43,16 @@ export interface StudioDictionary {
     auditionButton: string;
     auditionLoading: string;
     auditionError: string;
+    soundDesignLabel: string;
+    bgmEnableLabel: string;
+    bgmDuckingLabel: string;
+    bgmPreviewBtn: string;
+    bgmMoods: {
+      inspiring: string;
+      tech: string;
+      corporate: string;
+      relaxed: string;
+    };
     renderImmediateCheckbox: string;
     draftScriptBtn: string;
     generateBtn: string;
@@ -158,6 +168,16 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       auditionButton: 'AUDITION VOICE SAMPLE',
       auditionLoading: 'SYNTHESIZING SAMPLE...',
       auditionError: 'Unable to preview voice audio.',
+      soundDesignLabel: 'Sound Design & BGM Ducking',
+      bgmEnableLabel: 'Enable Royalty-Free BGM',
+      bgmDuckingLabel: 'Auto Ducking (-18dB Speech)',
+      bgmPreviewBtn: 'Preview Track',
+      bgmMoods: {
+        inspiring: 'INSPIRING',
+        tech: 'TECH',
+        corporate: 'CORPORATE',
+        relaxed: 'RELAXED',
+      },
       renderImmediateCheckbox: 'Compile final 1080p MP4 via Remotion immediately',
       draftScriptBtn: 'Draft Script First',
       generateBtn: 'Generate Presentation',
@@ -281,6 +301,16 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       auditionButton: 'NGHE THỬ GIỌNG ĐỌC',
       auditionLoading: 'ĐANG TỔNG HỢP MẪU...',
       auditionError: 'Không thể phát thử giọng đọc.',
+      soundDesignLabel: 'Thiết Kế Âm Thanh & BGM Ducking',
+      bgmEnableLabel: 'Bật Nhạc Nền Không Bản Quyền',
+      bgmDuckingLabel: 'Tự Động Hạ Nhạc (-18dB Khi Đọc)',
+      bgmPreviewBtn: 'Nghe Thử Nhạc Nền',
+      bgmMoods: {
+        inspiring: 'TRUYỀN CẢM HỨNG',
+        tech: 'CÔNG NGHỆ',
+        corporate: 'DOANH NGHIỆP',
+        relaxed: 'THƯ GIÃN',
+      },
       renderImmediateCheckbox: 'Kết xuất ngay video MP4 1080p bằng Remotion',
       draftScriptBtn: 'Soạn Kịch Bản Trước',
       generateBtn: 'Tạo Video Thuyết Trình',

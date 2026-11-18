@@ -8,7 +8,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 import uuid
 
 from dotenv import load_dotenv
@@ -29,6 +29,8 @@ try:
         AssetSearchRequest,
         AssetSearchResponse,
         AudioSynthesizeRequest,
+        BGMMood,
+        BGMTrackOption,
         JobStatusResponse,
         LambdaStatusResponse,
         PresentationScript,
@@ -46,6 +48,7 @@ try:
         VoiceSettings,
     )
     from .services.asset_service import StockAssetService
+    from .services.bgm_service import BGMService
     from .services.lambda_render_service import RemotionLambdaRenderService
     from .services.llm_service import LLMScriptGenerator
     from .services.queue_service import (
@@ -62,6 +65,8 @@ except ImportError:
         AssetSearchRequest,
         AssetSearchResponse,
         AudioSynthesizeRequest,
+        BGMMood,
+        BGMTrackOption,
         JobStatusResponse,
         LambdaStatusResponse,
         PresentationScript,
@@ -79,6 +84,7 @@ except ImportError:
         VoiceSettings,
     )
     from services.asset_service import StockAssetService  # type: ignore
+    from services.bgm_service import BGMService  # type: ignore
     from services.lambda_render_service import RemotionLambdaRenderService  # type: ignore
     from services.llm_service import LLMScriptGenerator  # type: ignore
     from services.queue_service import (  # type: ignore
@@ -124,6 +130,7 @@ llm_generator = LLMScriptGenerator()
 tts_pipeline = TTSAudioPipeline(output_base_dir=TEMP_JOBS_DIR)
 render_service = RemotionRenderService()
 asset_service = StockAssetService(output_base_dir=TEMP_JOBS_DIR)
+bgm_service = BGMService(output_base_dir=TEMP_JOBS_DIR)
 storage_service = CloudStorageService()
 lambda_service = RemotionLambdaRenderService(
     video_renderer_dir=render_service.video_renderer_dir,
@@ -140,6 +147,7 @@ worker_coordinator = PipelineWorkerCoordinator(
     asset_service=asset_service,
     storage_service=storage_service,
     lambda_service=lambda_service,
+    bgm_service=bgm_service,
 )
 
 
@@ -156,6 +164,7 @@ def configure_queue_backend(new_backend: BaseQueueBackend) -> None:
         asset_service=asset_service,
         storage_service=storage_service,
         lambda_service=lambda_service,
+        bgm_service=bgm_service,
     )
 
 
@@ -366,6 +375,23 @@ async def preview_voice(request: VoicePreviewRequest):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+@app.get("/api/v1/bgm/tracks", response_model=List[BGMTrackOption])
+async def list_bgm_tracks(mood: Optional[BGMMood] = None):
+    """Lists royalty-free BGM library tracks categorized by mood (Inspiring, Tech, Corporate, Relaxed)."""
+    return bgm_service.list_tracks(mood=mood)
+
+
+@app.get("/api/v1/bgm/tracks/{track_id}/preview")
+async def preview_bgm_track(track_id: str):
+    """Streams royalty-free mood background track for Web Studio audio audition (M3.2)."""
+    try:
+        track_file = bgm_service.get_track_audio_file(track_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    media_type = "audio/mpeg" if track_file.suffix.lower() == ".mp3" else "audio/wav"
+    return FileResponse(path=track_file, media_type=media_type, filename=track_file.name)
+
+
 @app.post("/api/v1/assets/search", response_model=AssetSearchResponse)
 async def search_stock_assets(request: AssetSearchRequest):
     """Searches Unsplash / Pexels stock photography with graceful gradient fallback (M2.3)."""
@@ -422,6 +448,7 @@ async def compile_edited_script(
         voice_settings=request.voice_settings,
         render_video=request.render_video,
         include_stock_visuals=request.include_stock_visuals,
+        bgm_settings=request.bgm_settings,
     )
     tts_task = QueueTaskPayload(
         job_id=job_id,

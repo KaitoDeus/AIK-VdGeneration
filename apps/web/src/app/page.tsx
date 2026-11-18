@@ -9,6 +9,7 @@ import { StudioHeader } from '@/components/StudioHeader';
 import {
   buildWebSocketUrl,
   compileEditedScript,
+  fetchBgmTracks,
   fetchHealth,
   fetchJobs,
   fetchJobStatus,
@@ -21,6 +22,7 @@ import {
 import { STUDIO_DICTIONARY, UiLocale } from '@/lib/i18n';
 import { DEFAULT_VOICES } from '@/lib/templates';
 import {
+  BGMTrackOption,
   HealthResponse,
   JobStatusResponse,
   PresentationScript,
@@ -43,12 +45,16 @@ export default function StudioWorkspacePage() {
     voiceProvider: 'edge_tts',
     voiceId: 'vi-VN-HoaiMyNeural',
     renderVideo: false,
+    bgmEnabled: false,
+    bgmMood: 'tech',
+    bgmDuckingEnabled: true,
   });
 
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [queueStats, setQueueStats] = useState<QueueStatsResponse | null>(null);
   const [apiOnline, setApiOnline] = useState<boolean>(false);
   const [voices, setVoices] = useState<VoiceOption[]>(DEFAULT_VOICES);
+  const [bgmTracks, setBgmTracks] = useState<BGMTrackOption[]>([]);
 
   const [activeSection, setActiveSection] = useState<'studio' | 'archive'>('studio');
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -95,16 +101,18 @@ export default function StudioWorkspacePage() {
 
   const loadTelemetry = useCallback(async () => {
     try {
-      const [h, stats, voiceCatalog, recentJobs] = await Promise.all([
+      const [h, stats, voiceCatalog, recentJobs, tracks] = await Promise.all([
         fetchHealth(),
         fetchQueueStats(),
         fetchVoices(),
         fetchJobs(20),
+        fetchBgmTracks().catch(() => [] as BGMTrackOption[]),
       ]);
       setHealth(h);
       setQueueStats(stats);
       if (voiceCatalog.length > 0) setVoices(voiceCatalog);
       setJobsArchive(recentJobs);
+      setBgmTracks(tracks);
       setApiOnline(true);
     } catch {
       setApiOnline(false);
@@ -298,6 +306,13 @@ export default function StudioWorkspacePage() {
           speed: 1.0,
         },
         render_video: formState.renderVideo,
+        include_stock_visuals: true,
+        bgm_settings: {
+          enabled: Boolean(formState.bgmEnabled),
+          mood: formState.bgmMood || 'tech',
+          track_id: formState.bgmTrackId ?? null,
+          ducking_enabled: formState.bgmDuckingEnabled !== false,
+        },
       });
 
       setActiveJob({
@@ -332,6 +347,12 @@ export default function StudioWorkspacePage() {
         },
         render_video: renderVideo,
         include_stock_visuals: true,
+        bgm_settings: {
+          enabled: Boolean(formState.bgmEnabled),
+          mood: formState.bgmMood || 'tech',
+          track_id: formState.bgmTrackId ?? null,
+          ducking_enabled: formState.bgmDuckingEnabled !== false,
+        },
         slide_backgrounds: slideBackgrounds,
       });
       setActiveJob({
@@ -401,6 +422,7 @@ export default function StudioWorkspacePage() {
             locale={locale}
             formState={formState}
             voices={voices}
+            bgmTracks={bgmTracks}
             isSubmitting={isSubmitting}
             isAuditioning={isAuditioning}
             auditionAudioUrl={auditionAudioUrl}

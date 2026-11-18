@@ -16,6 +16,25 @@ export type AspectRatio = '16:9' | '9:16';
 export type VisualTheme = 'modern_tech' | 'corporate' | 'minimal';
 export type StorageProviderType = 'local' | 's3' | 'r2';
 export type RenderEngineType = 'local' | 'lambda';
+export type BGMMood = 'inspiring' | 'tech' | 'corporate' | 'relaxed';
+
+export interface BGMSettings {
+  enabled: boolean;
+  mood: BGMMood;
+  track_id?: string | null;
+  volume?: number;
+  ducking_enabled: boolean;
+}
+
+export interface BGMTrackOption {
+  track_id: string;
+  title: string;
+  mood: BGMMood;
+  bpm: number;
+  duration_seconds: number;
+  description: string;
+  preview_url: string;
+}
 
 export interface SlideScriptItem {
   slide_index: number;
@@ -83,7 +102,13 @@ export interface RemotionCompositionProps {
   bgm: {
     enabled: boolean;
     audio_url?: string | null;
+    audio_path?: string | null;
     volume: number;
+    mood?: BGMMood | null;
+    track_id?: string | null;
+    ducking_enabled?: boolean;
+    duck_attenuation_db?: number;
+    transition_swell_db?: number;
   };
 }
 

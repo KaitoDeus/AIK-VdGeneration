@@ -1,6 +1,9 @@
 import {
   AspectRatio,
   AssetSearchResponse,
+  BGMMood,
+  BGMSettings,
+  BGMTrackOption,
   HealthResponse,
   JobStatusResponse,
   PresentationScript,
@@ -149,6 +152,15 @@ export async function searchStockAssets(params: {
   });
 }
 
+export function getBgmPreviewUrl(trackId: string): string {
+  return `${getApiBaseUrl()}/api/v1/bgm/tracks/${encodeURIComponent(trackId)}/preview`;
+}
+
+export async function fetchBgmTracks(mood?: BGMMood): Promise<BGMTrackOption[]> {
+  const query = mood ? `?mood=${encodeURIComponent(mood)}` : '';
+  return requestJson<BGMTrackOption[]>(`/api/v1/bgm/tracks${query}`);
+}
+
 export async function generateVideoJob(params: {
   prompt: string;
   language: SupportedLanguage;
@@ -166,6 +178,7 @@ export async function generateVideoJob(params: {
   };
   render_video: boolean;
   include_stock_visuals?: boolean;
+  bgm_settings?: BGMSettings;
 }): Promise<VideoJobResponse> {
   return requestJson<VideoJobResponse>('/api/v1/videos/generate', {
     method: 'POST',
@@ -183,6 +196,7 @@ export async function compileEditedScript(params: {
   };
   render_video: boolean;
   include_stock_visuals?: boolean;
+  bgm_settings?: BGMSettings;
   slide_backgrounds?: Record<number, string>;
 }): Promise<VideoJobResponse> {
   return requestJson<VideoJobResponse>('/api/v1/jobs/compile', {

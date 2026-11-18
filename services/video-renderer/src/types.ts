@@ -17,10 +17,18 @@ export interface ThemeConfig {
   fontFamily?: string;
 }
 
+export type BGMMood = 'inspiring' | 'tech' | 'corporate' | 'relaxed';
+
 export interface BGMConfig {
   enabled: boolean;
   audio_url?: string | null;
+  audio_path?: string | null;
   volume?: number;
+  mood?: BGMMood | null;
+  track_id?: string | null;
+  ducking_enabled?: boolean;
+  duck_attenuation_db?: number;
+  transition_swell_db?: number;
 }
 
 export interface SlideData {

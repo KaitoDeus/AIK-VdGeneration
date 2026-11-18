@@ -1,11 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { UkFlagIcon, VietnamFlagIcon } from '@/components/FlagIcons';
+import { getBgmPreviewUrl } from '@/lib/api';
 import { STUDIO_DICTIONARY, UiLocale } from '@/lib/i18n';
 import { PROMPT_TEMPLATES, THEME_OPTIONS } from '@/lib/templates';
 import {
   AspectRatio,
+  BGMMood,
+  BGMTrackOption,
   PromptTemplate,
   SupportedLanguage,
   TTSProviderType,
@@ -22,12 +25,17 @@ export interface StudioFormState {
   voiceProvider: TTSProviderType;
   voiceId: string;
   renderVideo: boolean;
+  bgmEnabled?: boolean;
+  bgmMood?: BGMMood;
+  bgmTrackId?: string;
+  bgmDuckingEnabled?: boolean;
 }
 
 interface PromptStudioFormProps {
   locale: UiLocale;
   formState: StudioFormState;
   voices: VoiceOption[];
+  bgmTracks?: BGMTrackOption[];
   isSubmitting: boolean;
   isAuditioning: boolean;
   auditionAudioUrl: string | null;
@@ -43,6 +51,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
   locale,
   formState,
   voices,
+  bgmTracks = [],
   isSubmitting,
   isAuditioning,
   auditionAudioUrl,
@@ -54,9 +63,16 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
   onGeneratePipeline,
 }) => {
   const t = STUDIO_DICTIONARY[locale].form;
+  const [previewTrackId, setPreviewTrackId] = useState<string | null>(null);
   const filteredVoices = voices.filter(
     (v) => v.language === formState.language || v.provider === 'elevenlabs'
   );
+  const activeMood: BGMMood = formState.bgmMood || 'tech';
+  const moodTracks = bgmTracks.filter((tr) => tr.mood === activeMood);
+  const selectedTrackId =
+    formState.bgmTrackId && moodTracks.some((tr) => tr.track_id === formState.bgmTrackId)
+      ? formState.bgmTrackId
+      : moodTracks[0]?.track_id || `${activeMood}-${activeMood === 'inspiring' ? 'horizon' : activeMood === 'corporate' ? 'summit' : activeMood === 'relaxed' ? 'drift' : 'circuit'}`;
 
   return (
     <section
@@ -289,6 +305,115 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
             )}
           </div>
         </div>
+      </div>
+
+      {/* Sound Design & BGM Ducking Bar (M3.2) */}
+      <div className="border-b border-[#E5E5E5] bg-[#FAFAFA] px-8 py-5">
+        <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+          <div className="flex flex-wrap items-center gap-4">
+            <span className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#71717A]">
+              {t.soundDesignLabel}
+            </span>
+
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={Boolean(formState.bgmEnabled)}
+              data-testid="bgm-enable-toggle"
+              onClick={() => onChange({ bgmEnabled: !formState.bgmEnabled })}
+              className="flex items-center gap-2 text-[13px] font-medium text-[#0A0A0A]"
+            >
+              <span
+                className={`flex h-[16px] w-[16px] items-center justify-center border text-[11px] font-bold ${
+                  formState.bgmEnabled
+                    ? 'border-[#0A0A0A] bg-[#0A0A0A] text-[#FAFAFA]'
+                    : 'border-[#D4D4D8] bg-[#FFFFFF]'
+                }`}
+              >
+                {formState.bgmEnabled ? '✓' : ''}
+              </span>
+              <span>{t.bgmEnableLabel}</span>
+            </button>
+
+            {formState.bgmEnabled && (
+              <button
+                type="button"
+                role="checkbox"
+                aria-checked={formState.bgmDuckingEnabled !== false}
+                data-testid="bgm-ducking-toggle"
+                onClick={() =>
+                  onChange({ bgmDuckingEnabled: formState.bgmDuckingEnabled === false })
+                }
+                className="flex items-center gap-2 border border-[#D4D4D8] bg-[#FFFFFF] px-2.5 py-1 font-mono text-[11px] text-[#0A0A0A]"
+              >
+                <span>{formState.bgmDuckingEnabled === false ? 'OFF' : 'ON'}</span>
+                <span>·</span>
+                <span>{t.bgmDuckingLabel}</span>
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {(['inspiring', 'tech', 'corporate', 'relaxed'] as BGMMood[]).map((moodKey) => {
+              const isSelected = activeMood === moodKey && formState.bgmEnabled;
+              return (
+                <button
+                  key={moodKey}
+                  type="button"
+                  data-testid={`bgm-mood-${moodKey}`}
+                  onClick={() =>
+                    onChange({ bgmEnabled: true, bgmMood: moodKey, bgmTrackId: undefined })
+                  }
+                  className={`h-7 border px-3 text-[11px] uppercase tracking-[0.05em] transition-colors duration-150 ${
+                    isSelected
+                      ? 'border-[#0A0A0A] bg-[#0A0A0A] text-[#FAFAFA]'
+                      : 'border-[#D4D4D8] bg-[#FFFFFF] text-[#71717A] hover:border-[#0A0A0A] hover:text-[#0A0A0A]'
+                  }`}
+                >
+                  {t.bgmMoods[moodKey]}
+                </button>
+              );
+            })}
+
+            {moodTracks.length > 0 && (
+              <select
+                aria-label="BGM Track Selection"
+                value={selectedTrackId}
+                onChange={(e) =>
+                  onChange({ bgmEnabled: true, bgmTrackId: e.target.value })
+                }
+                className="h-7 border border-[#D4D4D8] bg-[#FFFFFF] px-2 font-mono text-[11px] text-[#0A0A0A]"
+              >
+                {moodTracks.map((tr) => (
+                  <option key={tr.track_id} value={tr.track_id}>
+                    {tr.title} ({tr.bpm} BPM)
+                  </option>
+                ))}
+              </select>
+            )}
+
+            <button
+              type="button"
+              data-testid="bgm-preview-btn"
+              onClick={() => setPreviewTrackId(selectedTrackId)}
+              className="h-7 border border-[#0A0A0A] px-3 text-[11px] uppercase tracking-[0.05em] text-[#0A0A0A] transition-colors duration-150 hover:bg-[#0A0A0A] hover:text-[#FAFAFA]"
+            >
+              {t.bgmPreviewBtn}
+            </button>
+          </div>
+        </div>
+
+        {previewTrackId && (
+          <div className="mt-3">
+            <audio
+              data-testid="bgm-audition-player"
+              controls
+              src={getBgmPreviewUrl(previewTrackId)}
+              className="h-8 w-full max-w-md"
+              aria-label="BGM audition preview player"
+            />
+          </div>
+        )}
       </div>
 
       {/* Execution Action Bar */}

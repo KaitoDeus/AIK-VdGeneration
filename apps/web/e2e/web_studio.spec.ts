@@ -169,6 +169,24 @@ async function attachMockApiGateway(page: Page) {
       });
     }
 
+    if (url.includes('/api/v1/bgm/tracks')) {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          {
+            track_id: 'tech-circuit',
+            title: 'Circuit Pulse',
+            mood: 'tech',
+            bpm: 120,
+            duration_seconds: 8.0,
+            description: 'Clean electronic loop.',
+            preview_url: '/api/v1/bgm/tracks/tech-circuit/preview',
+          },
+        ]),
+      });
+    }
+
     if (url.endsWith('/api/v1/assets/search') && method === 'POST') {
       const tinySvg =
         'data:image/svg+xml;utf8,' +
