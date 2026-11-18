@@ -51,9 +51,9 @@ This roadmap breaks down the product development into 4 distinct phases, from an
 *Goal: Handle concurrent users efficiently and elevate audiovisual quality.*
 
 ### Milestones:
-- [ ] **M3.1: Serverless Render Farm (Remotion Lambda)**
-  - Deploy Remotion bundle to AWS Lambda for distributed rendering (splitting 1 video into 50 parallel chunk renders).
-  - Reduce 2-minute render time down to 15-20 seconds.
+- [x] **M3.1: Serverless Render Farm (Remotion Lambda)**
+  - Deploy Remotion bundle & Chrome render function to AWS Lambda (`@remotion/lambda@4.0.543`, `scripts/lambda-deploy.mjs`, `scripts/lambda-render.mjs`, `RemotionLambdaRenderService`) splitting long renders across up to 50 parallel chunks with S3 HTTPS asset staging and automatic local fallback.
+  - Exposes `GET /api/v1/render/lambda/config`, CLI `--render-engine`, and `LAMBDA · CHUNKS` badge in `apps/web`.
 - [ ] **M3.2: Sound Design & BGM Ducking**
   - Royalty-free background music library categorized by mood (Inspiring, Tech, Corporate, Relaxed).
   - Automatic audio ducking: music volume drops during speech and swells during slide transitions.

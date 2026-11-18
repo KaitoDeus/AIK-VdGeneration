@@ -23,6 +23,7 @@ from ..schemas import (
     WorkerStage,
 )
 from .asset_service import StockAssetService
+from .lambda_render_service import RemotionLambdaRenderService
 from .llm_service import LLMScriptGenerator
 from .queue_service import BaseQueueBackend, STAGES_ORDER, utc_timestamp
 from .render_service import RemotionRenderService
@@ -196,7 +197,10 @@ class TTSWorker(BaseStageWorker):
 
 
 class RenderWorker(BaseStageWorker):
-    """Stage 3 Worker: Executes stateless Remotion CLI compilation to produce final MP4 and uploads to cloud storage."""
+    """
+    Stage 3 Worker: Executes Remotion compilation (distributed AWS Lambda farm when configured,
+    or local stateless Remotion CLI) and persists final MP4 delivery URLs.
+    """
 
     stage: WorkerStage = "render"
 
@@ -204,9 +208,71 @@ class RenderWorker(BaseStageWorker):
         self,
         render_service: RemotionRenderService,
         storage_service: Optional[CloudStorageService] = None,
+        lambda_service: Optional[RemotionLambdaRenderService] = None,
     ) -> None:
         self.render_service = render_service
         self.storage_service = storage_service or CloudStorageService()
+        self.lambda_service = lambda_service or RemotionLambdaRenderService(
+            video_renderer_dir=getattr(self.render_service, "video_renderer_dir", None),
+            storage_service=self.storage_service,
+        )
+
+    def _finish_local_render(
+        self,
+        props: RemotionCompositionProps,
+        job: JobStatusResponse,
+        job_dir: Path,
+        props_path: Path,
+        queue_backend: BaseQueueBackend,
+    ) -> None:
+        output_mp4 = job_dir / f"{job.job_id}.mp4"
+        rendered_path = self.render_service.render_presentation(
+            props=props,
+            job_id=job.job_id,
+            output_mp4_path=output_mp4,
+            props_json_path=props_path,
+        )
+
+        if self.storage_service.resolve_provider() in ("s3", "r2"):
+            job.progress_percentage = 96
+            queue_backend.save_job(job)
+            queue_backend.emit_progress(
+                job_id=job.job_id,
+                step="uploading_video",
+                progress_percentage=96,
+                message=(
+                    f"Uploading 1080p MP4 to {self.storage_service.resolve_provider().upper()} "
+                    "storage & signing download URL... (96%)"
+                ),
+            )
+
+        delivery = self.storage_service.upload_video(rendered_path, job_id=job.job_id)
+
+        job.output_video_path = str(rendered_path)
+        job.render_engine_used = "local"
+        job.storage_provider = delivery.storage_provider
+        job.storage_object_key = delivery.object_key
+        job.video_download_url = delivery.cdn_url or delivery.download_url
+        job.signed_url_expires_in_seconds = delivery.expires_in_seconds
+        job.status = "completed"
+        job.current_stage = None
+        job.progress_percentage = 100
+        queue_backend.save_job(job)
+        queue_backend.emit_progress(
+            job_id=job.job_id,
+            step="completed",
+            progress_percentage=100,
+            message=(
+                f"Video rendering complete via {delivery.storage_provider.upper()} storage "
+                "and ready for playback! (100%)"
+            ),
+        )
+        logger.info(
+            "Job %s [RenderWorker] completed local render (%s) -> %s",
+            job.job_id,
+            delivery.storage_provider,
+            rendered_path,
+        )
 
     def execute(
         self,
@@ -237,52 +303,70 @@ class RenderWorker(BaseStageWorker):
             message="Rendering 1080p video frames via Remotion Engine... (90%)",
         )
 
-        output_mp4 = job_dir / f"{job.job_id}.mp4"
-        rendered_path = self.render_service.render_presentation(
+        if self.lambda_service.resolve_active_engine() == "lambda":
+            try:
+                def _on_lambda_progress(pct: int, msg: str) -> None:
+                    job.progress_percentage = pct
+                    queue_backend.save_job(job)
+                    queue_backend.emit_progress(
+                        job_id=job.job_id,
+                        step="rendering_video",
+                        progress_percentage=pct,
+                        message=msg,
+                    )
+
+                lambda_result = self.lambda_service.render_on_lambda(
+                    props=props,
+                    job_id=job.job_id,
+                    props_json_path=props_path,
+                    progress_callback=_on_lambda_progress,
+                )
+                object_key = lambda_result.object_key or self.storage_service.build_object_key(job.job_id)
+                delivery = self.storage_service.create_presigned_download_url(
+                    job_id=job.job_id,
+                    object_key=object_key,
+                )
+
+                job.render_engine_used = "lambda"
+                job.lambda_render_id = lambda_result.render_id
+                job.lambda_chunks_count = lambda_result.chunks
+                job.storage_provider = "s3" if delivery.storage_provider == "local" else delivery.storage_provider
+                job.storage_object_key = object_key
+                job.video_download_url = (
+                    delivery.cdn_url
+                    or (delivery.download_url if delivery.download_url.startswith("http") else None)
+                    or lambda_result.output_file
+                )
+                job.signed_url_expires_in_seconds = delivery.expires_in_seconds
+                job.status = "completed"
+                job.current_stage = None
+                job.progress_percentage = 100
+                queue_backend.save_job(job)
+                queue_backend.emit_progress(
+                    job_id=job.job_id,
+                    step="completed",
+                    progress_percentage=100,
+                    message=(
+                        f"Distributed Remotion Lambda render complete ({lambda_result.chunks} chunks in "
+                        f"{lambda_result.elapsed_seconds:.1f}s)! (100%)"
+                    ),
+                )
+                return None
+            except Exception as exc:
+                if not self.lambda_service.fallback_to_local:
+                    raise
+                logger.warning(
+                    "Job %s [RenderWorker] Remotion Lambda failed (%s); falling back to local Remotion CLI.",
+                    job.job_id,
+                    exc,
+                )
+
+        self._finish_local_render(
             props=props,
-            job_id=job.job_id,
-            output_mp4_path=output_mp4,
-            props_json_path=props_path,
-        )
-
-        if self.storage_service.resolve_provider() in ("s3", "r2"):
-            job.progress_percentage = 96
-            queue_backend.save_job(job)
-            queue_backend.emit_progress(
-                job_id=job.job_id,
-                step="uploading_video",
-                progress_percentage=96,
-                message=(
-                    f"Uploading 1080p MP4 to {self.storage_service.resolve_provider().upper()} "
-                    "storage & signing download URL... (96%)"
-                ),
-            )
-
-        delivery = self.storage_service.upload_video(rendered_path, job_id=job.job_id)
-
-        job.output_video_path = str(rendered_path)
-        job.storage_provider = delivery.storage_provider
-        job.storage_object_key = delivery.object_key
-        job.video_download_url = delivery.cdn_url or delivery.download_url
-        job.signed_url_expires_in_seconds = delivery.expires_in_seconds
-        job.status = "completed"
-        job.current_stage = None
-        job.progress_percentage = 100
-        queue_backend.save_job(job)
-        queue_backend.emit_progress(
-            job_id=job.job_id,
-            step="completed",
-            progress_percentage=100,
-            message=(
-                f"Video rendering complete via {delivery.storage_provider.upper()} storage "
-                "and ready for playback! (100%)"
-            ),
-        )
-        logger.info(
-            "Job %s [RenderWorker] completed render (%s) -> %s",
-            job.job_id,
-            delivery.storage_provider,
-            rendered_path,
+            job=job,
+            job_dir=job_dir,
+            props_path=props_path,
+            queue_backend=queue_backend,
         )
         return None
 
@@ -302,11 +386,19 @@ class PipelineWorkerCoordinator:
         render_service: Optional[RemotionRenderService] = None,
         asset_service: Optional[StockAssetService] = None,
         storage_service: Optional[CloudStorageService] = None,
+        lambda_service: Optional[RemotionLambdaRenderService] = None,
         retry_delay_seconds: float = 0.0,
     ) -> None:
         self.queue_backend = queue_backend
         self.temp_jobs_dir = temp_jobs_dir
         self.retry_delay_seconds = retry_delay_seconds
+
+        active_storage = storage_service or CloudStorageService()
+        active_renderer = render_service or RemotionRenderService()
+        active_lambda = lambda_service or RemotionLambdaRenderService(
+            video_renderer_dir=getattr(active_renderer, "video_renderer_dir", None),
+            storage_service=active_storage,
+        )
 
         self.llm_worker = LLMWorker(llm_generator or LLMScriptGenerator())
         self.tts_worker = TTSWorker(
@@ -314,8 +406,9 @@ class PipelineWorkerCoordinator:
             asset_service=asset_service or StockAssetService(output_base_dir=temp_jobs_dir),
         )
         self.render_worker = RenderWorker(
-            render_service or RemotionRenderService(),
-            storage_service=storage_service or CloudStorageService(),
+            active_renderer,
+            storage_service=active_storage,
+            lambda_service=active_lambda,
         )
 
         self.workers: Dict[WorkerStage, BaseStageWorker] = {

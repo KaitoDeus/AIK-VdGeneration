@@ -20,6 +20,7 @@ SupportedLanguage = Literal["vi", "en"]
 TTSProviderType = Literal["edge_tts", "elevenlabs", "fpt"]
 WorkerStage = Literal["llm", "tts", "render"]
 StorageProviderType = Literal["local", "s3", "r2"]
+RenderEngineType = Literal["local", "lambda"]
 
 
 class SlideScriptItem(BaseModel):
@@ -360,8 +361,23 @@ class JobStatusResponse(BaseModel):
     storage_object_key: Optional[str] = None
     video_download_url: Optional[str] = None
     signed_url_expires_in_seconds: Optional[int] = None
+    render_engine_used: Optional[RenderEngineType] = None
+    lambda_render_id: Optional[str] = None
+    lambda_chunks_count: Optional[int] = None
     progress_events: List[WebSocketProgressEvent] = Field(default_factory=list)
     error: Optional[str] = None
+
+
+class LambdaStatusResponse(BaseModel):
+    """Configuration telemetry for Remotion Lambda distributed chunk rendering (M3.1)."""
+
+    render_engine_mode: str
+    active_render_engine: RenderEngineType
+    lambda_configured: bool
+    region: str
+    target_chunks: int
+    function_name: Optional[str] = None
+    serve_url_configured: bool = False
 
 
 class VideoDeliveryResponse(BaseModel):

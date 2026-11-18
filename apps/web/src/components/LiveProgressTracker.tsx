@@ -183,6 +183,16 @@ export const LiveProgressTracker: React.FC<LiveProgressTrackerProps> = ({
                 >
                   {storageLabel}
                 </span>
+                {job.render_engine_used && (
+                  <span
+                    data-testid="render-engine-chip"
+                    className="border border-[#0A0A0A] bg-[#FFFFFF] px-2 py-0.5 font-mono text-[11px] uppercase text-[#0A0A0A]"
+                  >
+                    {job.render_engine_used === 'lambda'
+                      ? `LAMBDA · ${job.lambda_chunks_count || 50} CHUNKS`
+                      : 'LOCAL REMOTION'}
+                  </span>
+                )}
               </div>
               {job.remotion_props && (
                 <p className="mt-1 font-mono text-[13px] text-[#71717A]">

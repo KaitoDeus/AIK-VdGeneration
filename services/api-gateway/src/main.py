@@ -30,6 +30,7 @@ try:
         AssetSearchResponse,
         AudioSynthesizeRequest,
         JobStatusResponse,
+        LambdaStatusResponse,
         PresentationScript,
         QueueStatsResponse,
         QueueTaskPayload,
@@ -45,6 +46,7 @@ try:
         VoiceSettings,
     )
     from .services.asset_service import StockAssetService
+    from .services.lambda_render_service import RemotionLambdaRenderService
     from .services.llm_service import LLMScriptGenerator
     from .services.queue_service import (
         BaseQueueBackend,
@@ -61,6 +63,7 @@ except ImportError:
         AssetSearchResponse,
         AudioSynthesizeRequest,
         JobStatusResponse,
+        LambdaStatusResponse,
         PresentationScript,
         QueueStatsResponse,
         QueueTaskPayload,
@@ -76,6 +79,7 @@ except ImportError:
         VoiceSettings,
     )
     from services.asset_service import StockAssetService  # type: ignore
+    from services.lambda_render_service import RemotionLambdaRenderService  # type: ignore
     from services.llm_service import LLMScriptGenerator  # type: ignore
     from services.queue_service import (  # type: ignore
         BaseQueueBackend,
@@ -121,6 +125,10 @@ tts_pipeline = TTSAudioPipeline(output_base_dir=TEMP_JOBS_DIR)
 render_service = RemotionRenderService()
 asset_service = StockAssetService(output_base_dir=TEMP_JOBS_DIR)
 storage_service = CloudStorageService()
+lambda_service = RemotionLambdaRenderService(
+    video_renderer_dir=render_service.video_renderer_dir,
+    storage_service=storage_service,
+)
 
 queue_backend: BaseQueueBackend = create_queue_backend(shared_jobs_store=JOBS_STORE)
 worker_coordinator = PipelineWorkerCoordinator(
@@ -131,6 +139,7 @@ worker_coordinator = PipelineWorkerCoordinator(
     render_service=render_service,
     asset_service=asset_service,
     storage_service=storage_service,
+    lambda_service=lambda_service,
 )
 
 
@@ -146,6 +155,7 @@ def configure_queue_backend(new_backend: BaseQueueBackend) -> None:
         render_service=render_service,
         asset_service=asset_service,
         storage_service=storage_service,
+        lambda_service=lambda_service,
     )
 
 
@@ -163,11 +173,18 @@ async def health_check():
         "version": app.version,
         "queue_backend": queue_backend.backend_name,
         "storage_provider": storage_service.resolve_provider(),
+        "render_engine": lambda_service.resolve_active_engine(),
         "external_worker_enabled": _should_dispatch_to_external_worker(),
         "default_llm_model": llm_generator.default_model,
         "fallback_llm_model": llm_generator.fallback_model,
         "supported_tts_providers": ["edge_tts", "elevenlabs", "fpt"],
     }
+
+
+@app.get("/api/v1/render/lambda/config", response_model=LambdaStatusResponse)
+async def get_lambda_render_config():
+    """Returns Remotion Lambda serverless farm configuration & target parallel chunk status (M3.1)."""
+    return lambda_service.get_status()
 
 
 @app.get("/api/v1/queue/stats", response_model=QueueStatsResponse)

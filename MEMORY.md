@@ -2,8 +2,8 @@
 
 ## 1. Project Identity & Status
 - **Project Name:** AIK-VdGeneration (AI-driven Prompt to Slide-Video Generator)
-- **Status:** Phase 2 Completed (4/4 Milestones) — M2.4 Storage & CDN Delivery Completed (Ready for Phase 3).
-- **Current Milestone:** M2.4 - AWS S3 / Cloudflare R2 Storage Upload, Signed URLs & CDN Delivery Completed.
+- **Status:** Phase 3 In Progress (1/3 Milestones) — M3.1 Serverless Render Farm (Remotion Lambda) Completed.
+- **Current Milestone:** M3.1 - Remotion Lambda 50-Chunk Parallel Farm & Gateway Integration Completed.
 - **Created Date:** 2026-11-14
 - **Working Root:** `D:\AIK-VdGeneration`
 
@@ -36,6 +36,9 @@
 - **ADR-008: Cloud Object Storage (`AWS S3` / `Cloudflare R2`) & Signed URL Delivery (`M2.4`)**
   - *Context:* Rendered 1080p MP4 artifacts need durable cloud persistence and time-limited presigned download URLs without breaking local development when S3/R2 keys are unconfigured.
   - *Decision:* Implemented `CloudStorageService` using `boto3` (`signature_version='s3v4'`) supporting AWS S3, Cloudflare R2 (`R2_ACCOUNT_ID` / custom endpoint), optional `CDN_PUBLIC_BASE_URL`, retry recovery, and seamless fallback to local `/api/v1/jobs/{job_id}/video` streaming; added `GET /api/v1/jobs/{job_id}/video/url`, 307 cloud redirects, and UI signed-link refresh in `apps/web`.
+- **ADR-009: Serverless Render Farm (`@remotion/lambda` 50-Chunk Parallelism) (`M3.1`)**
+  - *Context:* Single-node Chrome rendering bottlenecks 2-minute 1080p videos (~120s); `services/video-renderer` must remain isolated from `services/api-gateway` imports.
+  - *Decision:* Added `@remotion/lambda@4.0.543` deploy/render Node scripts inside `services/video-renderer` with `calculateLambdaChunkPlan` targeting 50 parallel chunks (`framesPerLambda >= 20`) and built `RemotionLambdaRenderService` in `services/api-gateway` to upload local media assets to S3 HTTPS URLs before dispatching Lambda jobs, with automatic local CLI fallback when Lambda is unconfigured or fails.
 
 ---
 
@@ -88,4 +91,5 @@ AWS_SECRET_ACCESS_KEY=
 - [x] Build `apps/web` Next.js Web Studio with StudioBlank UI & backend studio endpoints (M2.2)
 - [x] Integrate Unsplash / Pexels stock background imagery & Ken Burns pipeline (M2.3)
 - [x] Direct `.mp4` upload to AWS S3 / Cloudflare R2 with signed download URLs (M2.4)
-- [ ] Serverless Render Farm with Remotion Lambda (M3.1)
+- [x] Serverless Render Farm with Remotion Lambda (`@remotion/lambda`, 50-chunk split, S3 asset staging) (M3.1)
+- [ ] Royalty-free Sound Design & Automatic BGM Audio Ducking (M3.2)

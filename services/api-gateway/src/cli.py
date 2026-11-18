@@ -24,6 +24,7 @@ if str(GATEWAY_ROOT) not in sys.path:
 
 from src.schemas import SupportedLanguage, TTSProviderType, VoiceSettings
 from src.services.asset_service import StockAssetService
+from src.services.lambda_render_service import RemotionLambdaRenderService
 from src.services.llm_service import LLMScriptGenerator
 from src.services.render_service import RemotionRenderService, verify_mp4_output
 from src.services.storage_service import CloudStorageService
@@ -122,6 +123,13 @@ def parse_cli_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         default=None,
         help="Storage delivery provider override ('auto', 'local', 's3', or 'r2').",
     )
+    parser.add_argument(
+        "--render-engine",
+        type=str,
+        choices=["auto", "local", "lambda"],
+        default="auto",
+        help="Render engine mode ('auto', 'local', or 'lambda' for Remotion Lambda farm).",
+    )
     return parser.parse_args(argv)
 
 
@@ -211,42 +219,61 @@ def run_cli_pipeline(argv: Optional[List[str]] = None) -> dict:
         provider_used,
     )
 
-    # Stage 3: Remotion MP4 Video Compilation (M1.4 + M1.5 + M2.4)
+    # Stage 3: Remotion MP4 Video Compilation (M1.4 + M1.5 + M2.4 + M3.1)
     rendered_mp4: Optional[Path] = None
     mp4_size_bytes: int = 0
     storage_provider: str = "local"
     video_download_url: Optional[str] = None
+    render_engine_used: str = "local"
+    lambda_chunks: Optional[int] = None
 
     if args.skip_render:
         logger.info("[3/3] Skipping Remotion MP4 encoding (--skip-render enabled).")
     else:
-        logger.info("[3/3] Rendering 1080p MP4 video via Remotion Engine -> %s ...", output_mp4_path)
-        renderer = RemotionRenderService()
-        rendered_mp4 = renderer.render_presentation(
-            props=remotion_props,
-            job_id=job_id,
-            output_mp4_path=output_mp4_path,
-            props_json_path=props_path,
-            frame_range=args.frames,
-            cleanup_staging=True,
-        )
-        mp4_size_bytes = verify_mp4_output(rendered_mp4)
-        logger.info(
-            "  -> Video render complete: %s (%.1f KB)",
-            rendered_mp4,
-            mp4_size_bytes / 1024.0,
-        )
-
         storage_service = CloudStorageService(provider_mode=args.storage_provider)
-        delivery = storage_service.upload_video(rendered_mp4, job_id=job_id)
-        storage_provider = delivery.storage_provider
-        video_download_url = delivery.cdn_url or delivery.download_url
-        if delivery.storage_provider != "local":
-            logger.info(
-                "  -> Cloud delivery ready (%s): %s",
-                delivery.storage_provider.upper(),
-                video_download_url,
+        lambda_service = RemotionLambdaRenderService(
+            storage_service=storage_service,
+            render_mode=args.render_engine,
+        )
+        if lambda_service.resolve_active_engine(args.render_engine) == "lambda":
+            logger.info("[3/3] Rendering distributed 1080p MP4 via Remotion Lambda...")
+            res = lambda_service.render_on_lambda(
+                props=remotion_props,
+                job_id=job_id,
+                props_json_path=props_path,
             )
+            render_engine_used = "lambda"
+            lambda_chunks = res.chunks
+            storage_provider = "s3"
+            video_download_url = res.output_file
+            logger.info("  -> Lambda render complete (%d chunks, %.2fs)", res.chunks, res.elapsed_seconds)
+        else:
+            logger.info("[3/3] Rendering 1080p MP4 video via Remotion Engine -> %s ...", output_mp4_path)
+            renderer = RemotionRenderService()
+            rendered_mp4 = renderer.render_presentation(
+                props=remotion_props,
+                job_id=job_id,
+                output_mp4_path=output_mp4_path,
+                props_json_path=props_path,
+                frame_range=args.frames,
+                cleanup_staging=True,
+            )
+            mp4_size_bytes = verify_mp4_output(rendered_mp4)
+            logger.info(
+                "  -> Video render complete: %s (%.1f KB)",
+                rendered_mp4,
+                mp4_size_bytes / 1024.0,
+            )
+
+            delivery = storage_service.upload_video(rendered_mp4, job_id=job_id)
+            storage_provider = delivery.storage_provider
+            video_download_url = delivery.cdn_url or delivery.download_url
+            if delivery.storage_provider != "local":
+                logger.info(
+                    "  -> Cloud delivery ready (%s): %s",
+                    delivery.storage_provider.upper(),
+                    video_download_url,
+                )
 
     elapsed = round(time.time() - start_time, 2)
     logger.info("==============================================================")
@@ -263,6 +290,8 @@ def run_cli_pipeline(argv: Optional[List[str]] = None) -> dict:
         "output_video_size_bytes": mp4_size_bytes,
         "storage_provider": storage_provider,
         "video_download_url": video_download_url,
+        "render_engine_used": render_engine_used,
+        "lambda_chunks_count": lambda_chunks,
         "total_frames": remotion_props.total_frames,
         "total_duration_seconds": remotion_props.total_duration_seconds,
         "elapsed_seconds": elapsed,

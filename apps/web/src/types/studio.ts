@@ -15,6 +15,7 @@ export type TTSProviderType = 'edge_tts' | 'elevenlabs' | 'fpt';
 export type AspectRatio = '16:9' | '9:16';
 export type VisualTheme = 'modern_tech' | 'corporate' | 'minimal';
 export type StorageProviderType = 'local' | 's3' | 'r2';
+export type RenderEngineType = 'local' | 'lambda';
 
 export interface SlideScriptItem {
   slide_index: number;
@@ -129,6 +130,9 @@ export interface JobStatusResponse {
   storage_object_key?: string | null;
   video_download_url?: string | null;
   signed_url_expires_in_seconds?: number | null;
+  render_engine_used?: RenderEngineType | null;
+  lambda_render_id?: string | null;
+  lambda_chunks_count?: number | null;
   progress_events: WebSocketProgressEvent[];
   error?: string | null;
 }
@@ -165,6 +169,7 @@ export interface HealthResponse {
   version: string;
   queue_backend: string;
   storage_provider?: string;
+  render_engine?: RenderEngineType;
   external_worker_enabled: boolean;
   default_llm_model: string;
   fallback_llm_model: string;
