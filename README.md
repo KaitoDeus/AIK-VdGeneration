@@ -63,7 +63,15 @@ powershell -ExecutionPolicy Bypass -File .\scripts\verify-env.ps1
 npm run generate -- --prompt "Event-Driven Cloud Architecture" --lang en --bgm-mood tech --subtitles --output out/demo.mp4
 ```
 
-### 3. Run the Full Web Studio & API Stack
+### 3. Run One-Command Docker Compose Stack (Recommended Production Deployment)
+```bash
+docker compose up --build -d
+# Or via root npm script:
+npm run docker:up
+```
+This builds the unified backend/Remotion and Web Studio containers once and starts 4 networked services (`redis`, `api-gateway` on `:8000`, `worker` with Remotion Linux Chrome, and `web` on `:3000`).
+
+### 4. Run Local Development Servers Manually
 ```bash
 # Terminal 1: Start API Gateway (port 8000)
 npm run dev:api
@@ -71,7 +79,7 @@ npm run dev:api
 # Terminal 2: Start Next.js Web Studio (port 3000)
 npm run dev:web
 ```
-Open `http://localhost:3000` in your browser. See [docs/USER_GUIDE.md](docs/USER_GUIDE.md) for complete setup, API configuration, Remotion Lambda deployment, and testing instructions.
+Open `http://localhost:3000` in your browser. See [docs/USER_GUIDE.md](docs/USER_GUIDE.md) for complete setup, Docker deployment, Remotion Lambda configuration, and testing instructions.
 
 ---
 

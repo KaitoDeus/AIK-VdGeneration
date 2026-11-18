@@ -13,6 +13,139 @@ services:
       timeout: 3s
       retries: 5
     restart: unless-stopped
+    networks:
+      - aik-net
+
+  api-gateway:
+    image: aik-vdgeneration-backend:latest
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    container_name: aik-api-gateway
+    command: ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    environment:
+      PORT: "8000"
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      QUEUE_MODE: redis
+      REDIS_URL: redis://redis:6379/0
+      USE_EXTERNAL_WORKER: "true"
+      MAX_JOB_RETRIES: ${MAX_JOB_RETRIES:-3}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      GEMINI_FALLBACK_MODEL: ${GEMINI_FALLBACK_MODEL:-gemini-4-hydrogen}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_WHISPER_MODEL: ${OPENAI_WHISPER_MODEL:-whisper-1}
+      SUBTITLE_PROVIDER: ${SUBTITLE_PROVIDER:-auto}
+      UNSPLASH_ACCESS_KEY: ${UNSPLASH_ACCESS_KEY:-}
+      PEXELS_API_KEY: ${PEXELS_API_KEY:-}
+      STOCK_IMAGE_PROVIDER: ${STOCK_IMAGE_PROVIDER:-auto}
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-auto}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+      CDN_PUBLIC_BASE_URL: ${CDN_PUBLIC_BASE_URL:-}
+      SIGNED_URL_EXPIRY_SECONDS: ${SIGNED_URL_EXPIRY_SECONDS:-3600}
+      RENDER_ENGINE: ${RENDER_ENGINE:-auto}
+      REMOTION_AWS_REGION: ${REMOTION_AWS_REGION:-us-east-1}
+      REMOTION_LAMBDA_FUNCTION_NAME: ${REMOTION_LAMBDA_FUNCTION_NAME:-}
+      REMOTION_LAMBDA_SERVE_URL: ${REMOTION_LAMBDA_SERVE_URL:-}
+      REMOTION_LAMBDA_MAX_CHUNKS: ${REMOTION_LAMBDA_MAX_CHUNKS:-50}
+      REMOTION_LAMBDA_FALLBACK_TO_LOCAL: ${REMOTION_LAMBDA_FALLBACK_TO_LOCAL:-true}
+    volumes:
+      - aik_jobs_temp:/app/services/api-gateway/.temp
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - aik-net
+
+  worker:
+    image: aik-vdgeneration-backend:latest
+    container_name: aik-worker
+    command: ["python", "-m", "src.worker", "--queue-mode", "redis", "--concurrency", "2"]
+    shm_size: "1gb"
+    environment:
+      QUEUE_MODE: redis
+      REDIS_URL: redis://redis:6379/0
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      GEMINI_FALLBACK_MODEL: ${GEMINI_FALLBACK_MODEL:-gemini-4-hydrogen}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_WHISPER_MODEL: ${OPENAI_WHISPER_MODEL:-whisper-1}
+      SUBTITLE_PROVIDER: ${SUBTITLE_PROVIDER:-auto}
+      UNSPLASH_ACCESS_KEY: ${UNSPLASH_ACCESS_KEY:-}
+      PEXELS_API_KEY: ${PEXELS_API_KEY:-}
+      STOCK_IMAGE_PROVIDER: ${STOCK_IMAGE_PROVIDER:-auto}
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-auto}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+      CDN_PUBLIC_BASE_URL: ${CDN_PUBLIC_BASE_URL:-}
+      SIGNED_URL_EXPIRY_SECONDS: ${SIGNED_URL_EXPIRY_SECONDS:-3600}
+      RENDER_ENGINE: ${RENDER_ENGINE:-auto}
+      REMOTION_AWS_REGION: ${REMOTION_AWS_REGION:-us-east-1}
+      REMOTION_LAMBDA_FUNCTION_NAME: ${REMOTION_LAMBDA_FUNCTION_NAME:-}
+      REMOTION_LAMBDA_SERVE_URL: ${REMOTION_LAMBDA_SERVE_URL:-}
+      REMOTION_LAMBDA_MAX_CHUNKS: ${REMOTION_LAMBDA_MAX_CHUNKS:-50}
+      REMOTION_LAMBDA_FALLBACK_TO_LOCAL: ${REMOTION_LAMBDA_FALLBACK_TO_LOCAL:-true}
+    volumes:
+      - aik_jobs_temp:/app/services/api-gateway/.temp
+    depends_on:
+      redis:
+        condition: service_healthy
+      api-gateway:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - aik-net
+
+  web:
+    image: aik-vdgeneration-web:latest
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+    container_name: aik-web-studio
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: "3000"
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - aik-net
 
 volumes:
   aik_redis_data:
+  aik_jobs_temp:
+
+networks:
+  aik-net:
+    driver: bridge

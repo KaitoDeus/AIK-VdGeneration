@@ -168,7 +168,34 @@ Artifacts created per run are stored in `services/api-gateway/.temp/jobs/{job_id
 
 ---
 
-## 5. Serverless Cloud Deployment (Remotion Lambda + S3/R2)
+## 5. Mode 3: Full Docker Compose Deployment (Single Command)
+
+Run the entire distributed platform (`redis`, `api-gateway`, `worker` + headless Chrome Remotion renderer, and standalone Next.js `web` studio) cleanly in containers:
+
+```bash
+# Build once and start all 4 services in detached mode
+docker compose up --build -d
+
+# Check container health & ports
+docker compose ps
+
+# Follow live logs across all services
+docker compose logs -f
+
+# Stop services (add -v only if you want to erase Redis and job temp volumes)
+docker compose down
+```
+
+- **Web Studio UI:** `http://localhost:3000`
+- **API Gateway & Swagger Docs:** `http://localhost:8000/docs`
+- **Redis Queue Backend:** `localhost:6379` (persistent AOF volume `aik_redis_data`)
+- **Shared Media Artifacts Volume:** `aik_jobs_temp` shared between `api-gateway` and `worker` so audio MP3s, stock assets, `.srt` subtitles, and rendered `.mp4` files stream seamlessly.
+
+Optional `.env` keys placed in a root `.env` file alongside `docker-compose.yml` are passed automatically into `api-gateway` and `worker`.
+
+---
+
+## 6. Serverless Cloud Deployment (Remotion Lambda + S3/R2)
 
 To distribute long renders across ~50 parallel AWS Lambda containers (`15-20s` typical render for a 2-minute video):
 
@@ -182,7 +209,7 @@ To distribute long renders across ~50 parallel AWS Lambda containers (`15-20s` t
 
 ---
 
-## 6. Running the Automated Test Suites
+## 7. Running the Automated Test Suites
 
 Run verification across all monorepo packages:
 

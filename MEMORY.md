@@ -45,6 +45,9 @@
 - **ADR-011: Word-Level Karaoke Subtitles via OpenAI Whisper + Alignment Fallback (`M3.3`)**
   - *Context:* Animated karaoke captions require exact word start/end timestamps while remaining operational without an active OpenAI API key in local development.
   - *Decision:* Implemented `WhisperSubtitleService` calling `OpenAI.audio.transcriptions.create(model="whisper-1", timestamp_granularities=["word"])` with retry recovery and monotonic syllable/punctuation-weighted alignment fallback, exporting `.srt` tracks (`/api/v1/jobs/{job_id}/subtitles.srt`) and rendering `KaraokeCaptions.tsx` inside `SlidePresentation.tsx`.
+- **ADR-012: Unified Docker Compose Packaging (`docker-compose.yml`)**
+  - *Context:* Running the full stack locally requires coordinating Python 3.13, Node.js 22, FFmpeg, Chromium system dependencies for Remotion, Redis 7, and Next.js 15 across developers and CI environments.
+  - *Decision:* Added `docker/backend.Dockerfile` (single shared `aik-vdgeneration-backend:latest` image for both `api-gateway` and `worker` with Python 3.13, Node.js 22, FFmpeg, Chromium shared libs, and pre-cached `chrome-headless-shell-linux64` via `npx remotion browser ensure`), `docker/web.Dockerfile` (`aik-vdgeneration-web:latest` multi-stage build using Next.js `output: 'standalone'` when `NEXT_STANDALONE=1`), `.dockerignore` recursive exclusion globs, and `docker-compose.yml` wiring `redis`, `api-gateway`, `worker` (`shm_size: 1gb`, shared `aik_jobs_temp` volume), and `web` over `aik-net`.
 
 ---
 

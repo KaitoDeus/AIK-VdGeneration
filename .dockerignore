@@ -1,0 +1,43 @@
+# Version control & editor artifacts
+**/.git
+**/.github
+**/.vscode
+**/.idea
+
+# Python caches & virtualenvs
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.venv
+**/venv
+
+# Nested Node modules & Next.js build outputs (rebuilt cleanly inside containers)
+**/node_modules
+**/.next
+**/.remotion
+services/video-renderer/public/audio_temp
+services/video-renderer/public/assets
+services/video-renderer/public/music
+
+# Temporary media, caches & local test reports
+**/.temp
+**/out
+**/exports
+**/tmp
+**/temp
+**/playwright-report
+**/test-results
+**/coverage
+**/*.mp4
+**/*.mp3
+**/*.wav
+**/*.srt
+
+# Environment secrets (passed at runtime by docker-compose)
+.env
+.env.*
+services/api-gateway/.env
+apps/web/.env.local
+!.env.example
+!services/api-gateway/.env.example
+!apps/web/.env.example
