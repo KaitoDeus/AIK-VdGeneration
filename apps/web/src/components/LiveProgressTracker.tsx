@@ -168,6 +168,16 @@ export const LiveProgressTracker: React.FC<LiveProgressTrackerProps> = ({
         </div>
       )}
 
+      {/* Paused at 80% Audio-Ready Notice when Render MP4 checkbox was unchecked */}
+      {job.status === 'audio_ready' && !job.render_requested && !job.error && (
+        <div
+          data-testid="audio-ready-pause-notice"
+          className="border-b border-[#E5E5E5] bg-[#FAFAFA] px-8 py-4 font-mono text-[12px] text-[#0A0A0A]"
+        >
+          {t.audioReadyNotice}
+        </div>
+      )}
+
       {/* Built-in 1080p Video Player & Export Controls (When MP4 is compiled) */}
       {(job.output_video_path || job.video_download_url) && job.status === 'completed' && (
         <div className="border-b border-[#E5E5E5] p-8">

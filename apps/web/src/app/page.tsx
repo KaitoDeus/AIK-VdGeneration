@@ -45,7 +45,7 @@ export default function StudioWorkspacePage() {
     theme: 'modern_tech',
     voiceProvider: 'edge_tts',
     voiceId: 'vi-VN-HoaiMyNeural',
-    renderVideo: false,
+    renderVideo: true,
     bgmEnabled: false,
     bgmMood: 'tech',
     bgmDuckingEnabled: true,
@@ -275,6 +275,10 @@ export default function StudioWorkspacePage() {
     return true;
   };
 
+  const resolveEffectiveTargetSlides = (): number =>
+    formState.targetSlides ??
+    Math.min(30, Math.max(5, Math.round(formState.targetDuration / 9)));
+
   const handleDraftScript = async () => {
     if (!validatePrompt()) return;
     setIsSubmitting(true);
@@ -285,7 +289,7 @@ export default function StudioWorkspacePage() {
         language: formState.language,
         target_duration_seconds: formState.targetDuration,
         theme: formState.theme,
-        ...(formState.targetSlides ? { target_slides: formState.targetSlides } : {}),
+        target_slides: resolveEffectiveTargetSlides(),
       });
       setDraftScript(script);
       setActiveJob(null);
@@ -308,7 +312,7 @@ export default function StudioWorkspacePage() {
         language: formState.language,
         aspect_ratio: formState.aspectRatio,
         target_duration_seconds: formState.targetDuration,
-        ...(formState.targetSlides ? { target_slides: formState.targetSlides } : {}),
+        target_slides: resolveEffectiveTargetSlides(),
         style: {
           theme: formState.theme,
           color_palette: 'indigo_slate',

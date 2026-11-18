@@ -140,8 +140,19 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     render(<StudioWorkspacePage />);
 
     await user.click(screen.getByRole('button', { name: 'GIẢI THÍCH CÔNG NGHỆ' }));
-    await user.click(screen.getByRole('checkbox', { name: /Kết xuất ngay video MP4 1080p/i }));
+    const renderCheckbox = screen.getByRole('checkbox', { name: /Kết xuất ngay video MP4 1080p/i });
+    expect(renderCheckbox).toHaveAttribute('aria-checked', 'true');
     await user.click(screen.getByRole('button', { name: 'Tạo Video Thuyết Trình' }));
+
+    await waitFor(() => {
+      const genCall = server.fetchMock.mock.calls.find(
+        ([url, init]) => String(url).endsWith('/api/v1/videos/generate') && init?.method === 'POST'
+      );
+      expect(genCall).toBeDefined();
+      const body = JSON.parse(String(genCall?.[1]?.body));
+      expect(body.render_video).toBe(true);
+      expect(body.target_slides).toBeGreaterThanOrEqual(5);
+    });
 
     // Wait for LiveProgressTracker and MockWebSocket to open
     await waitFor(() => {

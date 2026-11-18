@@ -83,6 +83,7 @@ export interface StudioDictionary {
     };
     statuses: Record<string, string>;
     errorPrefix: string;
+    audioReadyNotice: string;
     masterComplete: string;
     exportPropsBtn: string;
     downloadSrtBtn: string;
@@ -233,6 +234,8 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
         failed: 'FAILED',
       },
       errorPrefix: 'ERROR',
+      audioReadyNotice:
+        'Script and voiceover synthesis complete (80%). Automatic MP4 rendering was unchecked — review slides below and click "Compile & Render 1080p MP4" to export the final video.',
       masterComplete: 'MASTER RENDER COMPLETE',
       exportPropsBtn: 'Export Remotion Props JSON',
       downloadSrtBtn: 'Download Subtitles (.SRT)',
@@ -382,6 +385,8 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
         failed: 'THẤT BẠI',
       },
       errorPrefix: 'LỖI',
+      audioReadyNotice:
+        'Đã tạo xong kịch bản & giọng đọc (80%). Chế độ tự động xuất MP4 đang tắt — hãy kiểm tra hoặc mở rộng slide bên dưới rồi bấm "BIÊN DỊCH & XUẤT MP4 1080P" để hoàn tất video.',
       masterComplete: 'KẾT XUẤT VIDEO HOÀN TẤT',
       exportPropsBtn: 'Xuất JSON Remotion Props',
       downloadSrtBtn: 'Tải Phụ Đề (.SRT)',
