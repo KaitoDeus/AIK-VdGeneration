@@ -139,8 +139,20 @@ export async function generateScript(params: {
   language: SupportedLanguage;
   target_duration_seconds: number;
   theme: VisualTheme;
+  target_slides?: number;
 }): Promise<PresentationScript> {
   return requestJson<PresentationScript>('/api/v1/scripts/generate', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function expandScript(params: {
+  script: PresentationScript;
+  additional_slides?: number;
+  topic_hint?: string;
+}): Promise<PresentationScript> {
+  return requestJson<PresentationScript>('/api/v1/scripts/expand', {
     method: 'POST',
     body: JSON.stringify(params),
   });
@@ -171,6 +183,7 @@ export async function generateVideoJob(params: {
   language: SupportedLanguage;
   aspect_ratio: AspectRatio;
   target_duration_seconds: number;
+  target_slides?: number;
   style: {
     theme: VisualTheme;
     color_palette: string;

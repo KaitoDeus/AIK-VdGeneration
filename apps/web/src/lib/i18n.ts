@@ -36,6 +36,7 @@ export interface StudioDictionary {
     aspect169: string;
     aspect916: string;
     themeDurationLabel: string;
+    slideCountAuto: string;
     themeNames: {
       modern_tech: string;
       corporate: string;
@@ -104,6 +105,11 @@ export interface StudioDictionary {
     slidesCounter: string;
     addSlideBtn: string;
     removeSlideBtn: string;
+    aiExpandLabel: string;
+    aiExpand5Btn: string;
+    aiExpand10Btn: string;
+    aiExpandingBtn: string;
+    aiExpandError: string;
     synthesizedAudioTitle: string;
     framesAt30Fps: string;
     slideHeadingLabel: string;
@@ -171,6 +177,7 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       aspect169: '16:9 WIDESCREEN (1920×1080)',
       aspect916: '9:16 VERTICAL (1080×1920)',
       themeDurationLabel: 'Theme & Target Duration',
+      slideCountAuto: 'AUTO SLIDES',
       themeNames: {
         modern_tech: 'MODERN TECH',
         corporate: 'CORPORATE',
@@ -248,6 +255,11 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       slidesCounter: 'SLIDES',
       addSlideBtn: '+ ADD',
       removeSlideBtn: 'REMOVE',
+      aiExpandLabel: 'AI AUTO-EXPAND',
+      aiExpand5Btn: '+5 AI SLIDES',
+      aiExpand10Btn: '+10 AI SLIDES',
+      aiExpandingBtn: 'GENERATING...',
+      aiExpandError: 'Failed to auto-generate continuation slides.',
       synthesizedAudioTitle: 'SYNTHESIZED SLIDE AUDIO',
       framesAt30Fps: 'frames @ 30fps',
       slideHeadingLabel: 'Slide Heading',
@@ -314,6 +326,7 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       aspect169: '16:9 MÀN HÌNH NGANG (1920×1080)',
       aspect916: '9:16 DỌC DI ĐỘNG (1080×1920)',
       themeDurationLabel: 'Giao Diện & Thời Lượng',
+      slideCountAuto: 'SLIDE TỰ ĐỘNG',
       themeNames: {
         modern_tech: 'CÔNG NGHỆ HIỆN ĐẠI',
         corporate: 'DOANH NGHIỆP',
@@ -391,6 +404,11 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       slidesCounter: 'DANH SÁCH SLIDE',
       addSlideBtn: '+ THÊM',
       removeSlideBtn: 'XÓA',
+      aiExpandLabel: 'TẠO THÊM BẰNG AI',
+      aiExpand5Btn: '+5 SLIDE AI',
+      aiExpand10Btn: '+10 SLIDE AI',
+      aiExpandingBtn: 'ĐANG TẠO...',
+      aiExpandError: 'Không thể tự động tạo thêm slide.',
       synthesizedAudioTitle: 'ÂM THANH SLIDE ĐÃ TỔNG HỢP',
       framesAt30Fps: 'khung hình @ 30fps',
       slideHeadingLabel: 'Tiêu Đề Slide',

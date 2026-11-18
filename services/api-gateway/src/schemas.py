@@ -75,6 +75,9 @@ class SlideScriptItem(BaseModel):
         return cleaned
 
 
+MAX_PRESENTATION_SLIDES = 30
+
+
 class PresentationScript(BaseModel):
     """Root structured output schema returned by the LLM script generator."""
 
@@ -94,8 +97,19 @@ class PresentationScript(BaseModel):
     slides: List[SlideScriptItem] = Field(
         ...,
         min_length=3,
-        max_length=8,
-        description="Ordered sequence of 3 to 8 presentation slides.",
+        max_length=MAX_PRESENTATION_SLIDES,
+        description="Ordered sequence of 3 to 30 presentation slides.",
+    )
+
+
+class SlideExpansionBatch(BaseModel):
+    """Structured output schema used by Gemini when expanding an existing slide deck."""
+
+    slides: List[SlideScriptItem] = Field(
+        ...,
+        min_length=1,
+        max_length=20,
+        description="Newly generated continuation slides to integrate into the deck.",
     )
 
 
@@ -241,6 +255,12 @@ class ScriptGenerateRequest(BaseModel):
         le=600,
         description="Approximate target video duration in seconds.",
     )
+    target_slides: Optional[int] = Field(
+        default=None,
+        ge=3,
+        le=MAX_PRESENTATION_SLIDES,
+        description="Optional explicit target slide count (3 to 30 slides).",
+    )
     theme: str = Field(
         default="modern_tech",
         description="Visual theme hint for the script.",
@@ -248,6 +268,26 @@ class ScriptGenerateRequest(BaseModel):
     model: Optional[str] = Field(
         default=None,
         description="Optional override for the Gemini model ID (e.g., 'gemini-3.8-flash').",
+    )
+
+
+class ScriptExpandRequest(BaseModel):
+    """Request payload to automatically generate additional continuation slides."""
+
+    script: PresentationScript
+    additional_slides: int = Field(
+        default=10,
+        ge=1,
+        le=20,
+        description="Number of additional slides to generate automatically (default 10).",
+    )
+    topic_hint: Optional[str] = Field(
+        default=None,
+        description="Optional subtopic guidance for the newly generated slides.",
+    )
+    model: Optional[str] = Field(
+        default=None,
+        description="Optional override for the Gemini model ID.",
     )
 
 
@@ -348,6 +388,12 @@ class VideoGenerateRequest(BaseModel):
         ge=15,
         le=600,
         description="Target duration in seconds.",
+    )
+    target_slides: Optional[int] = Field(
+        default=None,
+        ge=3,
+        le=MAX_PRESENTATION_SLIDES,
+        description="Optional explicit slide count (3 to 30 slides).",
     )
     style: StyleSettings = Field(default_factory=StyleSettings)
     voice_settings: VoiceSettings = Field(default_factory=VoiceSettings)

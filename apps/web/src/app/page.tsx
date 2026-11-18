@@ -9,6 +9,7 @@ import { StudioHeader } from '@/components/StudioHeader';
 import {
   buildWebSocketUrl,
   compileEditedScript,
+  expandScript,
   fetchBgmTracks,
   fetchHealth,
   fetchJobs,
@@ -63,6 +64,7 @@ export default function StudioWorkspacePage() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isExpanding, setIsExpanding] = useState<boolean>(false);
   const [isAuditioning, setIsAuditioning] = useState<boolean>(false);
   const [auditionAudioUrl, setAuditionAudioUrl] = useState<string | null>(null);
 
@@ -283,6 +285,7 @@ export default function StudioWorkspacePage() {
         language: formState.language,
         target_duration_seconds: formState.targetDuration,
         theme: formState.theme,
+        ...(formState.targetSlides ? { target_slides: formState.targetSlides } : {}),
       });
       setDraftScript(script);
       setActiveJob(null);
@@ -305,6 +308,7 @@ export default function StudioWorkspacePage() {
         language: formState.language,
         aspect_ratio: formState.aspectRatio,
         target_duration_seconds: formState.targetDuration,
+        ...(formState.targetSlides ? { target_slides: formState.targetSlides } : {}),
         style: {
           theme: formState.theme,
           color_palette: 'indigo_slate',
@@ -390,6 +394,24 @@ export default function StudioWorkspacePage() {
     }
   };
 
+  const handleExpandSlides = async (additionalSlides: number) => {
+    if (!draftScript) return;
+    setIsExpanding(true);
+    setStatusMessage(null);
+    try {
+      const expanded = await expandScript({
+        script: draftScript,
+        additional_slides: additionalSlides,
+        topic_hint: formState.prompt.trim() || undefined,
+      });
+      setDraftScript(expanded);
+    } catch (err) {
+      setStatusMessage(err instanceof Error ? err.message : t.reviewer.aiExpandError);
+    } finally {
+      setIsExpanding(false);
+    }
+  };
+
   const handleSelectArchivedJob = (job: JobStatusResponse) => {
     teardownStream();
     setActiveJob(job);
@@ -469,6 +491,7 @@ export default function StudioWorkspacePage() {
               remotionProps={activeJob?.remotion_props ?? null}
               aspectRatio={formState.aspectRatio}
               isCompiling={isSubmitting}
+              isExpanding={isExpanding}
               slideBackgrounds={slideBackgrounds}
               onChangeSlideBackground={(slideIndex, url) => {
                 setSlideBackgrounds((prev) => {
@@ -483,6 +506,7 @@ export default function StudioWorkspacePage() {
               }}
               onUpdateScript={setDraftScript}
               onCompileSlides={handleCompileEditedSlides}
+              onExpandSlides={handleExpandSlides}
             />
           )}
         </div>

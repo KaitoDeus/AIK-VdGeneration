@@ -297,3 +297,101 @@ class TestAPIGatewayEndpoints:
         import shutil
         shutil.rmtree(TEMP_JOBS_DIR / job_id, ignore_errors=True)
         JOBS_STORE.pop(job_id, None)
+
+    def test_generate_and_expand_plus_10_slides_vietnamese_and_capacity_guard(self):
+        # 1. Start with a 3-slide Vietnamese deck
+        gen_resp = client.post(
+            "/api/v1/scripts/generate",
+            json={
+                "prompt": "Kiến trúc Microservices hiện đại",
+                "language": "vi",
+                "target_duration_seconds": 60,
+                "theme": "modern_tech",
+            },
+        )
+        assert gen_resp.status_code == 200
+        initial_script = PresentationScript.model_validate(gen_resp.json())
+        assert len(initial_script.slides) == 3
+
+        # 2. Auto-expand +10 continuation slides -> total 13 sequential Vietnamese slides
+        expand_resp = client.post(
+            "/api/v1/scripts/expand",
+            json={
+                "script": initial_script.model_dump(),
+                "additional_slides": 10,
+                "topic_hint": "Microservices patterns",
+            },
+        )
+        assert expand_resp.status_code == 200
+        expanded = PresentationScript.model_validate(expand_resp.json())
+        assert len(expanded.slides) == 13
+        assert [s.slide_index for s in expanded.slides] == list(range(1, 14))
+        # New deep-dive slides stay positioned before trailing CTA slide
+        assert expanded.slides[-1].layout == "conclusion_cta"
+        assert len({s.heading for s in expanded.slides}) == 13
+
+        # 3. Direct generation with target_slides=13 also works cleanly
+        direct_13 = client.post(
+            "/api/v1/scripts/generate",
+            json={
+                "prompt": "Cloud-Native Observability",
+                "language": "en",
+                "target_slides": 13,
+            },
+        )
+        assert direct_13.status_code == 200
+        assert len(direct_13.json()["slides"]) == 13
+
+        # 4. Deck at max 30 slides returns clear 400 error if expanded further
+        full_deck = PresentationScript(
+            title=expanded.title,
+            language="vi",
+            theme="modern_tech",
+            slides=[
+                SlideScriptItem(
+                    slide_index=i,
+                    layout="bullet_list",
+                    heading=f"Slide {i}",
+                    bullet_points=["Chi tiết 1", "Chi tiết 2"],
+                    voiceover_script=f"Nội dung thuyết trình cho slide số {i}.",
+                    visual_keywords="abstract minimal slide",
+                )
+                for i in range(1, 31)
+            ],
+        )
+        capped_resp = client.post(
+            "/api/v1/scripts/expand",
+            json={"script": full_deck.model_dump(), "additional_slides": 10},
+        )
+        assert capped_resp.status_code == 400
+
+    @patch("src.services.llm_service.genai.Client")
+    def test_expand_script_with_gemini_structured_outputs(self, mock_client_cls):
+        mock_client = MagicMock()
+        mock_client_cls.return_value = mock_client
+
+        batch_payload = {
+            "slides": [
+                {
+                    "slide_index": i,
+                    "layout": "split_card" if i % 2 else "bullet_list",
+                    "heading": f"Deep Dive Concept {i}",
+                    "bullet_points": ["Detailed insight", "Architecture benefit"],
+                    "voiceover_script": f"Exploring advanced concept number {i} in detail.",
+                    "visual_keywords": "modern tech diagram",
+                }
+                for i in range(1, 11)
+            ]
+        }
+        mock_client.interactions.create.return_value = SimpleNamespace(
+            output_text=json.dumps(batch_payload)
+        )
+
+        generator = LLMScriptGenerator(api_key="test-live-gemini-key", default_model="gemini-3.8-flash")
+        base_script = PresentationScript.model_validate(_sample_valid_script_dict("en"))
+        expanded, model_used = generator.expand_script(base_script, additional_slides=10)
+
+        assert model_used == "gemini-3.8-flash"
+        assert len(expanded.slides) == 13
+        assert expanded.slides[-1].layout == "conclusion_cta"
+        assert [s.slide_index for s in expanded.slides] == list(range(1, 14))

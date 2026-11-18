@@ -13,6 +13,8 @@ import {
   StockImageCandidate,
 } from '@/types/studio';
 
+const MAX_SLIDES = 30;
+
 interface SlideReviewerProps {
   locale: UiLocale;
   jobId: string | null;
@@ -20,10 +22,12 @@ interface SlideReviewerProps {
   remotionProps: RemotionCompositionProps | null;
   aspectRatio: AspectRatio;
   isCompiling: boolean;
+  isExpanding?: boolean;
   slideBackgrounds?: Record<number, string>;
   onChangeSlideBackground?: (slideIndex: number, url: string | null) => void;
   onUpdateScript: (updated: PresentationScript) => void;
   onCompileSlides: (renderVideo: boolean) => void;
+  onExpandSlides?: (additionalSlides: number) => Promise<void> | void;
 }
 
 const LAYOUT_KEYS: SlideLayout[] = [
@@ -41,10 +45,12 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
   remotionProps,
   aspectRatio,
   isCompiling,
+  isExpanding = false,
   slideBackgrounds = {},
   onChangeSlideBackground,
   onUpdateScript,
   onCompileSlides,
+  onExpandSlides,
 }) => {
   const t = STUDIO_DICTIONARY[locale].reviewer;
   const [activeIndex, setActiveIndex] = useState<number>(0);
@@ -93,7 +99,7 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
   };
 
   const handleAddSlide = () => {
-    if (script.slides.length >= 8) return;
+    if (script.slides.length >= MAX_SLIDES) return;
     const nextIndex = script.slides.length + 1;
     const newSlide: SlideScriptItem = {
       slide_index: nextIndex,
@@ -165,13 +171,13 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
         <div className="border-b border-[#E5E5E5] lg:col-span-4 lg:border-b-0 lg:border-r">
           <div className="flex h-12 items-center justify-between border-b border-[#E5E5E5] px-4">
             <span className="font-mono text-[12px] uppercase tracking-[0.06em] text-[#71717A]">
-              {t.slidesCounter} ({script.slides.length} / 8)
+              {t.slidesCounter} ({script.slides.length} / {MAX_SLIDES})
             </span>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={handleAddSlide}
-                disabled={script.slides.length >= 8}
+                disabled={script.slides.length >= MAX_SLIDES}
                 className="h-7 border border-[#D4D4D8] px-2 font-mono text-[11px] text-[#0A0A0A] hover:border-[#0A0A0A] disabled:opacity-30"
               >
                 {t.addSlideBtn}
@@ -187,7 +193,42 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
             </div>
           </div>
 
-          <ul className="divide-y divide-[#F4F4F5]" role="listbox" aria-label="Slide list">
+          {onExpandSlides && (
+            <div
+              data-testid="ai-expand-strip"
+              className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E5E5E5] bg-[#FAFAFA] px-4 py-2.5"
+            >
+              <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[#71717A]">
+                {t.aiExpandLabel}
+              </span>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  data-testid="ai-expand-5-btn"
+                  disabled={isExpanding || isCompiling || script.slides.length >= MAX_SLIDES}
+                  onClick={() => onExpandSlides(5)}
+                  className="h-7 border border-[#0A0A0A] bg-[#FFFFFF] px-2.5 font-mono text-[10px] font-medium uppercase text-[#0A0A0A] transition-colors duration-150 hover:bg-[#0A0A0A] hover:text-[#FAFAFA] disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  {isExpanding ? t.aiExpandingBtn : t.aiExpand5Btn}
+                </button>
+                <button
+                  type="button"
+                  data-testid="ai-expand-10-btn"
+                  disabled={isExpanding || isCompiling || script.slides.length >= MAX_SLIDES}
+                  onClick={() => onExpandSlides(10)}
+                  className="h-7 border border-[#0A0A0A] bg-[#0A0A0A] px-2.5 font-mono text-[10px] font-semibold uppercase text-[#FAFAFA] transition-colors duration-150 hover:bg-[#FFFFFF] hover:text-[#0A0A0A] disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  {isExpanding ? t.aiExpandingBtn : t.aiExpand10Btn}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <ul
+            className="max-h-[480px] divide-y divide-[#F4F4F5] overflow-y-auto"
+            role="listbox"
+            aria-label="Slide list"
+          >
             {script.slides.map((slide, idx) => {
               const isActive = idx === safeIndex;
               const timingSlide = remotionProps?.slides.find(

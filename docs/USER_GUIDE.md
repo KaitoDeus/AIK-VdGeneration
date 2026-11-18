@@ -158,7 +158,8 @@ Artifacts created per run are stored in `services/api-gateway/.temp/jobs/{job_id
    - Built-in HTML5 `<video>` player with buttons for `Export Remotion Props JSON`, `Download Subtitles (.SRT)` (when enabled), `Refresh Signed URL` (for S3/R2 jobs), and `Download 1080p MP4`.
 
 4. **Section 03 - Interactive Slide Reviewer & Stock Backdrop Picker:**
-   - Select any slide on the left rail (`+ ADD` / `REMOVE` within 3-8 slides) to inspect live 16:9 / 9:16 layout rendering.
+   - Select any slide on the left rail (`+ ADD` / `REMOVE` within 3-30 slides, or set `5 / 10 / 15` target slides in Section 01) to inspect live 16:9 / 9:16 layout rendering.
+   - Use **AI Auto-Expand** (`+5 AI SLIDES` / `+10 AI SLIDES` calling `POST /api/v1/scripts/expand`) to automatically generate and insert coherent deep-dive continuation slides before the closing CTA slide.
    - Edit heading, layout template (`title_intro`, `bullet_list`, `split_card`, `quote_highlight`, `conclusion_cta`), bullet points, voiceover script, and stock visual keywords.
    - Click **Search Stock Visuals** to browse Unsplash/Pexels candidates, preview the dark contrast scrim directly on the slide canvas, or click **Use Gradient** to fall back cleanly.
    - Click **Compile & Render 1080p MP4** (or audio only) to enqueue `POST /api/v1/jobs/compile`.

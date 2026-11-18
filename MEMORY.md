@@ -48,6 +48,9 @@
 - **ADR-012: Unified Docker Compose Packaging (`docker-compose.yml`)**
   - *Context:* Running the full stack locally requires coordinating Python 3.13, Node.js 22, FFmpeg, Chromium system dependencies for Remotion, Redis 7, and Next.js 15 across developers and CI environments.
   - *Decision:* Added `docker/backend.Dockerfile` (single shared `aik-vdgeneration-backend:latest` image for both `api-gateway` and `worker` with Python 3.13, Node.js 22, FFmpeg, Chromium shared libs, and pre-cached `chrome-headless-shell-linux64` via `npx remotion browser ensure`), `docker/web.Dockerfile` (`aik-vdgeneration-web:latest` multi-stage build using Next.js `output: 'standalone'` when `NEXT_STANDALONE=1`), `.dockerignore` recursive exclusion globs, and `docker-compose.yml` wiring `redis`, `api-gateway`, `worker` (`shm_size: 1gb`, shared `aik_jobs_temp` volume), and `web` over `aik-net`.
+- **ADR-013: Scalable 30-Slide Ceiling & Automatic AI Continuation Expansion (`/api/v1/scripts/expand`)**
+  - *Context:* Users building deeper explainers or courses need more than the initial 8-slide limit and a 1-click way to automatically extend an existing deck with 10+ continuation slides.
+  - *Decision:* Raised `MAX_PRESENTATION_SLIDES` (`schemas.py`, `API_SPEC.md`, `SlideReviewer.tsx`) from `8` to `30`, added optional `target_slides` (`3..30`) to script/video generation, and built `LLMScriptGenerator.expand_script` + `POST /api/v1/scripts/expand` (`SlideExpansionBatch` Gemini Structured Outputs & 14-facet EN/VI local fallback blueprints) inserting deep-dive slides before trailing `conclusion_cta`, exposed via `+5 AI SLIDES` / `+10 AI SLIDES` controls in `apps/web`.
 
 ---
 

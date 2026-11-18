@@ -135,6 +135,33 @@ async function attachMockApiGateway(page: Page) {
       });
     }
 
+    if (url.endsWith('/scripts/expand') && method === 'POST') {
+      const reqBody = req.postDataJSON() || {};
+      const script = reqBody.script || MOCK_SCRIPT;
+      const addCount = Math.min(Number(reqBody.additional_slides || 10), 30 - script.slides.length);
+      const extraSlides = Array.from({ length: addCount }, (_, idx) => ({
+        slide_index: script.slides.length + idx + 1,
+        layout: idx % 2 === 0 ? 'split_card' : 'bullet_list',
+        heading: `AI Continuation Slide ${idx + 1}`,
+        bullet_points: ['Expanded technical detail', 'Real-world workflow benefit'],
+        voiceover_script: `Continuation narration for slide ${idx + 1}.`,
+        visual_keywords: 'minimal studio tech',
+      }));
+      const mergedRaw = [
+        ...script.slides.slice(0, -1),
+        ...extraSlides,
+        script.slides[script.slides.length - 1],
+      ];
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ...script,
+          slides: mergedRaw.map((s, idx) => ({ ...s, slide_index: idx + 1 })),
+        }),
+      });
+    }
+
     if (url.endsWith('/jobs/compile') && method === 'POST') {
       jobStatus = 'completed';
       jobProgress = 100;
@@ -381,6 +408,14 @@ test.describe('AIK Web Studio Real Browser Verification (StudioBlank)', () => {
 
     await page.locator('#slide-layout-select').selectOption('split_card');
     await expect(canvas).toHaveAttribute('data-layout', 'split_card');
+
+    // Auto-expand +10 AI continuation slides -> deck grows cleanly from 3 to 13 / 30 with no overflow
+    await page.getByTestId('ai-expand-10-btn').click();
+    await expect(page.getByText('DANH SÁCH SLIDE (13 / 30)')).toBeVisible();
+    const overflowAfterExpand = await page.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth
+    );
+    expect(overflowAfterExpand).toBe(false);
 
     // Search stock visuals and pick backdrop onto live slide canvas
     await page.getByRole('button', { name: 'Tìm Ảnh Nền Stock' }).click();

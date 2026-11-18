@@ -55,7 +55,10 @@ Searches Unsplash / Pexels stock photography by slide keywords (`query`, `aspect
 ## 3. Pipeline & Studio Endpoints
 
 ### `POST /api/v1/scripts/generate`
-Synchronously generates and validates a `PresentationScript` from a user prompt using Gemini Structured Outputs.
+Synchronously generates and validates a `PresentationScript` (3 to 30 slides, optional `target_slides`) from a user prompt using Gemini Structured Outputs.
+
+### `POST /api/v1/scripts/expand`
+Automatically generates up to 20 additional non-overlapping continuation slides (`additional_slides`, default `10`) for an existing `PresentationScript` using Gemini Structured Outputs (or bilingual deterministic expansion fallback), inserting body slides cleanly before any concluding CTA slide up to the 30-slide deck ceiling.
 
 ### `POST /api/v1/audio/synthesize`
 Synchronously synthesizes TTS MP3s for a `PresentationScript` and returns compiled `RemotionCompositionProps`.
@@ -138,7 +141,7 @@ Compiles user-edited slides (`script`, `slide_backgrounds`, `voice_settings`, `b
     "slides": {
       "type": "array",
       "minItems": 3,
-      "maxItems": 8,
+      "maxItems": 30,
       "items": {
         "type": "object",
         "properties": {

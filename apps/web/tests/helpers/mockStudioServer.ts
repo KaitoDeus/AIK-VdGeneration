@@ -292,6 +292,29 @@ export function installMockStudioServer(options?: {
       return jsonResponse(MOCK_SCRIPT);
     }
 
+    if (url.endsWith('/api/v1/scripts/expand') && method === 'POST') {
+      const payload = init?.body ? JSON.parse(String(init.body)) : {};
+      const script = payload.script as PresentationScript;
+      const addCount = Math.min(Number(payload.additional_slides || 10), 30 - script.slides.length);
+      const extraSlides = Array.from({ length: addCount }, (_, idx) => ({
+        slide_index: script.slides.length + idx + 1,
+        layout: (idx % 2 === 0 ? 'split_card' : 'bullet_list') as 'split_card' | 'bullet_list',
+        heading: `AI Continuation Slide ${idx + 1}`,
+        bullet_points: ['Generated deep-dive point', 'Practical architecture insight'],
+        voiceover_script: `Detailed AI narration segment number ${idx + 1}.`,
+        visual_keywords: 'modern architecture servers',
+      }));
+      const existing = [...script.slides];
+      const mergedRaw =
+        existing.length > 0 && existing[existing.length - 1].layout === 'conclusion_cta'
+          ? [...existing.slice(0, -1), ...extraSlides, existing[existing.length - 1]]
+          : [...existing, ...extraSlides];
+      return jsonResponse({
+        ...script,
+        slides: mergedRaw.map((s, idx) => ({ ...s, slide_index: idx + 1 })),
+      });
+    }
+
     if (url.endsWith('/api/v1/videos/generate') && method === 'POST') {
       return jsonResponse(
         {

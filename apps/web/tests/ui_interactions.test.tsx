@@ -95,7 +95,7 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     });
   });
 
-  it('drafts script, edits slide content in real time, and adds/removes slides within 3..8 bounds', async () => {
+  it('drafts script, edits slide content in real time, adds/removes slides, and AI-expands +10 slides up to 30 max', async () => {
     const user = userEvent.setup();
     render(<StudioWorkspacePage />);
 
@@ -106,7 +106,7 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     await waitFor(() => {
       expect(screen.getByTestId('live-slide-canvas')).toBeInTheDocument();
     });
-    expect(screen.getByText('DANH SÁCH SLIDE (3 / 8)')).toBeInTheDocument();
+    expect(screen.getByText('DANH SÁCH SLIDE (3 / 30)')).toBeInTheDocument();
 
     // Edit Slide 1 heading -> immediately reflected on live slide canvas
     const headingInput = screen.getByLabelText('Tiêu Đề Slide') as HTMLInputElement;
@@ -118,12 +118,21 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     await user.selectOptions(screen.getByLabelText('Mẫu Bố Cục (Layout)'), 'quote_highlight');
     expect(screen.getByTestId('live-slide-canvas')).toHaveAttribute('data-layout', 'quote_highlight');
 
-    // Add slide -> increases from 3/8 to 4/8, then Remove -> drops back to 3/8
+    // Add slide -> increases from 3/30 to 4/30, then Remove -> drops back to 3/30
     await user.click(screen.getByRole('button', { name: '+ THÊM' }));
-    expect(screen.getByText('DANH SÁCH SLIDE (4 / 8)')).toBeInTheDocument();
+    expect(screen.getByText('DANH SÁCH SLIDE (4 / 30)')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'XÓA' }));
-    expect(screen.getByText('DANH SÁCH SLIDE (3 / 8)')).toBeInTheDocument();
+    expect(screen.getByText('DANH SÁCH SLIDE (3 / 30)')).toBeInTheDocument();
+
+    // Auto-expand +10 continuation slides via AI button -> reaches 13 / 30
+    await user.click(screen.getByTestId('ai-expand-10-btn'));
+    await waitFor(() => {
+      expect(screen.getByText('DANH SÁCH SLIDE (13 / 30)')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('listbox', { name: 'Slide list' })).toHaveTextContent(
+      'AI Continuation Slide 10'
+    );
   });
 
   it('executes full pipeline, streams realtime WebSocket progress to 100%, and displays MP4 player', async () => {

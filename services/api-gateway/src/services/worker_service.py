@@ -83,6 +83,7 @@ class LLMWorker(BaseStageWorker):
             target_duration_seconds=task.request.target_duration_seconds,
             theme=task.request.style.theme,
             model_override=task.request.model,
+            target_slides=task.request.target_slides,
         )
 
         job_dir.mkdir(parents=True, exist_ok=True)

@@ -22,6 +22,7 @@ export interface StudioFormState {
   language: SupportedLanguage;
   aspectRatio: AspectRatio;
   targetDuration: number;
+  targetSlides?: number;
   theme: VisualTheme;
   voiceProvider: TTSProviderType;
   voiceId: string;
@@ -285,6 +286,27 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
                     }`}
                   >
                     {sec}S
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex gap-1.5">
+              {([undefined, 5, 10, 15] as const).map((cnt) => {
+                const active = formState.targetSlides === cnt;
+                return (
+                  <button
+                    key={cnt ?? 'auto'}
+                    type="button"
+                    data-testid={`target-slides-${cnt ?? 'auto'}`}
+                    onClick={() => onChange({ targetSlides: cnt })}
+                    className={`h-7 flex-1 border font-mono text-[10px] uppercase transition-colors duration-150 ${
+                      active
+                        ? 'border-[#0A0A0A] bg-[#0A0A0A] text-[#FAFAFA]'
+                        : 'border-[#D4D4D8] text-[#71717A] hover:border-[#A1A1AA] hover:text-[#0A0A0A]'
+                    }`}
+                  >
+                    {cnt ? `${cnt} SL` : t.slideCountAuto}
                   </button>
                 );
               })}

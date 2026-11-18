@@ -38,6 +38,7 @@ try:
         QueueTaskPayload,
         RemotionCompositionProps,
         ScriptCompileRequest,
+        ScriptExpandRequest,
         ScriptGenerateRequest,
         StyleSettings,
         VideoDeliveryResponse,
@@ -75,6 +76,7 @@ except ImportError:
         QueueTaskPayload,
         RemotionCompositionProps,
         ScriptCompileRequest,
+        ScriptExpandRequest,
         ScriptGenerateRequest,
         StyleSettings,
         VideoDeliveryResponse,
@@ -220,8 +222,29 @@ async def generate_script_endpoint(request: ScriptGenerateRequest):
             target_duration_seconds=request.target_duration_seconds,
             theme=request.theme,
             model_override=request.model,
+            target_slides=request.target_slides,
         )
         return script
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/api/v1/scripts/expand", response_model=PresentationScript)
+async def expand_script_endpoint(request: ScriptExpandRequest):
+    """
+    Automatically generates up to 20 additional continuation slides (default 10)
+    for an existing PresentationScript and merges them cleanly up to 30 slides total.
+    """
+    try:
+        expanded, _ = llm_generator.expand_script(
+            script=request.script,
+            additional_slides=request.additional_slides,
+            topic_hint=request.topic_hint,
+            model_override=request.model,
+        )
+        return expanded
+    except ValueError as val_exc:
+        raise HTTPException(status_code=400, detail=str(val_exc)) from val_exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
