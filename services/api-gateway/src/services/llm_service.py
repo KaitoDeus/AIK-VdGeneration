@@ -43,8 +43,12 @@ Rules:
    - "voiceover_script": Natural, spoken narrative text (2 to 4 sentences). Use conversational, engaging language with clear punctuation (commas, periods) so TTS pauses naturally. Do NOT include markdown syntax (`**`, `` ` ``, `#`) in spoken text.
    - "visual_keywords": 3 to 5 English keywords to search for relevant background photos or illustrations.
    - "layout": One of ["title_intro", "bullet_list", "split_card", "quote_highlight", "conclusion_cta"].
-3. Strict Language Consistency: Write "title", "heading", "bullet_points", and "voiceover_script" 100% in the requested language ("vi" -> pure natural Vietnamese; "en" -> natural English). Never mix English sentences into Vietnamese scripts. Keep only "visual_keywords" in English.
-4. Output: Strict JSON matching the provided schema. No markdown formatting outside the JSON object.
+3. Visual Diversity & NotebookLM Storytelling Rhythm:
+   - Always start Slide 1 with "title_intro" and end the final slide with "conclusion_cta".
+   - Actively vary middle slide layouts across "split_card", "bullet_list", and "quote_highlight". NEVER place the exact same layout on two consecutive body slides.
+   - Blend analytical comparisons, step-by-step workflows, core architecture breakdowns, and sharp pull-quotes so every slide looks visually distinct.
+4. Strict Language Consistency: Write "title", "heading", "bullet_points", and "voiceover_script" 100% in the requested language ("vi" -> pure natural Vietnamese; "en" -> natural English). Never mix English sentences into Vietnamese scripts. Keep only "visual_keywords" in English.
+5. Output: Strict JSON matching the provided schema. No markdown formatting outside the JSON object.
 """
 
 _VI_EXPANSION_BLUEPRINTS: List[Tuple[SlideLayout, str, List[str], str, str]] = [
@@ -106,13 +110,13 @@ _VI_EXPANSION_BLUEPRINTS: List[Tuple[SlideLayout, str, List[str], str, str]] = [
     ),
     (
         "bullet_list",
-        "Những Lưu Ý & Sai Lầm Cần Tránh",
-        ["Không bỏ qua khâu kiểm thử dữ liệu mẫu", "Tránh cấu hình thông số vượt ngưỡng ổn định", "Luôn có phương án dự phòng khi quá tải"],
-        "Khi bắt đầu triển khai, người dùng nên chú ý rà soát kỹ kịch bản mẫu và giữ cơ chế dự phòng để hạn chế gián đoạn ngoài ý muốn.",
+        "Quy Trình Kiểm Thử & Đo Lường Chuẩn",
+        ["Rà soát kịch bản và từ khóa đầu vào", "Kiểm tra nhịp độ âm thanh trước khi xuất", "Đo lường tỷ lệ giữ chân người xem"],
+        "Thiết lập quy trình kiểm thử rõ ràng giúp phát hiện sớm sai lệch về nhịp điệu và tối ưu chất lượng bài thuyết trình.",
         "checklist quality audit review",
     ),
     (
-        "bullet_list",
+        "split_card",
         "Thực Hành Tốt Nhất Cho Đội Ngũ",
         ["Xây dựng bộ mẫu chuẩn theo từng chuyên đề", "Đánh giá định kỳ qua phản hồi người xem", "Cập nhật cải tiến theo từng chu kỳ ngắn"],
         "Để duy trì hiệu quả lâu dài, các nhóm nên chuẩn hóa thư viện mẫu dùng chung và đo lường phản hồi thực tế sau mỗi đợt phát hành.",
@@ -213,7 +217,7 @@ _EN_EXPANSION_BLUEPRINTS: List[Tuple[SlideLayout, str, List[str], str, str]] = [
         "checklist quality audit review",
     ),
     (
-        "bullet_list",
+        "split_card",
         "Team Best Practices",
         ["Standardize reusable domain templates", "Review generated drafts before rendering", "Measure audience retention iteratively"],
         "High-performing teams treat templates as living assets and inspect draft scripts early before committing to full renders.",

@@ -3,7 +3,13 @@
 import React, { useState } from 'react';
 import { getJobAssetUrl, getJobAudioUrl, searchStockAssets } from '@/lib/api';
 import { STUDIO_DICTIONARY, UiLocale } from '@/lib/i18n';
-import { SLIDE_LAYOUT_LABELS } from '@/lib/templates';
+import {
+  resolveWebSlidePalette,
+  resolveWebVisualVariant,
+  SLIDE_LAYOUT_LABELS,
+  WebSlidePalette,
+  WebVisualVariant,
+} from '@/lib/templates';
 import {
   AspectRatio,
   PresentationScript,
@@ -71,6 +77,15 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
   const resolvedCanvasBgUrl = rawBackgroundUrl
     ? getJobAssetUrl(jobId, rawBackgroundUrl)
     : null;
+  const currentPalette: WebSlidePalette = resolveWebSlidePalette(
+    currentSlide.slide_index,
+    Boolean(resolvedCanvasBgUrl)
+  );
+  const currentVariant: WebVisualVariant = resolveWebVisualVariant(
+    currentSlide.slide_index,
+    currentSlide.layout,
+    currentSlide.heading
+  );
 
   const handleSearchStock = async () => {
     setIsSearchingStock(true);
@@ -234,6 +249,7 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
               const timingSlide = remotionProps?.slides.find(
                 (s) => s.slide_index === slide.slide_index
               );
+              const itemPalette = resolveWebSlidePalette(slide.slide_index, false);
               return (
                 <li key={slide.slide_index}>
                   <button
@@ -247,7 +263,11 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                         : 'bg-[#FFFFFF] text-[#0A0A0A] hover:bg-[#F4F4F5]'
                     }`}
                   >
-                    <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span
+                        className="inline-block h-2.5 w-2.5 shrink-0 border border-black/20"
+                        style={{ backgroundColor: itemPalette.primaryColor }}
+                      />
                       <span
                         className={`font-mono text-[12px] ${
                           isActive ? 'text-[#A1A1AA]' : 'text-[#71717A]'
@@ -280,7 +300,14 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
             <div
               data-testid="live-slide-canvas"
               data-layout={currentSlide.layout}
-              className={`relative flex flex-col justify-center overflow-hidden border border-[#0A0A0A] bg-[#0F172A] p-8 text-[#F8FAFC] ${
+              data-palette-id={currentPalette.id}
+              data-visual-variant={currentVariant}
+              style={{
+                backgroundColor: currentPalette.backgroundColor,
+                backgroundImage: currentPalette.backgroundImage,
+                color: currentPalette.textColor,
+              }}
+              className={`relative flex flex-col justify-between overflow-hidden border border-[#0A0A0A] p-7 ${
                 isVertical ? 'aspect-[9/16] w-full max-w-[320px]' : 'aspect-video w-full max-w-[760px]'
               }`}
             >
@@ -300,58 +327,216 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
               )}
 
               {/* Top Accent Bar mirroring Remotion SlideCard */}
-              <div className="absolute left-0 right-0 top-0 z-10 h-1.5 bg-[#38BDF8]" />
+              <div
+                className="absolute left-0 right-0 top-0 z-10 h-1.5"
+                style={{
+                  background: `linear-gradient(90deg, ${currentPalette.primaryColor} 0%, ${currentPalette.secondaryColor} 100%)`,
+                }}
+              />
 
-              <div className="relative z-10 mb-3 flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.12em] text-[#38BDF8]">
-                <span>{SLIDE_LAYOUT_LABELS[currentSlide.layout]}</span>
+              <div
+                className="relative z-10 mb-3 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.12em]"
+                style={{ color: currentPalette.primaryColor }}
+              >
                 <span>
+                  {SLIDE_LAYOUT_LABELS[currentSlide.layout]} // {currentPalette.name}
+                </span>
+                <span style={{ color: currentPalette.mutedTextColor }}>
                   {String(currentSlide.slide_index).padStart(2, '0')} /{' '}
                   {String(script.slides.length).padStart(2, '0')}
                 </span>
               </div>
 
               {currentSlide.layout === 'quote_highlight' ? (
-                <div className="relative z-10 py-4 text-center">
-                  <div className="text-[48px] font-bold leading-none text-[#38BDF8]">“</div>
-                  <h3 className="mt-2 text-[22px] font-bold italic leading-snug md:text-[28px]">
+                <div
+                  className="relative z-10 my-auto border p-5"
+                  style={{
+                    backgroundColor: currentPalette.surfaceBg,
+                    borderTopColor: currentPalette.surfaceBorder,
+                    borderRightColor: currentPalette.surfaceBorder,
+                    borderBottomColor: currentPalette.surfaceBorder,
+                    borderLeftWidth: currentVariant === 'focus_callout' ? '6px' : '1px',
+                    borderLeftColor: currentPalette.primaryColor,
+                    textAlign: currentVariant === 'focus_callout' ? 'left' : 'center',
+                  }}
+                >
+                  <div
+                    className="text-[36px] font-bold leading-none"
+                    style={{ color: currentPalette.primaryColor }}
+                  >
+                    &ldquo;
+                  </div>
+                  <h3 className="mt-1 text-[20px] font-bold italic leading-snug md:text-[24px]">
                     {currentSlide.heading}
                   </h3>
+                  {currentSlide.bullet_points.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {currentSlide.bullet_points.slice(0, 3).map((pt, idx) => (
+                        <span
+                          key={idx}
+                          className="border px-2.5 py-1 text-[11px] font-semibold"
+                          style={{
+                            borderColor: currentPalette.primaryColor,
+                            backgroundColor: currentPalette.surfaceAltBg,
+                          }}
+                        >
+                          {pt}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ) : (
-                <h3
-                  className={`relative z-10 font-bold leading-[1.2] ${
-                    currentSlide.layout === 'title_intro'
-                      ? 'text-center text-[24px] md:text-[32px]'
-                      : 'text-[20px] md:text-[26px]'
-                  }`}
-                >
-                  {currentSlide.heading}
-                </h3>
-              )}
-
-              {currentSlide.bullet_points.length > 0 && (
                 <div
-                  className={`relative z-10 mt-5 grid gap-2.5 ${
-                    currentSlide.layout === 'split_card' || currentSlide.layout === 'conclusion_cta'
-                      ? 'grid-cols-1 md:grid-cols-2'
+                  className={`relative z-10 my-auto grid gap-4 ${
+                    !isVertical &&
+                    (currentSlide.layout === 'split_card' ||
+                      currentSlide.layout === 'title_intro' ||
+                      currentVariant === 'knowledge_graph')
+                      ? 'grid-cols-12 items-center'
                       : 'grid-cols-1'
                   }`}
                 >
-                  {currentSlide.bullet_points.map((point, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-start gap-2.5 border border-white/15 bg-white/5 px-3.5 py-2.5 text-[13px] leading-snug"
+                  <div
+                    className={
+                      !isVertical &&
+                      (currentSlide.layout === 'split_card' ||
+                        currentSlide.layout === 'title_intro' ||
+                        currentVariant === 'knowledge_graph')
+                        ? 'col-span-8'
+                        : 'col-span-12'
+                    }
+                  >
+                    <h3
+                      className={`font-bold leading-[1.2] ${
+                        currentSlide.layout === 'title_intro'
+                          ? 'text-[22px] md:text-[28px]'
+                          : 'text-[19px] md:text-[24px]'
+                      }`}
                     >
-                      <span className="font-mono text-[11px] font-bold text-[#38BDF8]">
-                        {currentSlide.layout === 'conclusion_cta'
-                          ? '✓'
-                          : String(idx + 1).padStart(2, '0')}
-                      </span>
-                      <span>{point}</span>
-                    </div>
-                  ))}
+                      {currentSlide.heading}
+                    </h3>
+
+                    {currentSlide.bullet_points.length > 0 && (
+                      <div
+                        className={`mt-4 grid gap-2 ${
+                          currentVariant === 'process_pipeline' && !isVertical
+                            ? 'grid-cols-2 md:grid-cols-3'
+                            : currentVariant === 'bento_mosaic' && !isVertical
+                            ? 'grid-cols-2'
+                            : 'grid-cols-1'
+                        }`}
+                      >
+                        {currentSlide.bullet_points.map((point, idx) => {
+                          const accent =
+                            idx % 2 === 0
+                              ? currentPalette.primaryColor
+                              : currentPalette.secondaryColor;
+                          return (
+                            <div
+                              key={idx}
+                              style={{
+                                backgroundColor:
+                                  idx === 0 ? currentPalette.surfaceAltBg : currentPalette.surfaceBg,
+                                borderTopColor: currentPalette.surfaceBorder,
+                                borderRightColor: currentPalette.surfaceBorder,
+                                borderBottomColor: currentPalette.surfaceBorder,
+                                borderLeftColor: accent,
+                                borderLeftWidth: '3px',
+                              }}
+                              className="flex items-start gap-2 border px-3 py-2 text-[12px] leading-snug"
+                            >
+                              <span
+                                className="font-mono text-[10px] font-bold"
+                                style={{ color: accent }}
+                              >
+                                {String(idx + 1).padStart(2, '0')}
+                              </span>
+                              <span>{point}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Mini NotebookLM Diagram Preview Panel */}
+                  {!isVertical &&
+                    (currentSlide.layout === 'split_card' ||
+                      currentSlide.layout === 'title_intro' ||
+                      currentVariant === 'knowledge_graph') && (
+                      <div
+                        className="col-span-4 flex flex-col items-center justify-center border p-3"
+                        style={{
+                          backgroundColor: currentPalette.surfaceAltBg,
+                          borderColor: currentPalette.surfaceBorder,
+                        }}
+                      >
+                        <svg width="116" height="96" viewBox="0 0 116 96">
+                          {currentVariant === 'compare_bars' ? (
+                            <g>
+                              <rect x="14" y="54" width="16" height="32" fill={currentPalette.secondaryColor} />
+                              <rect x="42" y="38" width="16" height="48" fill={currentPalette.primaryColor} />
+                              <rect x="70" y="22" width="16" height="64" fill={currentPalette.secondaryColor} />
+                              <path
+                                d="M 16 50 Q 50 32 82 16"
+                                fill="none"
+                                stroke={currentPalette.primaryColor}
+                                strokeWidth="2.5"
+                              />
+                            </g>
+                          ) : currentVariant === 'stacked_layers' ? (
+                            <g>
+                              <polygon
+                                points="58,10 104,24 58,38 12,24"
+                                fill={currentPalette.primaryColor}
+                              />
+                              <polygon
+                                points="58,32 104,46 58,60 12,46"
+                                fill={currentPalette.secondaryColor}
+                                fillOpacity="0.85"
+                              />
+                              <polygon
+                                points="58,54 104,68 58,82 12,68"
+                                fill={currentPalette.surfaceBg}
+                                stroke={currentPalette.primaryColor}
+                              />
+                            </g>
+                          ) : (
+                            <g>
+                              <circle
+                                cx="58"
+                                cy="48"
+                                r="34"
+                                fill="none"
+                                stroke={currentPalette.primaryColor}
+                                strokeDasharray="4 4"
+                              />
+                              <circle cx="58" cy="48" r="14" fill={currentPalette.primaryColor} />
+                              <circle cx="24" cy="24" r="6" fill={currentPalette.secondaryColor} />
+                              <circle cx="92" cy="28" r="6" fill={currentPalette.secondaryColor} />
+                              <circle cx="84" cy="76" r="6" fill={currentPalette.primaryColor} />
+                            </g>
+                          )}
+                        </svg>
+                        <span
+                          className="mt-1 font-mono text-[9px] uppercase tracking-[0.08em]"
+                          style={{ color: currentPalette.mutedTextColor }}
+                        >
+                          {currentVariant.replace('_', ' ')}
+                        </span>
+                      </div>
+                    )}
                 </div>
               )}
+
+              <div
+                className="relative z-10 mt-3 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.1em]"
+                style={{ color: currentPalette.mutedTextColor }}
+              >
+                <span>VISUAL: {currentVariant}</span>
+                <span>{currentPalette.isLight ? 'LIGHT PAPER' : 'DARK STUDIO'}</span>
+              </div>
             </div>
           </div>
 

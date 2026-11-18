@@ -115,3 +115,223 @@ export const THEME_OPTIONS: { id: VisualTheme; label: string; swatch: string }[]
   { id: 'corporate', label: 'CORPORATE', swatch: '#1E293B' },
   { id: 'minimal', label: 'MINIMAL', swatch: '#18181B' },
 ];
+
+export type WebVisualVariant =
+  | 'orbital_hero'
+  | 'process_pipeline'
+  | 'bento_mosaic'
+  | 'knowledge_graph'
+  | 'compare_bars'
+  | 'stacked_layers'
+  | 'milestone_roadmap'
+  | 'quote_radar'
+  | 'focus_callout'
+  | 'conclusion_launch';
+
+export interface WebSlidePalette {
+  id: string;
+  name: string;
+  isLight: boolean;
+  backgroundColor: string;
+  backgroundImage: string;
+  surfaceBg: string;
+  surfaceAltBg: string;
+  surfaceBorder: string;
+  primaryColor: string;
+  secondaryColor: string;
+  textColor: string;
+  mutedTextColor: string;
+  badgeTextColor: string;
+}
+
+export const WEB_SLIDE_PALETTES: readonly WebSlidePalette[] = [
+  {
+    id: 'sapphire_studio',
+    name: 'Sapphire Studio',
+    isLight: false,
+    backgroundColor: '#0B1220',
+    backgroundImage:
+      'radial-gradient(circle at 82% 18%, rgba(56, 189, 248, 0.24) 0%, transparent 48%), radial-gradient(circle at 14% 84%, rgba(99, 102, 241, 0.22) 0%, transparent 50%)',
+    surfaceBg: 'rgba(255, 255, 255, 0.06)',
+    surfaceAltBg: 'rgba(56, 189, 248, 0.11)',
+    surfaceBorder: 'rgba(148, 163, 184, 0.24)',
+    primaryColor: '#38BDF8',
+    secondaryColor: '#818CF8',
+    textColor: '#F8FAFC',
+    mutedTextColor: '#94A3B8',
+    badgeTextColor: '#0F172A',
+  },
+  {
+    id: 'warm_editorial_paper',
+    name: 'Warm Editorial Paper',
+    isLight: true,
+    backgroundColor: '#FAF6EE',
+    backgroundImage:
+      'radial-gradient(circle at 88% 14%, rgba(234, 88, 12, 0.14) 0%, transparent 46%), radial-gradient(circle at 10% 88%, rgba(29, 78, 216, 0.10) 0%, transparent 48%)',
+    surfaceBg: '#FFFFFF',
+    surfaceAltBg: '#FFF4E6',
+    surfaceBorder: 'rgba(20, 24, 36, 0.16)',
+    primaryColor: '#EA580C',
+    secondaryColor: '#1D4ED8',
+    textColor: '#141824',
+    mutedTextColor: '#475569',
+    badgeTextColor: '#FFFFFF',
+  },
+  {
+    id: 'emerald_forest',
+    name: 'Emerald Forest',
+    isLight: false,
+    backgroundColor: '#06211B',
+    backgroundImage:
+      'radial-gradient(circle at 84% 20%, rgba(16, 185, 129, 0.24) 0%, transparent 48%), radial-gradient(circle at 18% 82%, rgba(251, 191, 36, 0.16) 0%, transparent 48%)',
+    surfaceBg: 'rgba(236, 253, 245, 0.06)',
+    surfaceAltBg: 'rgba(16, 185, 129, 0.14)',
+    surfaceBorder: 'rgba(52, 211, 153, 0.24)',
+    primaryColor: '#34D399',
+    secondaryColor: '#FBBF24',
+    textColor: '#F0FDF4',
+    mutedTextColor: '#A7F3D0',
+    badgeTextColor: '#052E16',
+  },
+  {
+    id: 'cobalt_porcelain',
+    name: 'Cobalt Porcelain',
+    isLight: true,
+    backgroundColor: '#F2F6FC',
+    backgroundImage:
+      'radial-gradient(circle at 86% 18%, rgba(37, 99, 235, 0.15) 0%, transparent 46%), radial-gradient(circle at 12% 84%, rgba(124, 58, 237, 0.12) 0%, transparent 48%)',
+    surfaceBg: '#FFFFFF',
+    surfaceAltBg: '#EBF2FE',
+    surfaceBorder: 'rgba(37, 99, 235, 0.20)',
+    primaryColor: '#2563EB',
+    secondaryColor: '#7C3AED',
+    textColor: '#0F172A',
+    mutedTextColor: '#475569',
+    badgeTextColor: '#FFFFFF',
+  },
+  {
+    id: 'aubergine_spark',
+    name: 'Aubergine Spark',
+    isLight: false,
+    backgroundColor: '#1B102E',
+    backgroundImage:
+      'radial-gradient(circle at 85% 18%, rgba(244, 63, 94, 0.24) 0%, transparent 46%), radial-gradient(circle at 16% 84%, rgba(245, 158, 11, 0.18) 0%, transparent 48%)',
+    surfaceBg: 'rgba(255, 255, 255, 0.06)',
+    surfaceAltBg: 'rgba(244, 63, 94, 0.14)',
+    surfaceBorder: 'rgba(251, 113, 133, 0.26)',
+    primaryColor: '#FB7185',
+    secondaryColor: '#F59E0B',
+    textColor: '#FFF1F2',
+    mutedTextColor: '#E2D4F0',
+    badgeTextColor: '#1B102E',
+  },
+  {
+    id: 'sage_botanical',
+    name: 'Sage Botanical',
+    isLight: true,
+    backgroundColor: '#EEF5EE',
+    backgroundImage:
+      'radial-gradient(circle at 84% 16%, rgba(13, 148, 136, 0.16) 0%, transparent 46%), radial-gradient(circle at 15% 86%, rgba(217, 119, 6, 0.12) 0%, transparent 46%)',
+    surfaceBg: '#FFFFFF',
+    surfaceAltBg: '#E0F2EE',
+    surfaceBorder: 'rgba(15, 118, 110, 0.20)',
+    primaryColor: '#0F766E',
+    secondaryColor: '#D97706',
+    textColor: '#11221C',
+    mutedTextColor: '#3B5249',
+    badgeTextColor: '#FFFFFF',
+  },
+  {
+    id: 'obsidian_amber',
+    name: 'Obsidian Amber',
+    isLight: false,
+    backgroundColor: '#161412',
+    backgroundImage:
+      'radial-gradient(circle at 86% 18%, rgba(245, 158, 11, 0.22) 0%, transparent 46%), radial-gradient(circle at 14% 85%, rgba(6, 182, 212, 0.18) 0%, transparent 46%)',
+    surfaceBg: 'rgba(255, 250, 240, 0.06)',
+    surfaceAltBg: 'rgba(245, 158, 11, 0.14)',
+    surfaceBorder: 'rgba(251, 191, 36, 0.24)',
+    primaryColor: '#F59E0B',
+    secondaryColor: '#22D3EE',
+    textColor: '#FFFBEB',
+    mutedTextColor: '#D6CFC7',
+    badgeTextColor: '#161412',
+  },
+  {
+    id: 'blush_sand_studio',
+    name: 'Blush Sand Studio',
+    isLight: true,
+    backgroundColor: '#FDF4F0',
+    backgroundImage:
+      'radial-gradient(circle at 86% 16%, rgba(225, 29, 72, 0.14) 0%, transparent 46%), radial-gradient(circle at 14% 84%, rgba(79, 70, 229, 0.11) 0%, transparent 46%)',
+    surfaceBg: '#FFFFFF',
+    surfaceAltBg: '#FFE4E6',
+    surfaceBorder: 'rgba(190, 18, 60, 0.18)',
+    primaryColor: '#E11D48',
+    secondaryColor: '#4F46E5',
+    textColor: '#1F1317',
+    mutedTextColor: '#5B454B',
+    badgeTextColor: '#FFFFFF',
+  },
+];
+
+export function resolveWebSlidePalette(
+  slideIndex: number,
+  hasBackgroundImage: boolean = false
+): WebSlidePalette {
+  const idx = Math.max(0, (Math.floor(slideIndex) || 1) - 1);
+  const chosen = WEB_SLIDE_PALETTES[idx % WEB_SLIDE_PALETTES.length];
+  if (hasBackgroundImage) {
+    return {
+      ...chosen,
+      isLight: false,
+      backgroundColor: '#0B1220',
+      surfaceBg: 'rgba(15, 23, 42, 0.66)',
+      surfaceAltBg: 'rgba(15, 23, 42, 0.80)',
+      surfaceBorder: 'rgba(255, 255, 255, 0.20)',
+      textColor: '#F8FAFC',
+      mutedTextColor: '#CBD5E1',
+    };
+  }
+  return chosen;
+}
+
+export function resolveWebVisualVariant(
+  slideIndex: number,
+  layout: SlideLayout,
+  heading: string = ''
+): WebVisualVariant {
+  const idx = Math.max(1, Math.floor(slideIndex) || 1);
+  const lower = heading.toLowerCase();
+
+  switch (layout) {
+    case 'title_intro':
+      return 'orbital_hero';
+    case 'bullet_list': {
+      if (lower.includes('quy trình') || lower.includes('workflow') || lower.includes('pipeline')) {
+        return 'process_pipeline';
+      }
+      if (lower.includes('kiến trúc') || lower.includes('architecture') || lower.includes('ecosystem')) {
+        return 'knowledge_graph';
+      }
+      const cycle: WebVisualVariant[] = ['process_pipeline', 'knowledge_graph', 'bento_mosaic'];
+      return cycle[idx % cycle.length];
+    }
+    case 'split_card': {
+      if (lower.includes('lộ trình') || lower.includes('roadmap') || lower.includes('phase')) {
+        return 'milestone_roadmap';
+      }
+      if (lower.includes('so sánh') || lower.includes('metric') || lower.includes('hiệu năng')) {
+        return 'compare_bars';
+      }
+      const cycle: WebVisualVariant[] = ['stacked_layers', 'compare_bars', 'milestone_roadmap'];
+      return cycle[idx % cycle.length];
+    }
+    case 'quote_highlight':
+      return idx % 2 === 0 ? 'focus_callout' : 'quote_radar';
+    case 'conclusion_cta':
+      return 'conclusion_launch';
+    default:
+      return 'bento_mosaic';
+  }
+}

@@ -20,6 +20,11 @@ import {
   resolveAssetSrc,
   resolveTheme,
 } from '../utils/timing';
+import {
+  resolveSlidePalette,
+  resolveVisualVariant,
+} from '../utils/slidePalettes';
+import { KineticBackdropScene } from './SlideVisuals';
 
 export interface SlideCardProps {
   slide: SlideData;
@@ -37,6 +42,14 @@ export const SlideCard: React.FC<SlideCardProps> = ({
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
   const resolvedTheme = resolveTheme(theme);
+  const hasBackgroundImage = Boolean(slide.background_image_url);
+  const palette = resolveSlidePalette(
+    slide.slide_index,
+    slide.layout,
+    resolvedTheme,
+    hasBackgroundImage
+  );
+  const visualVariant = resolveVisualVariant(slide);
 
   // Smooth spring entrance
   const entrance = spring({
@@ -83,6 +96,8 @@ export const SlideCard: React.FC<SlideCardProps> = ({
       theme: resolvedTheme,
       frame,
       fps,
+      palette,
+      visualVariant,
     };
 
     switch (slide.layout) {
@@ -103,23 +118,33 @@ export const SlideCard: React.FC<SlideCardProps> = ({
   return (
     <div
       data-testid={`slide-card-${slide.slide_index}`}
+      data-palette-id={palette.id}
+      data-visual-variant={visualVariant}
       style={{
         width: '100%',
         height: '100%',
-        backgroundColor: resolvedTheme.backgroundColor,
-        backgroundImage: `radial-gradient(circle at 85% 15%, rgba(56, 189, 248, 0.16) 0%, transparent 45%), radial-gradient(circle at 15% 85%, rgba(99, 102, 241, 0.14) 0%, transparent 45%)`,
-        color: resolvedTheme.textColor,
+        backgroundColor: palette.backgroundColor,
+        backgroundImage: palette.backgroundImage,
+        color: palette.textColor,
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: '80px 96px',
+        padding: '84px 96px 92px 96px',
         fontFamily: resolvedTheme.fontFamily,
         position: 'relative',
         overflow: 'hidden',
         boxSizing: 'border-box',
       }}
     >
+      {/* Procedural Animated Geometric Backdrop */}
+      <KineticBackdropScene
+        frame={frame}
+        palette={palette}
+        slideIndex={slide.slide_index}
+        variant={visualVariant}
+      />
+
       {/* Optional Background Image with Ken Burns pan/zoom effect & dark scrim */}
       {slide.background_image_url && (
         <div
@@ -151,7 +176,7 @@ export const SlideCard: React.FC<SlideCardProps> = ({
         </div>
       )}
 
-      {/* Top Decorative Accent Bar */}
+      {/* Top Decorative Dual-Tone Gradient Accent Bar */}
       <div
         style={{
           position: 'absolute',
@@ -159,7 +184,7 @@ export const SlideCard: React.FC<SlideCardProps> = ({
           left: 0,
           right: 0,
           height: '8px',
-          backgroundColor: resolvedTheme.primaryColor,
+          background: `linear-gradient(90deg, ${palette.primaryColor} 0%, ${palette.secondaryColor} 100%)`,
           zIndex: 2,
         }}
       />
@@ -176,16 +201,32 @@ export const SlideCard: React.FC<SlideCardProps> = ({
           alignItems: 'center',
           fontSize: '20px',
           fontWeight: 600,
-          color: 'rgba(248, 250, 252, 0.6)',
+          color: palette.chromeMutedColor,
           letterSpacing: '1px',
           zIndex: 2,
         }}
       >
         <span>{projectTitle}</span>
-        <span>
-          {String(slide.slide_index).padStart(2, '0')} /{' '}
-          {String(Math.max(totalSlides, slide.slide_index)).padStart(2, '0')}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <span
+            style={{
+              fontSize: '14px',
+              fontWeight: 700,
+              letterSpacing: '1.5px',
+              textTransform: 'uppercase',
+              color: palette.primaryColor,
+              padding: '4px 12px',
+              backgroundColor: palette.accentSoft,
+              border: `1px solid ${palette.surfaceBorder}`,
+            }}
+          >
+            {palette.name}
+          </span>
+          <span>
+            {String(slide.slide_index).padStart(2, '0')} /{' '}
+            {String(Math.max(totalSlides, slide.slide_index)).padStart(2, '0')}
+          </span>
+        </div>
       </div>
 
       {/* Main Animated Slide Content */}
@@ -211,7 +252,9 @@ export const SlideCard: React.FC<SlideCardProps> = ({
           left: 0,
           right: 0,
           height: '6px',
-          backgroundColor: 'rgba(255, 255, 255, 0.08)',
+          backgroundColor: palette.isLight
+            ? 'rgba(15, 23, 42, 0.12)'
+            : 'rgba(255, 255, 255, 0.08)',
           zIndex: 2,
         }}
       >
@@ -220,7 +263,7 @@ export const SlideCard: React.FC<SlideCardProps> = ({
           style={{
             width: `${progressPercent}%`,
             height: '100%',
-            backgroundColor: resolvedTheme.primaryColor,
+            backgroundColor: palette.primaryColor,
           }}
         />
       </div>

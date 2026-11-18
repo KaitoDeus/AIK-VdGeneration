@@ -395,3 +395,24 @@ class TestAPIGatewayEndpoints:
         assert len(expanded.slides) == 13
         assert expanded.slides[-1].layout == "conclusion_cta"
         assert [s.slide_index for s in expanded.slides] == list(range(1, 14))
+
+    def test_expanded_deck_avoids_consecutive_duplicate_layouts(self):
+        generator = LLMScriptGenerator(api_key="", default_model="gemini-3.8-flash")
+        for lang in ("vi", "en"):
+            script, _ = generator.generate_script(
+                prompt="Tự động hóa thuyết trình với trí tuệ nhân tạo",
+                language=lang,
+                target_slides=13,
+            )
+            assert len(script.slides) == 13
+            assert script.slides[0].layout == "title_intro"
+            assert script.slides[-1].layout == "conclusion_cta"
+
+            layouts = [s.layout for s in script.slides]
+            # At least 4 distinct layouts used across a 13-slide deck
+            assert len(set(layouts)) >= 4
+            # No two consecutive body slides share identical layout
+            for idx in range(1, len(layouts)):
+                assert layouts[idx] != layouts[idx - 1], (
+                    f"Consecutive duplicate layout {layouts[idx]} at slide {idx + 1} ({lang})"
+                )

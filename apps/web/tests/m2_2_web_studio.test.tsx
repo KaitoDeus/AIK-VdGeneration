@@ -329,4 +329,54 @@ describe('M2.2 Web Studio Bilingual UI Components SSR Rendering', () => {
     expect(archiveVi).toContain('Lịch Sử Kết Xuất Gần Đây');
     expect(archiveVi).toContain('HOÀN TẤT');
   });
+
+  it('alternates NotebookLM per-slide color palettes and diagram variants in SlideReviewer canvas', () => {
+    const multiSlideScript: PresentationScript = {
+      title: 'Visual Diversity Deck',
+      language: 'vi',
+      theme: 'modern_tech',
+      slides: [
+        {
+          slide_index: 1,
+          layout: 'title_intro',
+          heading: 'Mở Đầu Chuyên Đề',
+          bullet_points: ['Điểm nhấn 1', 'Điểm nhấn 2'],
+          voiceover_script: 'Xin chào các bạn đến với bài thuyết trình hôm nay.',
+          visual_keywords: 'abstract studio',
+        },
+        {
+          slide_index: 2,
+          layout: 'split_card',
+          heading: 'So Sánh Hiệu Năng Hệ Thống',
+          bullet_points: ['Trước: 3 giờ', 'Sau: 60 giây'],
+          voiceover_script: 'Hãy so sánh hiệu năng trước và sau khi tự động hóa.',
+          visual_keywords: 'analytics growth',
+        },
+        {
+          slide_index: 3,
+          layout: 'bullet_list',
+          heading: 'Kiến Trúc Các Tầng Xử Lý',
+          bullet_points: ['Gateway', 'Queue', 'Renderer'],
+          voiceover_script: 'Kiến trúc gồm ba tầng xử lý song song.',
+          visual_keywords: 'system architecture',
+        },
+      ],
+    };
+
+    const slideOneHtml = renderToStaticMarkup(
+      <SlideReviewer
+        locale="vi"
+        jobId="job_div_01"
+        script={multiSlideScript}
+        remotionProps={null}
+        aspectRatio="16:9"
+        isCompiling={false}
+        onUpdateScript={vi.fn()}
+        onCompileSlides={vi.fn()}
+      />
+    );
+    expect(slideOneHtml).toContain('data-palette-id="sapphire_studio"');
+    expect(slideOneHtml).toContain('data-visual-variant="orbital_hero"');
+    expect(slideOneHtml).toContain('<svg');
+  });
 });

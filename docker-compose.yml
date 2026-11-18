@@ -4,7 +4,7 @@ services:
     container_name: aik-redis
     ports:
       - "6379:6379"
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --aof-load-truncated yes
     volumes:
       - aik_redis_data:/data
     healthcheck:
@@ -75,9 +75,10 @@ services:
   worker:
     image: aik-vdgeneration-backend:latest
     container_name: aik-worker
-    command: ["python", "-m", "src.worker", "--queue-mode", "redis", "--concurrency", "2"]
-    shm_size: "1gb"
+    command: ["python", "-m", "src.worker", "--queue-mode", "redis", "--concurrency", "1"]
+    shm_size: "2gb"
     environment:
+      REMOTION_CONCURRENCY: ${REMOTION_CONCURRENCY:-2}
       QUEUE_MODE: redis
       REDIS_URL: redis://redis:6379/0
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}

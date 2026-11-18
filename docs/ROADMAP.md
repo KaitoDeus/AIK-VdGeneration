@@ -20,7 +20,7 @@ This roadmap breaks down the product development into 4 distinct phases, from an
   - Integration of ElevenLabs API (`eleven_multilingual_v2`) with automatic fallback to Edge-TTS.
   - MP3 header verification (`>10KB`), exact millisecond duration extraction via `mutagen`, and dynamic Remotion frame calculation (`RemotionCompositionProps`).
 - [x] **M1.4: Remotion Presentation Compositions**
-  - Complete 5 distinct slide layouts: `title_intro`, `bullet_list`, `split_card`, `quote_highlight`, `conclusion_cta`.
+  - Complete 5 distinct slide layouts: `title_intro`, `bullet_list`, `split_card`, `quote_highlight`, `conclusion_cta` enhanced with 8 alternating light/dark NotebookLM-inspired palettes and 10 procedural animated SVG diagram archetypes (`SlideVisuals.tsx`: orbital constellations, flowing process beams, knowledge graphs, comparative bars, stacked layers, milestone roadmaps, and radar halos).
   - Spring-based smooth entrance/exit animations, progress timeline bar, Ken Burns background image layer with CSS radial-gradient fallback, and typography styling.
   - Dynamic `calculatePresentationMetadata` composition combining slides, 0.2s pre-padded voiceover audio sequences, and optional BGM track.
 - [x] **M1.5: Local CLI Pipeline Runner**
