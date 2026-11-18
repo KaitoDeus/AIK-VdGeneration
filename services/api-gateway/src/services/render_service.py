@@ -60,6 +60,9 @@ class RemotionRenderService:
         self.public_audio_temp_dir = (
             self.video_renderer_dir / "public" / "audio_temp"
         )
+        self.public_assets_dir = (
+            self.video_renderer_dir / "public" / "assets"
+        )
         self.timeout_seconds = timeout_seconds
 
     def stage_audio_assets(
@@ -69,10 +72,12 @@ class RemotionRenderService:
     ) -> Path:
         """
         Copies synthesized slide MP3 files into `services/video-renderer/public/audio_temp/{job_id}/`
-        so Remotion's static asset server can serve `/audio_temp/{job_id}/slide_*.mp3` during rendering.
+        and downloaded slide background visuals into `services/video-renderer/public/assets/{job_id}/`
+        so Remotion's static asset server can serve them cleanly during rendering.
         """
         job_stage_dir = self.public_audio_temp_dir / job_id
         job_stage_dir.mkdir(parents=True, exist_ok=True)
+        assets_stage_dir = self.public_assets_dir / job_id
 
         for slide in props.slides:
             src_path = Path(slide.voiceover_audio_path)
@@ -87,14 +92,25 @@ class RemotionRenderService:
                     src_path,
                 )
 
+            if slide.background_image_path:
+                img_src = Path(slide.background_image_path)
+                if img_src.exists():
+                    assets_stage_dir.mkdir(parents=True, exist_ok=True)
+                    img_target = assets_stage_dir / img_src.name
+                    if img_src.resolve() != img_target.resolve():
+                        shutil.copy2(img_src, img_target)
+
         return job_stage_dir
 
     def cleanup_staged_assets(self, job_id: str) -> None:
-        """Removes staged temporary audio files from `public/audio_temp/{job_id}` after rendering."""
-        job_stage_dir = self.public_audio_temp_dir / job_id
-        if job_stage_dir.exists():
-            shutil.rmtree(job_stage_dir, ignore_errors=True)
-            logger.info("Cleaned up staged audio assets at %s", job_stage_dir)
+        """Removes staged temporary audio and background image files after rendering."""
+        for stage_dir in (
+            self.public_audio_temp_dir / job_id,
+            self.public_assets_dir / job_id,
+        ):
+            if stage_dir.exists():
+                shutil.rmtree(stage_dir, ignore_errors=True)
+                logger.info("Cleaned up staged assets at %s", stage_dir)
 
     def build_remotion_command(
         self,

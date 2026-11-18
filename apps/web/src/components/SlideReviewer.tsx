@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { getJobAudioUrl } from '@/lib/api';
+import { getJobAssetUrl, getJobAudioUrl, searchStockAssets } from '@/lib/api';
 import { STUDIO_DICTIONARY, UiLocale } from '@/lib/i18n';
 import { SLIDE_LAYOUT_LABELS } from '@/lib/templates';
 import {
@@ -10,6 +10,7 @@ import {
   RemotionCompositionProps,
   SlideLayout,
   SlideScriptItem,
+  StockImageCandidate,
 } from '@/types/studio';
 
 interface SlideReviewerProps {
@@ -19,6 +20,8 @@ interface SlideReviewerProps {
   remotionProps: RemotionCompositionProps | null;
   aspectRatio: AspectRatio;
   isCompiling: boolean;
+  slideBackgrounds?: Record<number, string>;
+  onChangeSlideBackground?: (slideIndex: number, url: string | null) => void;
   onUpdateScript: (updated: PresentationScript) => void;
   onCompileSlides: (renderVideo: boolean) => void;
 }
@@ -38,11 +41,16 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
   remotionProps,
   aspectRatio,
   isCompiling,
+  slideBackgrounds = {},
+  onChangeSlideBackground,
   onUpdateScript,
   onCompileSlides,
 }) => {
   const t = STUDIO_DICTIONARY[locale].reviewer;
   const [activeIndex, setActiveIndex] = useState<number>(0);
+  const [isSearchingStock, setIsSearchingStock] = useState<boolean>(false);
+  const [stockResults, setStockResults] = useState<StockImageCandidate[]>([]);
+  const [stockFallbackNotice, setStockFallbackNotice] = useState<boolean>(false);
 
   const safeIndex = Math.min(activeIndex, Math.max(0, script.slides.length - 1));
   const currentSlide = script.slides[safeIndex];
@@ -51,6 +59,31 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
   );
 
   if (!currentSlide) return null;
+
+  const selectedOverrideUrl = slideBackgrounds[currentSlide.slide_index];
+  const rawBackgroundUrl = selectedOverrideUrl || currentAudioSlide?.background_image_url || null;
+  const resolvedCanvasBgUrl = rawBackgroundUrl
+    ? getJobAssetUrl(jobId, rawBackgroundUrl)
+    : null;
+
+  const handleSearchStock = async () => {
+    setIsSearchingStock(true);
+    setStockFallbackNotice(false);
+    try {
+      const resp = await searchStockAssets({
+        query: currentSlide.visual_keywords || currentSlide.heading,
+        aspect_ratio: aspectRatio,
+        limit: 4,
+      });
+      setStockResults(resp.results);
+      setStockFallbackNotice(resp.fallback_to_gradient || resp.results.length === 0);
+    } catch {
+      setStockResults([]);
+      setStockFallbackNotice(true);
+    } finally {
+      setIsSearchingStock(false);
+    }
+  };
 
   const updateCurrentSlide = (patch: Partial<SlideScriptItem>) => {
     const nextSlides = script.slides.map((slide, idx) =>
@@ -201,14 +234,29 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
             <div
               data-testid="live-slide-canvas"
               data-layout={currentSlide.layout}
-              className={`relative flex flex-col justify-center border border-[#0A0A0A] bg-[#0F172A] p-8 text-[#F8FAFC] ${
+              className={`relative flex flex-col justify-center overflow-hidden border border-[#0A0A0A] bg-[#0F172A] p-8 text-[#F8FAFC] ${
                 isVertical ? 'aspect-[9/16] w-full max-w-[320px]' : 'aspect-video w-full max-w-[760px]'
               }`}
             >
-              {/* Top Accent Bar mirroring Remotion SlideCard */}
-              <div className="absolute left-0 right-0 top-0 h-1.5 bg-[#38BDF8]" />
+              {/* Stock Background Image Layer (Ken Burns Scrim Preview) */}
+              {resolvedCanvasBgUrl && (
+                <div
+                  data-testid="canvas-stock-backdrop"
+                  className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
+                >
+                  <img
+                    src={resolvedCanvasBgUrl}
+                    alt=""
+                    className="h-full w-full object-cover opacity-30"
+                  />
+                  <div className="absolute inset-0 bg-[#0F172A]/45" />
+                </div>
+              )}
 
-              <div className="mb-3 flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.12em] text-[#38BDF8]">
+              {/* Top Accent Bar mirroring Remotion SlideCard */}
+              <div className="absolute left-0 right-0 top-0 z-10 h-1.5 bg-[#38BDF8]" />
+
+              <div className="relative z-10 mb-3 flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.12em] text-[#38BDF8]">
                 <span>{SLIDE_LAYOUT_LABELS[currentSlide.layout]}</span>
                 <span>
                   {String(currentSlide.slide_index).padStart(2, '0')} /{' '}
@@ -217,7 +265,7 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
               </div>
 
               {currentSlide.layout === 'quote_highlight' ? (
-                <div className="py-4 text-center">
+                <div className="relative z-10 py-4 text-center">
                   <div className="text-[48px] font-bold leading-none text-[#38BDF8]">“</div>
                   <h3 className="mt-2 text-[22px] font-bold italic leading-snug md:text-[28px]">
                     {currentSlide.heading}
@@ -225,7 +273,7 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                 </div>
               ) : (
                 <h3
-                  className={`font-bold leading-[1.2] ${
+                  className={`relative z-10 font-bold leading-[1.2] ${
                     currentSlide.layout === 'title_intro'
                       ? 'text-center text-[24px] md:text-[32px]'
                       : 'text-[20px] md:text-[26px]'
@@ -237,7 +285,7 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
 
               {currentSlide.bullet_points.length > 0 && (
                 <div
-                  className={`mt-5 grid gap-2.5 ${
+                  className={`relative z-10 mt-5 grid gap-2.5 ${
                     currentSlide.layout === 'split_card' || currentSlide.layout === 'conclusion_cta'
                       ? 'grid-cols-1 md:grid-cols-2'
                       : 'grid-cols-1'
@@ -358,6 +406,82 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                 onChange={(e) => updateCurrentSlide({ voiceover_script: e.target.value })}
                 className="w-full border border-[#D4D4D8] bg-[#FFFFFF] p-3 text-[14px] leading-[1.6] text-[#0A0A0A] hover:border-[#A1A1AA] focus:border-2 focus:border-[#0A0A0A] focus:outline-none"
               />
+            </div>
+
+            {/* Stock Background Visual Keywords & Search (M2.3) */}
+            <div className="border-t border-[#E5E5E5] pt-6">
+              <label
+                htmlFor="slide-visual-keywords-input"
+                className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.06em] text-[#71717A]"
+              >
+                {t.visualKeywordsLabel}
+              </label>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <input
+                  id="slide-visual-keywords-input"
+                  type="text"
+                  value={currentSlide.visual_keywords}
+                  onChange={(e) => updateCurrentSlide({ visual_keywords: e.target.value })}
+                  className="h-10 flex-1 border border-[#D4D4D8] bg-[#FFFFFF] px-3 text-[14px] text-[#0A0A0A] hover:border-[#A1A1AA] focus:border-2 focus:border-[#0A0A0A] focus:outline-none"
+                />
+                <button
+                  type="button"
+                  disabled={isSearchingStock}
+                  onClick={handleSearchStock}
+                  className="h-10 border border-[#0A0A0A] bg-transparent px-5 text-[12px] font-medium uppercase tracking-[0.05em] text-[#0A0A0A] transition-colors duration-150 hover:bg-[#0A0A0A] hover:text-[#FAFAFA] disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  {isSearchingStock ? t.searchingStockBtn : t.fetchStockBtn}
+                </button>
+                {resolvedCanvasBgUrl && onChangeSlideBackground && (
+                  <button
+                    type="button"
+                    onClick={() => onChangeSlideBackground(currentSlide.slide_index, null)}
+                    className="h-10 border border-[#D4D4D8] px-4 text-[12px] uppercase tracking-[0.05em] text-[#71717A] transition-colors duration-150 hover:border-[#0A0A0A] hover:text-[#0A0A0A]"
+                  >
+                    {t.clearBgBtn}
+                  </button>
+                )}
+              </div>
+
+              {stockFallbackNotice && (
+                <p
+                  data-testid="stock-fallback-note"
+                  className="mt-3 border border-[#E5E5E5] bg-[#FAFAFA] px-4 py-2.5 font-mono text-[12px] text-[#71717A]"
+                >
+                  {t.stockFallbackNote}
+                </p>
+              )}
+
+              {stockResults.length > 0 && (
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {stockResults.map((item) => {
+                    const isPicked = selectedOverrideUrl === item.url;
+                    return (
+                      <button
+                        key={`${item.provider}-${item.image_id}`}
+                        type="button"
+                        onClick={() =>
+                          onChangeSlideBackground?.(currentSlide.slide_index, item.url)
+                        }
+                        className={`group border bg-[#FFFFFF] text-left transition-colors duration-150 ${
+                          isPicked
+                            ? 'border-2 border-[#0A0A0A]'
+                            : 'border-[#E5E5E5] hover:border-[#0A0A0A]'
+                        }`}
+                      >
+                        <img
+                          src={item.preview_url}
+                          alt={item.photographer}
+                          className="aspect-video w-full object-cover"
+                        />
+                        <div className="px-2 py-1.5 font-mono text-[10px] uppercase text-[#71717A]">
+                          {item.provider} · {item.photographer}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>

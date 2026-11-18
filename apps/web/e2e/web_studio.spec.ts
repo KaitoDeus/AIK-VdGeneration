@@ -169,7 +169,33 @@ async function attachMockApiGateway(page: Page) {
       });
     }
 
-    if (url.includes('/api/v1/jobs')) {
+    if (url.endsWith('/api/v1/assets/search') && method === 'POST') {
+      const tinySvg =
+        'data:image/svg+xml;utf8,' +
+        encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"><rect width="320" height="180" fill="#1e293b"/></svg>');
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          query: 'minimal browser geometry',
+          provider_used: 'unsplash',
+          fallback_to_gradient: false,
+          results: [
+            {
+              provider: 'unsplash',
+              image_id: 'e2e_u1',
+              url: tinySvg,
+              preview_url: tinySvg,
+              width: 1920,
+              height: 1080,
+              photographer: 'Studio Photographer',
+            },
+          ],
+        }),
+      });
+    }
+
+    if (url.includes('/api/v1/jobs') && !url.includes('/jobs/job_e2e_01')) {
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -322,6 +348,11 @@ test.describe('AIK Web Studio Real Browser Verification (StudioBlank)', () => {
 
     await page.locator('#slide-layout-select').selectOption('split_card');
     await expect(canvas).toHaveAttribute('data-layout', 'split_card');
+
+    // Search stock visuals and pick backdrop onto live slide canvas
+    await page.getByRole('button', { name: 'Tìm Ảnh Nền Stock' }).click();
+    await page.getByRole('button', { name: /unsplash · Studio Photographer/i }).click();
+    await expect(page.getByTestId('canvas-stock-backdrop')).toBeVisible();
 
     // Compile edited deck -> streams WebSocket progress to 100% and reveals MP4 download
     await page.getByRole('button', { name: 'Biên Dịch & Xuất MP4 1080p' }).click();

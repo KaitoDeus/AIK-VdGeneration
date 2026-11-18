@@ -38,9 +38,9 @@ This roadmap breaks down the product development into 4 distinct phases, from an
 - [x] **M2.2: Next.js Web Studio (apps/web)**
   - Ultra-minimal StudioBlank Design System UI built with Next.js 15 App Router, TypeScript (strict), and Tailwind CSS (`0px` radius, zero shadows, `#FAFAFA`/`#0A0A0A` monochrome hierarchy, `Inter` + `IBM Plex Mono`).
   - Prompt studio with quick templates, bilingual EN/VI voice audition preview (`POST /api/v1/voices/preview`), interactive slide canvas reviewer & editor (`POST /api/v1/jobs/compile`), realtime WebSocket progress tracker (`/ws/jobs/{job_id}`), and built-in 1080p MP4 playback & download.
-- [ ] **M2.3: Asset Integration & Background Visuals**
-  - Integration with Unsplash / Pexels API for automated background imagery based on slide keywords.
-  - Subtle Ken Burns effect (slow pan & zoom) on background images.
+- [x] **M2.3: Asset Integration & Background Visuals**
+  - Integration with Unsplash & Pexels API (`StockAssetService`) for automated slide background imagery based on `visual_keywords`, featuring timeout/retry protection, binary magic-header validation, disk caching, per-job staging in `RemotionRenderService`, and instant gradient fallback.
+  - Alternating Ken Burns slow pan & zoom (`computeKenBurnsTransform`) with dark scrim contrast layer in Remotion `SlideCard` + interactive stock search & candidate picker (`POST /api/v1/assets/search`) in the `apps/web` Studio.
 - [ ] **M2.4: Storage & CDN Delivery**
   - Direct upload of final `.mp4` to AWS S3 / Cloudflare R2 with signed download URLs.
 

@@ -110,3 +110,33 @@ export function calculatePresentationMetadata(props: VideoPresentationProps): {
     height,
   };
 }
+
+/**
+ * Computes subtle alternating Ken Burns slow pan & zoom transform for slide backgrounds (M2.3).
+ * Minimum scale of 1.02 ensures pan offsets never reveal empty edge gutters.
+ */
+export function computeKenBurnsTransform(
+  frame: number,
+  durationInFrames: number,
+  slideIndex: number
+): {
+  scale: number;
+  translateXPercent: number;
+  translateYPercent: number;
+  transformCss: string;
+} {
+  const maxFrame = Math.max(1, durationInFrames - 1);
+  const progress = Math.min(1, Math.max(0, frame / maxFrame));
+  const zoomIn = slideIndex % 2 !== 0;
+
+  const scale = zoomIn ? 1.02 + 0.08 * progress : 1.1 - 0.08 * progress;
+  const translateXPercent = zoomIn ? -1.2 + 2.4 * progress : 1.2 - 2.4 * progress;
+  const translateYPercent = zoomIn ? -0.8 + 1.6 * progress : 0.8 - 1.6 * progress;
+
+  return {
+    scale: Number(scale.toFixed(4)),
+    translateXPercent: Number(translateXPercent.toFixed(4)),
+    translateYPercent: Number(translateYPercent.toFixed(4)),
+    transformCss: `translate(${translateXPercent.toFixed(3)}%, ${translateYPercent.toFixed(3)}%) scale(${scale.toFixed(4)})`,
+  };
+}

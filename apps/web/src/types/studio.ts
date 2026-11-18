@@ -42,6 +42,26 @@ export interface RemotionSlideProps {
   voiceover_duration_seconds: number;
   calculated_frames: number;
   background_image_url?: string | null;
+  background_image_path?: string | null;
+  background_asset_provider?: string | null;
+}
+
+export interface StockImageCandidate {
+  provider: 'unsplash' | 'pexels';
+  image_id: string;
+  url: string;
+  preview_url: string;
+  width: number;
+  height: number;
+  photographer: string;
+  attribution_url?: string | null;
+}
+
+export interface AssetSearchResponse {
+  query: string;
+  provider_used?: string | null;
+  fallback_to_gradient: boolean;
+  results: StockImageCandidate[];
 }
 
 export interface RemotionCompositionProps {

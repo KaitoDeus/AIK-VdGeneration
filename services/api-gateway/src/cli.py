@@ -23,6 +23,7 @@ if str(GATEWAY_ROOT) not in sys.path:
     sys.path.insert(0, str(GATEWAY_ROOT))
 
 from src.schemas import SupportedLanguage, TTSProviderType, VoiceSettings
+from src.services.asset_service import StockAssetService
 from src.services.llm_service import LLMScriptGenerator
 from src.services.render_service import RemotionRenderService, verify_mp4_output
 from src.services.tts_service import TTSAudioPipeline
@@ -108,6 +109,11 @@ def parse_cli_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         action="store_true",
         help="Generate script.json, audio MP3s, and remotion_props.json without running Remotion MP4 encoding.",
     )
+    parser.add_argument(
+        "--no-stock-visuals",
+        action="store_true",
+        help="Disable Unsplash/Pexels stock background fetching and use pure CSS gradient backgrounds.",
+    )
     return parser.parse_args(argv)
 
 
@@ -174,6 +180,16 @@ def run_cli_pipeline(argv: Optional[List[str]] = None) -> dict:
         aspect_ratio=args.aspect_ratio,
         fps=30,
     )
+
+    if not args.no_stock_visuals:
+        asset_service = StockAssetService(output_base_dir=temp_jobs_dir)
+        remotion_props = asset_service.enrich_remotion_props(
+            props=remotion_props,
+            script=script,
+            job_id=job_id,
+            aspect_ratio=args.aspect_ratio,
+        )
+
     props_path = job_dir / "remotion_props.json"
     props_path.write_text(
         json.dumps(remotion_props.model_dump(), ensure_ascii=False, indent=2),

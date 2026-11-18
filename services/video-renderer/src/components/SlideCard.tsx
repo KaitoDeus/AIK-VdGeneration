@@ -15,7 +15,11 @@ import {
   TitleIntroLayout,
 } from '../templates/SlideLayouts';
 import { SlideData, ThemeConfig } from '../types';
-import { resolveTheme } from '../utils/timing';
+import {
+  computeKenBurnsTransform,
+  resolveAssetSrc,
+  resolveTheme,
+} from '../utils/timing';
 
 export interface SlideCardProps {
   slide: SlideData;
@@ -59,11 +63,8 @@ export const SlideCard: React.FC<SlideCardProps> = ({
 
   const translateY = interpolate(entrance, [0, 1], [36, 0]);
 
-  // Subtle Ken Burns zoom for background image (1.0 -> 1.06)
-  const bgScale = interpolate(frame, [0, Math.max(1, durationInFrames)], [1, 1.06], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-  });
+  // Alternating Ken Burns pan + zoom for stock background imagery (M2.3)
+  const kenBurns = computeKenBurnsTransform(frame, durationInFrames, slide.slide_index);
 
   // Slide progress percentage (0% -> 100%)
   const progressPercent = interpolate(
@@ -119,7 +120,7 @@ export const SlideCard: React.FC<SlideCardProps> = ({
         boxSizing: 'border-box',
       }}
     >
-      {/* Optional Background Image with Ken Burns effect & dark overlay */}
+      {/* Optional Background Image with Ken Burns pan/zoom effect & dark scrim */}
       {slide.background_image_url && (
         <div
           data-testid="slide-background-image"
@@ -131,13 +132,20 @@ export const SlideCard: React.FC<SlideCardProps> = ({
           }}
         >
           <Img
-            src={slide.background_image_url}
+            src={resolveAssetSrc(slide.background_image_url)}
             style={{
               width: '100%',
               height: '100%',
               objectFit: 'cover',
-              transform: `scale(${bgScale})`,
-              opacity: 0.22,
+              transform: kenBurns.transformCss,
+              opacity: 0.28,
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundColor: 'rgba(15, 23, 42, 0.45)',
             }}
           />
         </div>

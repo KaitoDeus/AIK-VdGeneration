@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 import { DEFAULT_VOICES } from '@/lib/templates';
 import {
+  AssetSearchResponse,
   JobStatusResponse,
   PresentationScript,
   RemotionCompositionProps,
@@ -103,6 +104,8 @@ export class MockWebSocket {
 
 export interface MockStudioServerControl {
   jobState: JobStatusResponse;
+  stockSearchResponse: AssetSearchResponse;
+  setStockSearchResponse: (next: AssetSearchResponse) => void;
   fetchMock: ReturnType<typeof vi.fn>;
   restore: () => void;
 }
@@ -130,6 +133,32 @@ export function installMockStudioServer(options?: {
     output_video_path: null,
     progress_events: [],
     error: null,
+  };
+
+  let stockSearchResponse: AssetSearchResponse = {
+    query: 'microservices cloud diagram',
+    provider_used: 'unsplash',
+    fallback_to_gradient: false,
+    results: [
+      {
+        provider: 'unsplash',
+        image_id: 'mock_u_1',
+        url: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=1920',
+        preview_url: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400',
+        width: 1920,
+        height: 1080,
+        photographer: 'Taylor Vick',
+      },
+      {
+        provider: 'pexels',
+        image_id: 'mock_p_2',
+        url: 'https://images.pexels.com/photos/1181675/pexels-photo-1181675.jpeg',
+        preview_url: 'https://images.pexels.com/photos/1181675/pexels-photo-1181675.jpeg?w=400',
+        width: 1920,
+        height: 1080,
+        photographer: 'Christina Morillo',
+      },
+    ],
   };
 
   const archived = options?.archivedJobs || [
@@ -199,6 +228,10 @@ export function installMockStudioServer(options?: {
       return jsonResponse(DEFAULT_VOICES);
     }
 
+    if (url.endsWith('/api/v1/assets/search') && method === 'POST') {
+      return jsonResponse(stockSearchResponse);
+    }
+
     if (url.endsWith('/api/v1/scripts/generate') && method === 'POST') {
       return jsonResponse(MOCK_SCRIPT);
     }
@@ -247,6 +280,10 @@ export function installMockStudioServer(options?: {
 
   return {
     jobState,
+    stockSearchResponse,
+    setStockSearchResponse: (next: AssetSearchResponse) => {
+      stockSearchResponse = next;
+    },
     fetchMock,
     restore: () => {
       globalThis.fetch = origFetch;

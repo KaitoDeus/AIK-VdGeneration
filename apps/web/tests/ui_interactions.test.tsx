@@ -193,4 +193,59 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
       expect(screen.getByTestId('live-slide-canvas')).toBeInTheDocument();
     });
   });
+
+  it('searches stock visuals, previews backdrop on canvas, sends slide_backgrounds on compile, and shows gradient fallback notice', async () => {
+    const user = userEvent.setup();
+    render(<StudioWorkspacePage />);
+
+    await user.click(screen.getByRole('button', { name: 'GIẢI THÍCH CÔNG NGHỆ' }));
+    await user.click(screen.getByRole('button', { name: 'Soạn Kịch Bản Trước' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('live-slide-canvas')).toBeInTheDocument();
+    });
+
+    // Search Unsplash/Pexels stock backgrounds
+    await user.click(screen.getByRole('button', { name: 'Tìm Ảnh Nền Stock' }));
+    const firstCandidateBtn = await screen.findByRole('button', { name: /unsplash · Taylor Vick/i });
+    await user.click(firstCandidateBtn);
+
+    // Live slide canvas displays scrim backdrop with selected photo URL
+    const backdrop = screen.getByTestId('canvas-stock-backdrop');
+    expect(backdrop).toBeInTheDocument();
+    expect(backdrop.querySelector('img')).toHaveAttribute(
+      'src',
+      'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=1920'
+    );
+
+    // Compiling edited deck passes slide_backgrounds override to /api/v1/jobs/compile
+    await user.click(screen.getByRole('button', { name: 'Biên Dịch & Xuất MP4 1080p' }));
+    await waitFor(() => {
+      const compileCall = server.fetchMock.mock.calls.find(
+        ([url, init]) => String(url).endsWith('/api/v1/jobs/compile') && init?.method === 'POST'
+      );
+      expect(compileCall).toBeDefined();
+      const parsedBody = JSON.parse(String(compileCall?.[1]?.body));
+      expect(parsedBody.include_stock_visuals).toBe(true);
+      expect(parsedBody.slide_backgrounds).toEqual({
+        '1': 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=1920',
+      });
+    });
+
+    // Clear override -> reverts canvas backdrop to pure gradient
+    await user.click(screen.getByRole('button', { name: 'Dùng Nền Gradient' }));
+    expect(screen.queryByTestId('canvas-stock-backdrop')).not.toBeInTheDocument();
+
+    // Missing keys / empty match triggers graceful fallback note without error crash
+    server.setStockSearchResponse({
+      query: 'microservices cloud diagram',
+      provider_used: null,
+      fallback_to_gradient: true,
+      results: [],
+    });
+    await user.click(screen.getByRole('button', { name: 'Tìm Ảnh Nền Stock' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('stock-fallback-note')).toBeInTheDocument();
+    });
+  });
 });

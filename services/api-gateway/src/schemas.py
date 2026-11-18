@@ -4,7 +4,7 @@ Adheres to docs/API_SPEC.md, .agent/skills/video-prompt-engineering/SKILL.md,
 and .agent/rules/audio-sync-rules.md.
 """
 
-from typing import List, Literal, Optional
+from typing import Dict, List, Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -142,6 +142,8 @@ class RemotionSlideProps(BaseModel):
     voiceover_duration_seconds: float = Field(..., gt=0, description="Exact audio duration in seconds")
     calculated_frames: int = Field(..., ge=90, description="Calculated frame count at target FPS")
     background_image_url: Optional[str] = Field(default=None)
+    background_image_path: Optional[str] = Field(default=None)
+    background_asset_provider: Optional[str] = Field(default=None)
 
 
 class RemotionCompositionProps(BaseModel):
@@ -216,6 +218,36 @@ class VoicePreviewRequest(BaseModel):
     sample_text: Optional[str] = Field(default=None)
 
 
+class StockImageCandidate(BaseModel):
+    """Normalized stock media search result returned by Unsplash or Pexels (M2.3)."""
+
+    provider: Literal["unsplash", "pexels"]
+    image_id: str
+    url: str
+    preview_url: str
+    width: int = 1920
+    height: int = 1080
+    photographer: str = "Unknown"
+    attribution_url: Optional[str] = None
+
+
+class AssetSearchRequest(BaseModel):
+    """Request payload for searching stock background visuals by keyword."""
+
+    query: str = Field(..., min_length=2, description="English visual search keywords.")
+    aspect_ratio: Literal["16:9", "9:16"] = Field(default="16:9")
+    limit: int = Field(default=4, ge=1, le=10)
+
+
+class AssetSearchResponse(BaseModel):
+    """Response payload for stock visual search with graceful fallback indicator."""
+
+    query: str
+    provider_used: Optional[str] = None
+    fallback_to_gradient: bool = False
+    results: List[StockImageCandidate] = Field(default_factory=list)
+
+
 class ScriptCompileRequest(BaseModel):
     """Request payload to compile user-edited slides directly through TTS -> Remotion."""
 
@@ -223,6 +255,11 @@ class ScriptCompileRequest(BaseModel):
     aspect_ratio: Literal["16:9", "9:16"] = Field(default="16:9")
     voice_settings: VoiceSettings = Field(default_factory=VoiceSettings)
     render_video: bool = Field(default=True)
+    include_stock_visuals: bool = Field(default=True)
+    slide_backgrounds: Dict[int, str] = Field(
+        default_factory=dict,
+        description="Optional mapping of 1-based slide_index to custom stock image URL.",
+    )
 
 
 class VideoGenerateRequest(BaseModel):
@@ -257,6 +294,10 @@ class VideoGenerateRequest(BaseModel):
         default=False,
         description="When True, also executes Stage 3 Remotion MP4 compilation in the background.",
     )
+    include_stock_visuals: bool = Field(
+        default=True,
+        description="When True, fetches Unsplash/Pexels stock background visuals per slide (graceful gradient fallback).",
+    )
 
 
 class VideoJobResponse(BaseModel):
@@ -285,6 +326,7 @@ class QueueTaskPayload(BaseModel):
     job_id: str
     stage: WorkerStage
     request: VideoGenerateRequest
+    slide_backgrounds: Dict[int, str] = Field(default_factory=dict)
     attempt: int = Field(default=1, ge=1)
     max_retries: int = Field(default=3, ge=1)
     created_at: str

@@ -25,6 +25,8 @@ from fastapi.responses import FileResponse
 
 try:
     from .schemas import (
+        AssetSearchRequest,
+        AssetSearchResponse,
         AudioSynthesizeRequest,
         JobStatusResponse,
         PresentationScript,
@@ -40,6 +42,7 @@ try:
         VoicePreviewRequest,
         VoiceSettings,
     )
+    from .services.asset_service import StockAssetService
     from .services.llm_service import LLMScriptGenerator
     from .services.queue_service import (
         BaseQueueBackend,
@@ -51,6 +54,8 @@ try:
     from .services.worker_service import PipelineWorkerCoordinator
 except ImportError:
     from schemas import (  # type: ignore
+        AssetSearchRequest,
+        AssetSearchResponse,
         AudioSynthesizeRequest,
         JobStatusResponse,
         PresentationScript,
@@ -66,6 +71,7 @@ except ImportError:
         VoicePreviewRequest,
         VoiceSettings,
     )
+    from services.asset_service import StockAssetService  # type: ignore
     from services.llm_service import LLMScriptGenerator  # type: ignore
     from services.queue_service import (  # type: ignore
         BaseQueueBackend,
@@ -108,6 +114,7 @@ TEMP_JOBS_DIR = Path(__file__).resolve().parent.parent / ".temp" / "jobs"
 llm_generator = LLMScriptGenerator()
 tts_pipeline = TTSAudioPipeline(output_base_dir=TEMP_JOBS_DIR)
 render_service = RemotionRenderService()
+asset_service = StockAssetService(output_base_dir=TEMP_JOBS_DIR)
 
 queue_backend: BaseQueueBackend = create_queue_backend(shared_jobs_store=JOBS_STORE)
 worker_coordinator = PipelineWorkerCoordinator(
@@ -116,6 +123,7 @@ worker_coordinator = PipelineWorkerCoordinator(
     llm_generator=llm_generator,
     tts_pipeline=tts_pipeline,
     render_service=render_service,
+    asset_service=asset_service,
 )
 
 
@@ -129,6 +137,7 @@ def configure_queue_backend(new_backend: BaseQueueBackend) -> None:
         llm_generator=llm_generator,
         tts_pipeline=tts_pipeline,
         render_service=render_service,
+        asset_service=asset_service,
     )
 
 
@@ -331,6 +340,16 @@ async def preview_voice(request: VoicePreviewRequest):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+@app.post("/api/v1/assets/search", response_model=AssetSearchResponse)
+async def search_stock_assets(request: AssetSearchRequest):
+    """Searches Unsplash / Pexels stock photography with graceful gradient fallback (M2.3)."""
+    return asset_service.search_stock_images(
+        query=request.query,
+        aspect_ratio=request.aspect_ratio,
+        limit=request.limit,
+    )
+
+
 @app.post("/api/v1/jobs/compile", response_model=VideoJobResponse, status_code=202)
 async def compile_edited_script(
     request: ScriptCompileRequest,
@@ -376,11 +395,13 @@ async def compile_edited_script(
         style=StyleSettings(theme=request.script.theme),
         voice_settings=request.voice_settings,
         render_video=request.render_video,
+        include_stock_visuals=request.include_stock_visuals,
     )
     tts_task = QueueTaskPayload(
         job_id=job_id,
         stage="tts",
         request=video_req,
+        slide_backgrounds=request.slide_backgrounds,
         attempt=1,
         max_retries=max_retries,
         created_at=utc_timestamp(),
@@ -402,16 +423,40 @@ async def compile_edited_script(
     )
 
 
+def _resolve_safe_job_file(
+    job_id: str,
+    subdir: str,
+    filename: str,
+    allowed_extensions: tuple[str, ...],
+) -> Path:
+    """Validates single-segment filenames inside job artifact directories to prevent path traversal."""
+    if Path(filename).name != filename or not filename.lower().endswith(allowed_extensions):
+        raise HTTPException(status_code=400, detail="Invalid asset filename.")
+    expected_parent = (TEMP_JOBS_DIR / job_id / subdir).resolve()
+    target_path = (expected_parent / filename).resolve()
+    if target_path.parent != expected_parent or not target_path.exists():
+        raise HTTPException(status_code=404, detail="Job asset not found.")
+    return target_path
+
+
 @app.get("/api/v1/jobs/{job_id}/audio/{filename}")
 async def download_slide_audio(job_id: str, filename: str):
     """Serves synthesized slide MP3 files safely for Web Studio slide preview playback."""
-    if Path(filename).name != filename or not filename.endswith(".mp3"):
-        raise HTTPException(status_code=400, detail="Invalid audio filename.")
-    audio_path = (TEMP_JOBS_DIR / job_id / "audio" / filename).resolve()
-    expected_parent = (TEMP_JOBS_DIR / job_id / "audio").resolve()
-    if audio_path.parent != expected_parent or not audio_path.exists():
-        raise HTTPException(status_code=404, detail="Audio asset not found.")
+    audio_path = _resolve_safe_job_file(job_id, "audio", filename, (".mp3",))
     return FileResponse(path=audio_path, media_type="audio/mpeg", filename=filename)
+
+
+@app.get("/api/v1/jobs/{job_id}/assets/{filename}")
+async def download_slide_asset(job_id: str, filename: str):
+    """Serves downloaded stock background images safely for Web Studio canvas preview."""
+    image_path = _resolve_safe_job_file(
+        job_id, "assets", filename, (".jpg", ".jpeg", ".png", ".webp")
+    )
+    ext = image_path.suffix.lower()
+    media_type = (
+        "image/png" if ext == ".png" else "image/webp" if ext == ".webp" else "image/jpeg"
+    )
+    return FileResponse(path=image_path, media_type=media_type, filename=filename)
 
 
 @app.get("/api/v1/jobs/{job_id}/video")

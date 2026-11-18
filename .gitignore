@@ -53,6 +53,8 @@ audio_cache/
 services/video-renderer/public/audio_temp/
 
 # Downloaded stock media caches (Unsplash / Pexels)
+public/assets/
+services/video-renderer/public/assets/
 public/stock_temp/
 temp_images/
 *.download

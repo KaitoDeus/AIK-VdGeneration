@@ -86,6 +86,11 @@ export interface StudioDictionary {
     layoutTemplateLabel: string;
     bulletPointsLabel: string;
     voiceoverScriptLabel: string;
+    visualKeywordsLabel: string;
+    fetchStockBtn: string;
+    searchingStockBtn: string;
+    clearBgBtn: string;
+    stockFallbackNote: string;
     defaultSlideHeadingPrefix: string;
     defaultSlideBulletA: string;
     defaultSlideBulletB: string;
@@ -200,6 +205,12 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       layoutTemplateLabel: 'Layout Template',
       bulletPointsLabel: 'Bullet Points (One per line, max 5)',
       voiceoverScriptLabel: 'Voiceover Script (Narrator Speech)',
+      visualKeywordsLabel: 'Stock Visual Keywords (English)',
+      fetchStockBtn: 'Search Stock Visuals',
+      searchingStockBtn: 'Searching...',
+      clearBgBtn: 'Use Gradient',
+      stockFallbackNote:
+        'No Unsplash/Pexels key configured or no match found — slide will gracefully render with CSS radial gradient.',
       defaultSlideHeadingPrefix: 'Key Point — Slide',
       defaultSlideBulletA: 'First supporting insight',
       defaultSlideBulletB: 'Second supporting insight',
@@ -312,6 +323,12 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       layoutTemplateLabel: 'Mẫu Bố Cục (Layout)',
       bulletPointsLabel: 'Các Ý Chính (Mỗi dòng 1 ý, tối đa 5)',
       voiceoverScriptLabel: 'Lời Thoại Thuyết Minh (Voiceover)',
+      visualKeywordsLabel: 'Từ Khóa Tìm Ảnh Nền (Tiếng Anh)',
+      fetchStockBtn: 'Tìm Ảnh Nền Stock',
+      searchingStockBtn: 'Đang Tìm...',
+      clearBgBtn: 'Dùng Nền Gradient',
+      stockFallbackNote:
+        'Chưa cấu hình API Key Unsplash/Pexels hoặc không có ảnh phù hợp — slide sẽ tự động dùng nền Gradient chuẩn mực.',
       defaultSlideHeadingPrefix: 'Ý Chính — Slide',
       defaultSlideBulletA: 'Luận điểm bổ trợ thứ nhất',
       defaultSlideBulletB: 'Luận điểm bổ trợ thứ hai',

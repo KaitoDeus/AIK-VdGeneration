@@ -2,8 +2,8 @@
 
 ## 1. Project Identity & Status
 - **Project Name:** AIK-VdGeneration (AI-driven Prompt to Slide-Video Generator)
-- **Status:** Phase 2 In Progress (2/4 Milestones) — M2.2 Next.js Web Studio (StudioBlank Design System) Completed.
-- **Current Milestone:** M2.2 - Next.js Web Studio, Interactive Slide Reviewer & Live WebSocket UI Completed.
+- **Status:** Phase 2 In Progress (3/4 Milestones) — M2.3 Asset Integration & Background Visuals Completed.
+- **Current Milestone:** M2.3 - Unsplash / Pexels Stock Visual Pipeline, Alternating Ken Burns Effect & Web Studio Picker Completed.
 - **Created Date:** 2026-11-14
 - **Working Root:** `D:\AIK-VdGeneration`
 
@@ -30,6 +30,9 @@
 - **ADR-006: StudioBlank Monochrome Design System (`apps/web`)**
   - *Context:* Phase 2 Web Studio requires a focused, distraction-free interface so generated slide visuals and video output command attention.
   - *Decision:* Built `apps/web` with Next.js 15 App Router + Tailwind CSS adhering strictly to `StudioBlank` (`#FAFAFA`/`#0A0A0A` monochrome palette, `0px` border-radius, zero shadows, `<= 200ms` transitions, `Inter` + `IBM Plex Mono`) paired with FastAPI voice audition, edited-deck compilation, and media streaming endpoints.
+- **ADR-007: Stock Visual Asset Pipeline & Alternating Ken Burns Effect (`M2.3`)**
+  - *Context:* Slides need dynamic visual backdrops matching `visual_keywords` while preserving `SlideScriptItem` JSON Schema purity and rendering reliability offline or without stock API keys.
+  - *Decision:* Kept `SlideScriptItem` free of URL fields and built `StockAssetService` in `services/api-gateway` (Unsplash/Pexels cascade with timeouts/retries, magic-header JPEG/PNG/WebP validation, `.temp/asset_cache` reuse, and immediate CSS gradient fallback), staged per-job visuals alongside audio in `RemotionRenderService`, implemented alternating Ken Burns pan/zoom (`computeKenBurnsTransform`) with a dark scrim in `SlideCard.tsx`, and added `/api/v1/assets/search` + thumbnail candidate picking in `apps/web`.
 
 ---
 
@@ -47,6 +50,7 @@ ELEVENLABS_API_KEY=
 FPT_AI_API_KEY=
 
 # Visual & Media
+STOCK_IMAGE_PROVIDER=auto # auto | unsplash | pexels | disabled
 UNSPLASH_ACCESS_KEY=
 PEXELS_API_KEY=
 
@@ -73,4 +77,5 @@ AWS_SECRET_ACCESS_KEY=
 - [x] Build Local CLI Pipeline Runner & stateless Remotion MP4 render service (M1.5)
 - [x] Implement Redis Queue Workers (`LLMWorker`, `TTSWorker`, `RenderWorker`), Retry/DLQ & WebSocket streaming (M2.1)
 - [x] Build `apps/web` Next.js Web Studio with StudioBlank UI & backend studio endpoints (M2.2)
-- [ ] Integrate Unsplash / Pexels stock background imagery & Ken Burns pipeline (M2.3)
+- [x] Integrate Unsplash / Pexels stock background imagery & Ken Burns pipeline (M2.3)
+- [ ] Direct `.mp4` upload to AWS S3 / Cloudflare R2 with signed download URLs (M2.4)

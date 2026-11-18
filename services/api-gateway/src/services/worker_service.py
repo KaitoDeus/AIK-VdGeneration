@@ -22,6 +22,7 @@ from ..schemas import (
     RemotionCompositionProps,
     WorkerStage,
 )
+from .asset_service import StockAssetService
 from .llm_service import LLMScriptGenerator
 from .queue_service import BaseQueueBackend, STAGES_ORDER, utc_timestamp
 from .render_service import RemotionRenderService
@@ -103,12 +104,17 @@ class LLMWorker(BaseStageWorker):
 
 
 class TTSWorker(BaseStageWorker):
-    """Stage 2 Worker: Synthesizes bilingual voiceover audio and compiles Remotion props."""
+    """Stage 2 Worker: Synthesizes bilingual voiceover audio, resolves stock visuals, and compiles Remotion props."""
 
     stage: WorkerStage = "tts"
 
-    def __init__(self, tts_pipeline: TTSAudioPipeline) -> None:
+    def __init__(
+        self,
+        tts_pipeline: TTSAudioPipeline,
+        asset_service: Optional[StockAssetService] = None,
+    ) -> None:
         self.tts_pipeline = tts_pipeline
+        self.asset_service = asset_service
 
     def execute(
         self,
@@ -132,7 +138,7 @@ class TTSWorker(BaseStageWorker):
             job_id=job.job_id,
             step="synthesizing_audio",
             progress_percentage=60,
-            message="Synthesizing bilingual voiceovers and calculating slide durations... (60%)",
+            message="Synthesizing bilingual voiceovers and fetching slide visuals... (60%)",
         )
 
         remotion_props, provider_used = self.tts_pipeline.synthesize_presentation(
@@ -142,6 +148,16 @@ class TTSWorker(BaseStageWorker):
             aspect_ratio=task.request.aspect_ratio,
             fps=30,
         )
+
+        # MediaPool AssetWorker step (M2.3): Enrich slides with stock photography or fallback cleanly
+        if self.asset_service and (task.request.include_stock_visuals or task.slide_backgrounds):
+            remotion_props = self.asset_service.enrich_remotion_props(
+                props=remotion_props,
+                script=script,
+                job_id=job.job_id,
+                aspect_ratio=task.request.aspect_ratio,
+                slide_backgrounds=task.slide_backgrounds,
+            )
 
         job_dir.mkdir(parents=True, exist_ok=True)
         props_path = job_dir / "remotion_props.json"
@@ -251,6 +267,7 @@ class PipelineWorkerCoordinator:
         llm_generator: Optional[LLMScriptGenerator] = None,
         tts_pipeline: Optional[TTSAudioPipeline] = None,
         render_service: Optional[RemotionRenderService] = None,
+        asset_service: Optional[StockAssetService] = None,
         retry_delay_seconds: float = 0.0,
     ) -> None:
         self.queue_backend = queue_backend
@@ -258,7 +275,10 @@ class PipelineWorkerCoordinator:
         self.retry_delay_seconds = retry_delay_seconds
 
         self.llm_worker = LLMWorker(llm_generator or LLMScriptGenerator())
-        self.tts_worker = TTSWorker(tts_pipeline or TTSAudioPipeline(output_base_dir=temp_jobs_dir))
+        self.tts_worker = TTSWorker(
+            tts_pipeline or TTSAudioPipeline(output_base_dir=temp_jobs_dir),
+            asset_service=asset_service or StockAssetService(output_base_dir=temp_jobs_dir),
+        )
         self.render_worker = RenderWorker(render_service or RemotionRenderService())
 
         self.workers: Dict[WorkerStage, BaseStageWorker] = {

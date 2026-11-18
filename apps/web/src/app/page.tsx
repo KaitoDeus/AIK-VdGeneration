@@ -62,6 +62,7 @@ export default function StudioWorkspacePage() {
   const [liveEvents, setLiveEvents] = useState<WebSocketProgressEvent[]>([]);
   const [wsConnected, setWsConnected] = useState<boolean>(false);
   const [draftScript, setDraftScript] = useState<PresentationScript | null>(null);
+  const [slideBackgrounds, setSlideBackgrounds] = useState<Record<number, string>>({});
   const [jobsArchive, setJobsArchive] = useState<JobStatusResponse[]>([]);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -330,6 +331,8 @@ export default function StudioWorkspacePage() {
           speed: 1.0,
         },
         render_video: renderVideo,
+        include_stock_visuals: true,
+        slide_backgrounds: slideBackgrounds,
       });
       setActiveJob({
         job_id: resp.job_id,
@@ -426,6 +429,18 @@ export default function StudioWorkspacePage() {
               remotionProps={activeJob?.remotion_props ?? null}
               aspectRatio={formState.aspectRatio}
               isCompiling={isSubmitting}
+              slideBackgrounds={slideBackgrounds}
+              onChangeSlideBackground={(slideIndex, url) => {
+                setSlideBackgrounds((prev) => {
+                  const next = { ...prev };
+                  if (url) {
+                    next[slideIndex] = url;
+                  } else {
+                    delete next[slideIndex];
+                  }
+                  return next;
+                });
+              }}
               onUpdateScript={setDraftScript}
               onCompileSlides={handleCompileEditedSlides}
             />

@@ -1,5 +1,6 @@
 import {
   AspectRatio,
+  AssetSearchResponse,
   HealthResponse,
   JobStatusResponse,
   PresentationScript,
@@ -35,6 +36,19 @@ export function getJobAudioUrl(jobId: string, audioUrlOrPath: string): string {
 
 export function getJobVideoUrl(jobId: string): string {
   return `${getApiBaseUrl()}/api/v1/jobs/${encodeURIComponent(jobId)}/video`;
+}
+
+export function getJobAssetUrl(jobId: string | null, assetUrlOrPath: string): string {
+  if (
+    assetUrlOrPath.startsWith('http://') ||
+    assetUrlOrPath.startsWith('https://') ||
+    assetUrlOrPath.startsWith('data:')
+  ) {
+    return assetUrlOrPath;
+  }
+  if (!jobId) return assetUrlOrPath;
+  const filename = assetUrlOrPath.split(/[\\/]/).pop() || '';
+  return `${getApiBaseUrl()}/api/v1/jobs/${encodeURIComponent(jobId)}/assets/${encodeURIComponent(filename)}`;
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -104,6 +118,17 @@ export async function generateScript(params: {
   });
 }
 
+export async function searchStockAssets(params: {
+  query: string;
+  aspect_ratio: AspectRatio;
+  limit?: number;
+}): Promise<AssetSearchResponse> {
+  return requestJson<AssetSearchResponse>('/api/v1/assets/search', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
 export async function generateVideoJob(params: {
   prompt: string;
   language: SupportedLanguage;
@@ -120,6 +145,7 @@ export async function generateVideoJob(params: {
     speed: number;
   };
   render_video: boolean;
+  include_stock_visuals?: boolean;
 }): Promise<VideoJobResponse> {
   return requestJson<VideoJobResponse>('/api/v1/videos/generate', {
     method: 'POST',
@@ -136,6 +162,8 @@ export async function compileEditedScript(params: {
     speed: number;
   };
   render_video: boolean;
+  include_stock_visuals?: boolean;
+  slide_backgrounds?: Record<number, string>;
 }): Promise<VideoJobResponse> {
   return requestJson<VideoJobResponse>('/api/v1/jobs/compile', {
     method: 'POST',
