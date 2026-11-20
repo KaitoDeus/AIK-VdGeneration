@@ -57,6 +57,9 @@
 - **ADR-015: Vertical Short Video Mode (`9:16` / TikTok / Reels / YouTube Shorts)**
   - *Context:* Generating `9:16` videos previously squeezed 16:9 multi-column grids and bottom-edge captions into a 1080px portrait width and lacked short-form narrative pacing.
   - *Decision:* Added explicit `video_format: 'presentation' | 'short'` and `aspect_ratio` awareness across `ScriptGenerateRequest` / `VideoGenerateRequest` / `LLMScriptGenerator` (hook-first 3-6 scene pacing and dedicated EN/VI Shorts fallback blueprints); adapted `SlideCard.tsx`, `SlideLayouts.tsx`, and `SlidePresentation.tsx` to collapse multi-column layouts vertically (`isPortrait = height > width`) with mobile safe-zone padding and 4-word `KaraokeCaptions` bursts (`bottom: 144px`, `42px` highlight); and added a one-click `9:16 SHORT VIDEO` mode switcher, 1.0x/1.1x/1.2x voice pacing controls, Shorts quick templates (`shorts-vi`, `shorts-en`), and vertical safe-zone canvas preview in `apps/web`.
+- **ADR-016: Pure Vietnamese TTS Pipeline & Strict Language Voice Isolation (`vi`)**
+  - *Context:* Previously `EDGE_PEER_FALLBACK_VOICES["vi"]` included `en-US-AvaMultilingualNeural`, Edge-TTS intermittently rejected SSML `rate` strings (`NoAudioReceived`), and the Vietnamese dropdown included English `Rachel (ElevenLabs Multilingual)`.
+  - *Decision:* Removed all `en-US-*` voices from Vietnamese fallback chains; removed unstable SSML `<prosody rate>` calls from Edge-TTS and delegated speed scaling to local FFmpeg `atempo`; added pure Vietnamese HTTP TTS (`google_vi` / `vi-VN-GoogleVi` with phrase-level chunking) both as an explicit selectable pure-Vietnamese narrator option and as automatic Stage-2 backup when Edge-TTS fails; and filtered `/api/v1/voices` + `PromptStudioForm.tsx` strictly by `language` with localized Vietnamese labels.
 
 ---
 

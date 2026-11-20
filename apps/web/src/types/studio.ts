@@ -11,7 +11,7 @@ export type SlideLayout =
   | 'conclusion_cta';
 
 export type SupportedLanguage = 'vi' | 'en';
-export type TTSProviderType = 'edge_tts' | 'elevenlabs' | 'fpt';
+export type TTSProviderType = 'edge_tts' | 'elevenlabs' | 'fpt' | 'google_vi';
 export type AspectRatio = '16:9' | '9:16';
 export type VideoFormatType = 'presentation' | 'short';
 export type VisualTheme = 'modern_tech' | 'corporate' | 'minimal';

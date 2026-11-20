@@ -193,7 +193,7 @@ async def health_check():
         "external_worker_enabled": _should_dispatch_to_external_worker(),
         "default_llm_model": llm_generator.default_model,
         "fallback_llm_model": llm_generator.fallback_model,
-        "supported_tts_providers": ["edge_tts", "elevenlabs", "fpt"],
+        "supported_tts_providers": ["edge_tts", "google_vi", "elevenlabs", "fpt"],
     }
 
 
@@ -330,7 +330,7 @@ async def generate_video(
 VOICE_CATALOG: List[VoiceOption] = [
     VoiceOption(
         voice_id="vi-VN-HoaiMyNeural",
-        label="Hoài My (Northern Female)",
+        label="Hoài My (Nữ Miền Bắc · Tự Nhiên)",
         language="vi",
         provider="edge_tts",
         gender="female",
@@ -338,11 +338,19 @@ VOICE_CATALOG: List[VoiceOption] = [
     ),
     VoiceOption(
         voice_id="vi-VN-NamMinhNeural",
-        label="Nam Minh (Northern Male)",
+        label="Nam Minh (Nam Miền Bắc · Trầm Ấm)",
         language="vi",
         provider="edge_tts",
         gender="male",
         sample_text="Chào mừng bạn đến với nền tảng tạo video thuyết trình tự động.",
+    ),
+    VoiceOption(
+        voice_id="vi-VN-GoogleVi",
+        label="Thuần Việt Chuẩn (Nữ · Google TTS)",
+        language="vi",
+        provider="google_vi",
+        gender="female",
+        sample_text="Xin chào, đây là giọng đọc thuần Việt rõ chữ, chuẩn nhịp cho video ngắn.",
     ),
     VoiceOption(
         voice_id="en-US-GuyNeural",
@@ -389,9 +397,9 @@ VOICE_CATALOG: List[VoiceOption] = [
 
 @app.get("/api/v1/voices", response_model=List[VoiceOption])
 async def list_voices(language: str | None = None):
-    """Returns supported bilingual voiceover presets for Web Studio."""
+    """Returns strictly language-matched voiceover presets (pure VI voices for 'vi')."""
     if language in ("vi", "en"):
-        return [v for v in VOICE_CATALOG if v.language == language or v.provider == "elevenlabs"]
+        return [v for v in VOICE_CATALOG if v.language == language]
     return VOICE_CATALOG
 
 

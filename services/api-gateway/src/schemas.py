@@ -17,7 +17,7 @@ SlideLayout = Literal[
 ]
 
 SupportedLanguage = Literal["vi", "en"]
-TTSProviderType = Literal["edge_tts", "elevenlabs", "fpt"]
+TTSProviderType = Literal["edge_tts", "elevenlabs", "fpt", "google_vi"]
 VideoFormatType = Literal["presentation", "short"]
 WorkerStage = Literal["llm", "tts", "render"]
 StorageProviderType = Literal["local", "s3", "r2"]

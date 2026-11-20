@@ -79,9 +79,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
     );
   const showLanguageMismatchBanner =
     formState.language === 'en' && hasVietnameseDiacritics;
-  const filteredVoices = voices.filter(
-    (v) => v.language === formState.language || v.provider === 'elevenlabs'
-  );
+  const filteredVoices = voices.filter((v) => v.language === formState.language);
   const activeMood: BGMMood = formState.bgmMood || 'tech';
   const moodTracks = bgmTracks.filter((tr) => tr.mood === activeMood);
   const selectedTrackId =

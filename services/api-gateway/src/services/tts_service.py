@@ -49,7 +49,7 @@ DEFAULT_EDGE_VOICES: Dict[SupportedLanguage, str] = {
 }
 
 EDGE_PEER_FALLBACK_VOICES: Dict[SupportedLanguage, List[str]] = {
-    "vi": ["vi-VN-HoaiMyNeural", "vi-VN-NamMinhNeural", "en-US-AvaMultilingualNeural"],
+    "vi": ["vi-VN-HoaiMyNeural", "vi-VN-NamMinhNeural"],
     "en": [
         "en-US-AndrewMultilingualNeural",
         "en-US-GuyNeural",
@@ -143,11 +143,47 @@ def clean_tts_text(text: str) -> str:
     return cleaned or text.strip()
 
 
-def _normalize_mp3_audio_stream(file_path: Path, min_size_bytes: int = MIN_AUDIO_FILE_BYTES) -> None:
+def _split_tts_chunks(text: str, max_len: int = 160) -> List[str]:
+    """Splits long narration prose cleanly along sentence/clause boundaries for HTTP TTS."""
+    clean = clean_tts_text(text)
+    if not clean:
+        return []
+    parts = re.split(r"(?<=[.!?;,])\s+", clean)
+    chunks: List[str] = []
+    cur = ""
+    for part in parts:
+        if not part:
+            continue
+        if len(cur) + len(part) + (1 if cur else 0) <= max_len:
+            cur = f"{cur} {part}".strip() if cur else part
+        else:
+            if cur:
+                chunks.append(cur)
+            if len(part) <= max_len:
+                cur = part
+            else:
+                cur = ""
+                for word in part.split():
+                    if len(cur) + len(word) + (1 if cur else 0) <= max_len:
+                        cur = f"{cur} {word}".strip() if cur else word
+                    else:
+                        if cur:
+                            chunks.append(cur)
+                        cur = word
+    if cur:
+        chunks.append(cur)
+    return chunks
+
+
+def _normalize_mp3_audio_stream(
+    file_path: Path,
+    min_size_bytes: int = MIN_AUDIO_FILE_BYTES,
+    speed: float = 1.0,
+) -> None:
     """
     Transcodes synthesized speech to uniform 44.1kHz stereo 128kbps MP3 via ffmpeg
-    so Edge-TTS 24kHz mono streams mix cleanly with Remotion 48kHz audio pipelines
-    and never concatenate mismatched MPEG frame headers when short clips are padded.
+    (applying clean local `atempo` speed scaling when requested) so speech streams mix
+    cleanly with Remotion 48kHz pipelines and never trigger Edge SSML rate errors.
     """
     ffmpeg_bin = shutil.which("ffmpeg")
     if not ffmpeg_bin or not file_path.exists():
@@ -160,25 +196,31 @@ def _normalize_mp3_audio_stream(file_path: Path, min_size_bytes: int = MIN_AUDIO
         return
 
     tmp_path = file_path.with_suffix(".norm.mp3")
+    clamped_speed = max(0.5, min(2.0, float(speed)))
+    ffmpeg_cmd = [
+        ffmpeg_bin,
+        "-y",
+        "-v",
+        "error",
+        "-i",
+        str(file_path),
+    ]
+    if abs(clamped_speed - 1.0) >= 0.03:
+        ffmpeg_cmd.extend(["-af", f"atempo={clamped_speed:.2f}"])
+    ffmpeg_cmd.extend([
+        "-ar",
+        "44100",
+        "-ac",
+        "2",
+        "-c:a",
+        "libmp3lame",
+        "-b:a",
+        "128k",
+        str(tmp_path),
+    ])
     try:
         subprocess.run(
-            [
-                ffmpeg_bin,
-                "-y",
-                "-v",
-                "error",
-                "-i",
-                str(file_path),
-                "-ar",
-                "44100",
-                "-ac",
-                "2",
-                "-c:a",
-                "libmp3lame",
-                "-b:a",
-                "128k",
-                str(tmp_path),
-            ],
+            ffmpeg_cmd,
             check=True,
             capture_output=True,
         )
@@ -290,6 +332,11 @@ class TTSAudioPipeline:
         requested_voice_id: Optional[str] = None,
     ) -> str:
         """Selects appropriate voice identifier based on provider and target language."""
+        if provider == "google_vi":
+            if language == "en":
+                return DEFAULT_EDGE_VOICES["en"]
+            return "vi-VN-GoogleVi"
+
         if provider == "elevenlabs":
             if requested_voice_id and not requested_voice_id.endswith("Neural"):
                 return requested_voice_id
@@ -318,11 +365,12 @@ class TTSAudioPipeline:
         speed: float,
         output_path: Path,
     ) -> None:
-        rate_str = self._speed_to_edge_rate(speed)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        communicate = edge_tts.Communicate(text=text, voice=voice_id, rate=rate_str)
+        # Synthesize native Edge rate without inline SSML <prosody rate> (avoids NoAudioReceived
+        # rejections on certain locales) and apply smooth tempo scaling in FFmpeg instead.
+        communicate = edge_tts.Communicate(text=text, voice=voice_id)
         await asyncio.wait_for(communicate.save(str(output_path)), timeout=self.timeout_seconds)
-        _normalize_mp3_audio_stream(output_path, min_size_bytes=MIN_AUDIO_FILE_BYTES)
+        _normalize_mp3_audio_stream(output_path, min_size_bytes=MIN_AUDIO_FILE_BYTES, speed=speed)
 
     def _run_edge_tts_single_voice(
         self,
@@ -347,6 +395,48 @@ class TTSAudioPipeline:
                 future.result(timeout=self.timeout_seconds + 5)
         else:
             asyncio.run(self._synthesize_edge_tts_async(text, voice_id, speed, output_path))
+
+    def _synthesize_with_google_tts(
+        self,
+        text: str,
+        language: SupportedLanguage,
+        speed: float,
+        output_path: Path,
+    ) -> None:
+        """
+        Synthesizes native pure-Vietnamese (or English) voice audio via Google Translate
+        TTS HTTP endpoint, avoiding any cross-language English accent leakage.
+        """
+        chunks = _split_tts_chunks(text, max_len=160)
+        if not chunks:
+            raise ValueError("Cannot synthesize empty narration text.")
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        combined = bytearray()
+        with httpx.Client(timeout=self.timeout_seconds, follow_redirects=True) as client:
+            for chunk in chunks:
+                resp = client.get(
+                    "https://translate.googleapis.com/translate_tts",
+                    params={
+                        "ie": "UTF-8",
+                        "client": "gtx",
+                        "tl": language,
+                        "q": chunk,
+                    },
+                    headers={"User-Agent": "Mozilla/5.0"},
+                )
+                resp.raise_for_status()
+                combined.extend(resp.content)
+
+        if len(combined) < 512:
+            raise ValueError("Google TTS returned insufficient MP3 audio bytes.")
+
+        output_path.write_bytes(bytes(combined))
+        _normalize_mp3_audio_stream(
+            output_path,
+            min_size_bytes=MIN_AUDIO_FILE_BYTES,
+            speed=speed,
+        )
 
     def _synthesize_with_edge_tts(
         self,
@@ -386,6 +476,17 @@ class TTSAudioPipeline:
                     )
                     if attempt < attempts_for_voice:
                         time.sleep(min(2.0, 0.5 * attempt))
+
+        # Never leave Vietnamese slides on an English fallback or silent track if Google VI is reachable
+        if inferred_lang == "vi":
+            try:
+                self._synthesize_with_google_tts(text, "vi", speed, output_path)
+                logger.info(
+                    "Edge-TTS Vietnamese voices unavailable; synthesized pure Vietnamese via Google TTS backup."
+                )
+                return "vi-VN-GoogleVi"
+            except Exception as g_exc:
+                logger.warning("Google pure-Vietnamese TTS backup also failed: %s", g_exc)
 
         if self.allow_offline_fallback:
             word_count = max(6, len(text.split()))
@@ -477,7 +578,36 @@ class TTSAudioPipeline:
         relative_url = f"/audio_temp/{job_id}/{filename}"
         actual_voice = voice_id
 
-        if requested_provider == "elevenlabs":
+        if requested_provider == "google_vi":
+            try:
+                self._synthesize_with_google_tts(
+                    spoken_text,
+                    language,
+                    voice_settings.speed,
+                    file_path,
+                )
+                actual_voice = "vi-VN-GoogleVi" if language == "vi" else voice_id
+            except Exception as g_err:
+                fallback_voice = self.resolve_voice_id("edge_tts", language, None)
+                logger.warning(
+                    "Google TTS unavailable (%s). Falling back to Edge-TTS '%s'.",
+                    g_err,
+                    fallback_voice,
+                )
+                provider_used = "edge_tts (google-fallback)"
+                filename = compute_audio_filename(
+                    slide_index, text, fallback_voice, voice_settings.speed
+                )
+                file_path = audio_dir / filename
+                relative_url = f"/audio_temp/{job_id}/{filename}"
+                actual_voice = self._synthesize_with_edge_tts(
+                    spoken_text,
+                    fallback_voice,
+                    voice_settings.speed,
+                    file_path,
+                    language=language,
+                )
+        elif requested_provider == "elevenlabs":
             try:
                 self._synthesize_with_elevenlabs(spoken_text, voice_id, file_path)
             except Exception as el_err:
@@ -578,7 +708,11 @@ class TTSAudioPipeline:
             if resolved_voice_holder and resolved_voice_holder[0]:
                 # Keep voice consistent and avoid repeated timeouts on subsequent slides
                 chosen = resolved_voice_holder[0]
-                if chosen != active_settings.voice_id and active_settings.provider == "edge_tts":
+                if chosen == "vi-VN-GoogleVi" and active_settings.provider != "google_vi":
+                    active_settings = active_settings.model_copy(
+                        update={"provider": "google_vi", "voice_id": chosen}
+                    )
+                elif chosen != active_settings.voice_id and active_settings.provider == "edge_tts":
                     active_settings = active_settings.model_copy(update={"voice_id": chosen})
             provider_used = used_prov
             frames = calculate_slide_frames(duration_sec, fps=fps)

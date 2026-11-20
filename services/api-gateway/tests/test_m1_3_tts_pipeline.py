@@ -17,6 +17,7 @@ from mutagen.mp3 import MP3
 from src.main import JOBS_STORE, TEMP_JOBS_DIR, app
 from src.schemas import PresentationScript, RemotionCompositionProps, SlideScriptItem, VoiceSettings
 from src.services.tts_service import (
+    EDGE_PEER_FALLBACK_VOICES,
     MIN_AUDIO_FILE_BYTES,
     TTSAudioPipeline,
     calculate_slide_frames,
@@ -326,3 +327,74 @@ class TestM13APIEndpoints:
         finally:
             shutil.rmtree(TEMP_JOBS_DIR / job_id, ignore_errors=True)
             JOBS_STORE.pop(job_id, None)
+
+    def test_vietnamese_edge_fallback_never_uses_english_voices_and_falls_over_to_google_vi(self, tmp_path: Path):
+        # Verify Vietnamese Edge fallback list contains zero English voices
+        assert all(v.startswith("vi-") for v in EDGE_PEER_FALLBACK_VOICES["vi"])
+
+        valid_mp3_payload = (b"\xff\xfb\x90\x00" + (b"\x00" * 413)) * 140
+        google_calls = []
+
+        def _always_fail_edge(self_obj, text: str, voice_id: str, speed: float, out_path: Path):
+            raise RuntimeError("No audio was received.")
+
+        def _mock_google_vi(self_obj, text: str, language: str, speed: float, out_path: Path):
+            google_calls.append((language, text))
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(valid_mp3_payload)
+
+        pipeline = TTSAudioPipeline(
+            output_base_dir=tmp_path,
+            max_retries=1,
+            allow_offline_fallback=False,
+        )
+        with patch.object(
+            TTSAudioPipeline, "_run_edge_tts_single_voice", new=_always_fail_edge
+        ), patch.object(
+            TTSAudioPipeline, "_synthesize_with_google_tts", new=_mock_google_vi
+        ):
+            resolved_voice = []
+            file_path, _, duration_sec, provider_used = pipeline.synthesize_slide_audio(
+                slide_index=1,
+                text="Xin chào, đây là giọng đọc thuần Việt khi dự phòng.",
+                language="vi",
+                voice_settings=VoiceSettings(provider="edge_tts", voice_id="vi-VN-HoaiMyNeural"),
+                job_id="job_pure_vi_fallback",
+                resolved_voice_out=resolved_voice,
+            )
+
+        assert google_calls == [("vi", "Xin chào, đây là giọng đọc thuần Việt khi dự phòng.")]
+        assert resolved_voice == ["vi-VN-GoogleVi"]
+        assert file_path.exists()
+        assert duration_sec > 2.0
+        assert provider_used == "edge_tts"
+
+    def test_pure_vietnamese_voice_catalog_and_google_vi_direct_synthesis(self, tmp_path: Path):
+        vi_resp = client.get("/api/v1/voices?language=vi")
+        assert vi_resp.status_code == 200
+        vi_voices = vi_resp.json()
+        assert len(vi_voices) == 3
+        assert all(v["language"] == "vi" for v in vi_voices)
+        assert not any("Rachel" in v["label"] or v["voice_id"].startswith("en-") for v in vi_voices)
+        assert {v["voice_id"] for v in vi_voices} == {
+            "vi-VN-HoaiMyNeural",
+            "vi-VN-NamMinhNeural",
+            "vi-VN-GoogleVi",
+        }
+
+        pipeline = TTSAudioPipeline(output_base_dir=tmp_path)
+        file_path, _, duration_sec, provider_used = pipeline.synthesize_slide_audio(
+            slide_index=1,
+            text="Xin chào, đây là giọng đọc thuần Việt rõ chữ từ Google TTS.",
+            language="vi",
+            voice_settings=VoiceSettings(
+                provider="google_vi",
+                voice_id="vi-VN-GoogleVi",
+                speed=1.1,
+            ),
+            job_id="job_google_vi_direct",
+        )
+        assert provider_used == "google_vi"
+        assert file_path.exists()
+        assert file_path.stat().st_size >= MIN_AUDIO_FILE_BYTES
+        assert duration_sec > 1.5

@@ -451,4 +451,36 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
       });
     });
   });
+
+  it('shows strictly pure Vietnamese narrator voices when Vietnamese language is active (hiding English Rachel)', async () => {
+    const user = userEvent.setup();
+    render(<StudioWorkspacePage />);
+
+    const voiceSelect = screen.getByLabelText('Narrator Voice Selection') as HTMLSelectElement;
+    const optionTextsVi = Array.from(voiceSelect.options).map((opt) => opt.text);
+
+    expect(optionTextsVi).toContain('Hoài My (Nữ Miền Bắc · Tự Nhiên)');
+    expect(optionTextsVi).toContain('Nam Minh (Nam Miền Bắc · Trầm Ấm)');
+    expect(optionTextsVi).toContain('Thuần Việt Chuẩn (Nữ · Google TTS)');
+    expect(optionTextsVi.some((t) => t.includes('Rachel') || t.includes('Northern Female'))).toBe(false);
+
+    // Selecting "Thuần Việt Chuẩn" updates voiceProvider cleanly to 'google_vi'
+    await user.selectOptions(voiceSelect, 'vi-VN-GoogleVi');
+    expect(voiceSelect.value).toBe('vi-VN-GoogleVi');
+
+    await user.click(screen.getByRole('button', { name: 'GIÁO DỤC' }));
+    // Apply VI template keeps VI; let's select Google Vi again cleanly and submit
+    await user.selectOptions(voiceSelect, 'vi-VN-GoogleVi');
+    await user.click(screen.getByRole('button', { name: 'Tạo Video Thuyết Trình' }));
+
+    await waitFor(() => {
+      const genCall = server.fetchMock.mock.calls.find(
+        ([url, init]) => String(url).endsWith('/api/v1/videos/generate') && init?.method === 'POST'
+      );
+      expect(genCall).toBeDefined();
+      const body = JSON.parse(String(genCall?.[1]?.body));
+      expect(body.voice_settings.provider).toBe('google_vi');
+      expect(body.voice_settings.voice_id).toBe('vi-VN-GoogleVi');
+    });
+  });
 });

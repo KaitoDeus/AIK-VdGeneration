@@ -109,11 +109,19 @@ async function attachMockApiGateway(page: Page) {
         body: JSON.stringify([
           {
             voice_id: 'vi-VN-HoaiMyNeural',
-            label: 'Hoài My (Northern Female)',
+            label: 'Hoài My (Nữ Miền Bắc · Tự Nhiên)',
             language: 'vi',
             provider: 'edge_tts',
             gender: 'female',
             sample_text: 'Xin chào',
+          },
+          {
+            voice_id: 'vi-VN-GoogleVi',
+            label: 'Thuần Việt Chuẩn (Nữ · Google TTS)',
+            language: 'vi',
+            provider: 'google_vi',
+            gender: 'female',
+            sample_text: 'Xin chào thuần Việt',
           },
           {
             voice_id: 'en-US-GuyNeural',

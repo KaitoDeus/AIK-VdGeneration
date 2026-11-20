@@ -78,7 +78,7 @@ export const PROMPT_TEMPLATES: PromptTemplate[] = [
 export const DEFAULT_VOICES: VoiceOption[] = [
   {
     voice_id: 'vi-VN-HoaiMyNeural',
-    label: 'Hoài My (Northern Female)',
+    label: 'Hoài My (Nữ Miền Bắc · Tự Nhiên)',
     language: 'vi',
     provider: 'edge_tts',
     gender: 'female',
@@ -86,11 +86,19 @@ export const DEFAULT_VOICES: VoiceOption[] = [
   },
   {
     voice_id: 'vi-VN-NamMinhNeural',
-    label: 'Nam Minh (Northern Male)',
+    label: 'Nam Minh (Nam Miền Bắc · Trầm Ấm)',
     language: 'vi',
     provider: 'edge_tts',
     gender: 'male',
     sample_text: 'Chào mừng bạn đến với nền tảng tạo video thuyết trình tự động.',
+  },
+  {
+    voice_id: 'vi-VN-GoogleVi',
+    label: 'Thuần Việt Chuẩn (Nữ · Google TTS)',
+    language: 'vi',
+    provider: 'google_vi',
+    gender: 'female',
+    sample_text: 'Xin chào, đây là giọng đọc thuần Việt rõ chữ, chuẩn nhịp cho video ngắn.',
   },
   {
     voice_id: 'en-US-GuyNeural',
