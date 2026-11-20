@@ -23,7 +23,15 @@ export interface StudioDictionary {
       educational: string;
       'pitch-deck': string;
       marketing: string;
+      'shorts-vi': string;
+      'shorts-en': string;
     };
+    modeLabel: string;
+    modePresentationBtn: string;
+    modeShortVideoBtn: string;
+    shortActiveSummary: string;
+    voiceSpeedLabel: string;
+    generateShortBtn: string;
     promptLabel: string;
     promptPlaceholder: string;
     promptMinError: string;
@@ -163,7 +171,15 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
         educational: 'EDUCATIONAL',
         'pitch-deck': 'PITCH DECK',
         marketing: 'MARKETING',
+        'shorts-vi': 'VI SHORT (30S)',
+        'shorts-en': 'EN SHORTS HOOK',
       },
+      modeLabel: 'PRODUCTION FORMAT:',
+      modePresentationBtn: '16:9 PRESENTATION',
+      modeShortVideoBtn: '9:16 SHORT VIDEO (REELS / TIKTOK / SHORTS)',
+      shortActiveSummary: '9:16 VERTICAL (1080x1920) · 4-SCENE HOOK · KARAOKE SUBTITLES ON · FAST PACE',
+      voiceSpeedLabel: 'Pacing',
+      generateShortBtn: 'Generate Short Video 9:16',
       promptLabel: 'Presentation Topic or Raw Narrative',
       promptPlaceholder:
         'Describe your presentation topic in English or Vietnamese (e.g., Explain Event-Driven Architecture for engineering teams)...',
@@ -314,7 +330,15 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
         educational: 'GIÁO DỤC',
         'pitch-deck': 'GỌI VỐN (PITCH)',
         marketing: 'TIẾP THỊ',
+        'shorts-vi': 'VIDEO SHORT 30S',
+        'shorts-en': 'SHORTS TIẾNG ANH',
       },
+      modeLabel: 'ĐỊNH DẠNG SẢN XUẤT:',
+      modePresentationBtn: 'THUYẾT TRÌNH NGANG (16:9)',
+      modeShortVideoBtn: 'TẠO VIDEO SHORT DỌC (9:16 · TIKTOK / REELS)',
+      shortActiveSummary: 'KHUNG DỌC 9:16 (1080x1920) · 4 CẢNH HOOK · PHỤ ĐỀ KARAOKE ĐẬM · NHỊP NHANH',
+      voiceSpeedLabel: 'Tốc Độ',
+      generateShortBtn: 'Tạo Video Short 9:16',
       promptLabel: 'Chủ Đề Thuyết Trình Hoặc Nội Dung Thô',
       promptPlaceholder:
         'Nhập chủ đề bài thuyết trình bằng tiếng Việt hoặc tiếng Anh (ví dụ: Giải thích kiến trúc Điện toán Đám mây cho người mới bắt đầu)...',

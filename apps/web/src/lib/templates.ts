@@ -41,6 +41,38 @@ export const PROMPT_TEMPLATES: PromptTemplate[] = [
     prompt:
       'Giới thiệu nền tảng tự động biến văn bản thành video thuyết trình song ngữ Anh - Việt trong 60 giây với chất lượng phòng thu.',
   },
+  {
+    id: 'shorts-vi',
+    label: 'SHORT DỌC 30S',
+    category: 'Reels / Shorts',
+    language: 'vi',
+    theme: 'modern_tech',
+    duration: 30,
+    aspectRatio: '9:16',
+    videoFormat: 'short',
+    targetSlides: 4,
+    enableSubtitles: true,
+    enableBgm: true,
+    voiceSpeed: 1.1,
+    prompt:
+      '3 bí quyết giúp AI tự động dựng video Short 9:16 cuốn hút từ văn bản thô chỉ trong 30 giây.',
+  },
+  {
+    id: 'shorts-en',
+    label: 'SHORTS HOOK 30S',
+    category: 'TikTok / Shorts',
+    language: 'en',
+    theme: 'modern_tech',
+    duration: 30,
+    aspectRatio: '9:16',
+    videoFormat: 'short',
+    targetSlides: 4,
+    enableSubtitles: true,
+    enableBgm: true,
+    voiceSpeed: 1.1,
+    prompt:
+      '3 reasons why automated AI vertical shorts convert viewers faster on TikTok and YouTube Shorts.',
+  },
 ];
 
 export const DEFAULT_VOICES: VoiceOption[] = [

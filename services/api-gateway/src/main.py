@@ -223,6 +223,8 @@ async def generate_script_endpoint(request: ScriptGenerateRequest):
             theme=request.theme,
             model_override=request.model,
             target_slides=request.target_slides,
+            aspect_ratio=request.aspect_ratio,
+            video_format=request.video_format,
         )
         return script
     except Exception as exc:

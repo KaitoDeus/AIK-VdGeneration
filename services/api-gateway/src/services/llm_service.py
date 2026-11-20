@@ -278,11 +278,18 @@ class LLMScriptGenerator:
         target_duration_seconds: int,
         theme: str,
         target_slides: Optional[int] = None,
+        aspect_ratio: str = "16:9",
+        video_format: Optional[str] = None,
     ) -> str:
+        is_short = (video_format == "short") or (aspect_ratio == "9:16")
         estimated_slides = (
             max(3, min(MAX_PRESENTATION_SLIDES, target_slides))
             if target_slides is not None
-            else max(3, min(MAX_PRESENTATION_SLIDES, round(target_duration_seconds / 10)))
+            else (
+                max(3, min(6, round(target_duration_seconds / 8)))
+                if is_short
+                else max(3, min(MAX_PRESENTATION_SLIDES, round(target_duration_seconds / 10)))
+            )
         )
         lang_name = "Vietnamese" if language == "vi" else "English"
         strict_note = (
@@ -290,12 +297,22 @@ class LLMScriptGenerator:
             if language == "vi"
             else "Write every title, heading, bullet point, and voiceover_script exclusively in English."
         )
+        short_guidance = (
+            "\nVideo Format: VERTICAL SHORT VIDEO (9:16 TikTok / YouTube Shorts / Reels).\n"
+            "- Slide 1 must deliver an immediate, curiosity-sparking scroll-stopping Hook heading (<= 6 words) and 1-2 ultra-short bullet teasers.\n"
+            "- Keep all headings ultra-concise (3 to 6 words) and limit bullets to 1-3 short phrases (<= 7 words each) so large mobile typography stays crystal clear.\n"
+            "- Keep voiceover_script fast, conversational, and high-energy (1 to 2 tight spoken sentences per slide matching short-form pacing).\n"
+            if is_short
+            else ""
+        )
         return (
             f"Topic / Source Prompt: {prompt}\n"
             f"Target Language: {language} ({lang_name}) — {strict_note}\n"
             f"Target Video Duration: ~{target_duration_seconds} seconds "
             f"(generate approximately {estimated_slides} slides)\n"
-            f"Visual Theme: {theme}\n\n"
+            f"Aspect Ratio: {aspect_ratio}\n"
+            f"Visual Theme: {theme}\n"
+            f"{short_guidance}\n"
             "Generate the complete structured slide presentation script now."
         )
 
@@ -416,6 +433,8 @@ class LLMScriptGenerator:
         theme: str = "modern_tech",
         model_override: Optional[str] = None,
         target_slides: Optional[int] = None,
+        aspect_ratio: str = "16:9",
+        video_format: Optional[str] = None,
     ) -> Tuple[PresentationScript, str]:
         """
         Generates and validates a PresentationScript from a user prompt using
@@ -425,6 +444,7 @@ class LLMScriptGenerator:
             Tuple[PresentationScript, str]: The validated script object and the model ID used.
         """
         primary_model = model_override or self.default_model
+        is_short = (video_format == "short") or (aspect_ratio == "9:16")
 
         if not self.api_key or self.api_key == "your_gemini_api_key_here":
             logger.warning(
@@ -436,6 +456,7 @@ class LLMScriptGenerator:
                     language,
                     theme,
                     target_slides=target_slides,
+                    is_short=is_short,
                 ),
                 f"{primary_model} (mock-fallback)",
             )
@@ -446,6 +467,8 @@ class LLMScriptGenerator:
             target_duration_seconds,
             theme,
             target_slides=target_slides,
+            aspect_ratio=aspect_ratio,
+            video_format=video_format,
         )
         parsed_script, model_used = self._invoke_gemini_structured_json(
             user_input=user_input,
@@ -586,11 +609,116 @@ class LLMScriptGenerator:
         language: SupportedLanguage,
         theme: str,
         target_slides: Optional[int] = None,
+        is_short: bool = False,
     ) -> PresentationScript:
         """Deterministic language-accurate dev fallback when GEMINI_API_KEY is not set."""
-        clean_topic = LLMScriptGenerator._clean_topic_title(prompt, max_chars=58)
+        clean_topic = LLMScriptGenerator._clean_topic_title(prompt, max_chars=52 if is_short else 58)
 
-        if language == "vi":
+        if is_short and language == "vi":
+            base_script = PresentationScript(
+                title=f"Shorts: {clean_topic}",
+                language="vi",
+                theme=theme,
+                slides=[
+                    SlideScriptItem(
+                        slide_index=1,
+                        layout="title_intro",
+                        heading=f"Hiểu Nhanh: {clean_topic}",
+                        bullet_points=["Gói gọn trong 30 giây"],
+                        voiceover_script=(
+                            f"Đừng lướt qua nếu bạn muốn nắm trọn điểm mấu chốt về {clean_topic} chỉ trong nửa phút."
+                        ),
+                        visual_keywords="vertical mobile studio neon abstract",
+                    ),
+                    SlideScriptItem(
+                        slide_index=2,
+                        layout="split_card",
+                        heading="Vì Sao Xu Hướng Này Bùng Nổ?",
+                        bullet_points=["Nhanh gấp 5 lần thủ công", "Tối ưu cho màn hình dọc"],
+                        voiceover_script=(
+                            "Thay vì tốn hàng giờ xử lý rời rạc, quy trình tự động gom kịch bản, giọng đọc và đồ họa thành một mạch liền."
+                        ),
+                        visual_keywords="growth analytics mobile trend",
+                    ),
+                    SlideScriptItem(
+                        slide_index=3,
+                        layout="bullet_list",
+                        heading="Ba Bước Tạo Video Cuốn Hút",
+                        bullet_points=[
+                            "Mở đầu bằng câu hỏi gây tò mò",
+                            "Chữ lớn, tương phản mạnh theo slide",
+                            "Phụ đề karaoke giữ nhịp người xem",
+                        ],
+                        voiceover_script=(
+                            "Chỉ cần giữ ba nguyên tắc: câu hook ba giây đầu, thẻ màu tương phản cao và phụ đề nhảy nhịp rõ ràng."
+                        ),
+                        visual_keywords="creative production checklist studio",
+                    ),
+                    SlideScriptItem(
+                        slide_index=4,
+                        layout="conclusion_cta",
+                        heading="Thử Tạo Short Ngay Hôm Nay",
+                        bullet_points=["Lưu lại ý tưởng", "Xuất 9:16 chuẩn Reels & Shorts"],
+                        voiceover_script=(
+                            "Hãy thử áp dụng ngay cho ý tưởng tiếp theo của bạn, và nhấn theo dõi để không bỏ lỡ mẹo hay!"
+                        ),
+                        visual_keywords="social creator launch success",
+                    ),
+                ],
+            )
+        elif is_short:
+            base_script = PresentationScript(
+                title=f"Shorts: {clean_topic}",
+                language=language,
+                theme=theme,
+                slides=[
+                    SlideScriptItem(
+                        slide_index=1,
+                        layout="title_intro",
+                        heading=f"Fast Hook: {clean_topic}",
+                        bullet_points=["30-second vertical breakdown"],
+                        voiceover_script=(
+                            f"Stop scrolling! Here is the fastest breakdown of {clean_topic} you need today."
+                        ),
+                        visual_keywords="vertical mobile studio abstract",
+                    ),
+                    SlideScriptItem(
+                        slide_index=2,
+                        layout="split_card",
+                        heading="Why Speed & Clarity Win",
+                        bullet_points=["5x faster turnaround", "Built for vertical screens"],
+                        voiceover_script=(
+                            "Instead of juggling manual editors, automated syncing locks script, narration, and motion graphics together."
+                        ),
+                        visual_keywords="growth chart mobile analytics",
+                    ),
+                    SlideScriptItem(
+                        slide_index=3,
+                        layout="bullet_list",
+                        heading="Three Rules For High Retention",
+                        bullet_points=[
+                            "Lead with a bold 3-second hook",
+                            "Alternate crisp color contrast",
+                            "Sync punchy word-level captions",
+                        ],
+                        voiceover_script=(
+                            "Stick to three essentials: a curiosity hook up front, vivid contrasting palettes, and large synced captions."
+                        ),
+                        visual_keywords="creative creator smartphone video",
+                    ),
+                    SlideScriptItem(
+                        slide_index=4,
+                        layout="conclusion_cta",
+                        heading="Save & Try This Workflow",
+                        bullet_points=["Export 9:16 vertical HD", "Post straight to Shorts & Reels"],
+                        voiceover_script=(
+                            "Save this workflow for your next reel, and follow for more automated video breakdowns."
+                        ),
+                        visual_keywords="rocket launch social growth",
+                    ),
+                ],
+            )
+        elif language == "vi":
             base_script = PresentationScript(
                 title=f"Chuyên đề: {clean_topic}",
                 language="vi",

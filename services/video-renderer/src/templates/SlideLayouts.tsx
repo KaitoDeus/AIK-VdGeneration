@@ -31,6 +31,7 @@ export interface LayoutTemplateProps {
   fps: number;
   palette?: SlidePalette;
   visualVariant?: VisualVariant;
+  isPortrait?: boolean;
 }
 
 function getResolvedContext(
@@ -81,6 +82,7 @@ export const TitleIntroLayout: React.FC<LayoutTemplateProps> = ({
   fps,
   palette: providedPalette,
   visualVariant: providedVariant,
+  isPortrait = false,
 }) => {
   const { palette, variant } = getResolvedContext(
     slide,
@@ -102,7 +104,13 @@ export const TitleIntroLayout: React.FC<LayoutTemplateProps> = ({
   );
 
   const points = (slide.bullet_points || []).slice(0, 4);
-  const headingSize = slide.heading.length > 52 ? '58px' : '68px';
+  const headingSize = isPortrait
+    ? slide.heading.length > 48
+      ? '48px'
+      : '56px'
+    : slide.heading.length > 52
+    ? '58px'
+    : '68px';
 
   return (
     <div
@@ -110,8 +118,8 @@ export const TitleIntroLayout: React.FC<LayoutTemplateProps> = ({
       data-visual-variant={variant}
       style={{
         display: 'grid',
-        gridTemplateColumns: '1.35fr 0.95fr',
-        gap: '48px',
+        gridTemplateColumns: isPortrait ? '1fr' : '1.35fr 0.95fr',
+        gap: isPortrait ? '32px' : '48px',
         alignItems: 'center',
         maxWidth: '1640px',
         width: '100%',
@@ -219,18 +227,25 @@ export const TitleIntroLayout: React.FC<LayoutTemplateProps> = ({
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '32px',
+          padding: isPortrait ? '20px' : '32px',
           backgroundColor: palette.surfaceAltBg,
           border: `1.5px solid ${palette.surfaceBorder}`,
           position: 'relative',
         }}
       >
-        <OrbitalHeroSvg
-          frame={frame}
-          fps={fps}
-          palette={palette}
-          slideIndex={slide.slide_index}
-        />
+        <div
+          style={{
+            transform: isPortrait ? 'scale(0.76)' : 'none',
+            margin: isPortrait ? '-56px 0' : '0',
+          }}
+        >
+          <OrbitalHeroSvg
+            frame={frame}
+            fps={fps}
+            palette={palette}
+            slideIndex={slide.slide_index}
+          />
+        </div>
         <div
           style={{
             marginTop: '8px',
@@ -262,6 +277,7 @@ export const BulletListLayout: React.FC<LayoutTemplateProps> = ({
   fps,
   palette: providedPalette,
   visualVariant: providedVariant,
+  isPortrait = false,
 }) => {
   const { palette, variant } = getResolvedContext(
     slide,
@@ -341,8 +357,10 @@ export const BulletListLayout: React.FC<LayoutTemplateProps> = ({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))`,
-            gap: '22px',
+            gridTemplateColumns: isPortrait
+              ? '1fr'
+              : `repeat(${colCount}, minmax(0, 1fr))`,
+            gap: isPortrait ? '16px' : '22px',
           }}
         >
           {points.map((point, idx) => {
@@ -356,12 +374,15 @@ export const BulletListLayout: React.FC<LayoutTemplateProps> = ({
                   transform: `translateY(${motion.translateY}px)`,
                   backgroundColor: idx === 0 ? palette.surfaceAltBg : palette.surfaceBg,
                   border: `1.5px solid ${palette.surfaceBorder}`,
-                  borderTop: `6px solid ${accent}`,
-                  padding: '26px 24px',
+                  borderTop: isPortrait ? `1.5px solid ${palette.surfaceBorder}` : `6px solid ${accent}`,
+                  borderLeft: isPortrait ? `6px solid ${accent}` : `1.5px solid ${palette.surfaceBorder}`,
+                  padding: isPortrait ? '20px 24px' : '26px 24px',
                   display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  minHeight: '220px',
+                  flexDirection: isPortrait ? 'row' : 'column',
+                  alignItems: isPortrait ? 'center' : 'stretch',
+                  justifyContent: isPortrait ? 'flex-start' : 'space-between',
+                  gap: isPortrait ? '20px' : '0px',
+                  minHeight: isPortrait ? 'auto' : '220px',
                 }}
               >
                 <div
@@ -426,8 +447,8 @@ export const BulletListLayout: React.FC<LayoutTemplateProps> = ({
         data-visual-variant="knowledge_graph"
         style={{
           display: 'grid',
-          gridTemplateColumns: '0.92fr 1.25fr',
-          gap: '42px',
+          gridTemplateColumns: isPortrait ? '1fr' : '0.92fr 1.25fr',
+          gap: isPortrait ? '26px' : '42px',
           alignItems: 'center',
           maxWidth: '1640px',
           width: '100%',
@@ -438,7 +459,7 @@ export const BulletListLayout: React.FC<LayoutTemplateProps> = ({
           style={{
             backgroundColor: palette.surfaceAltBg,
             border: `1.5px solid ${palette.surfaceBorder}`,
-            padding: '28px',
+            padding: isPortrait ? '20px' : '28px',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -458,13 +479,20 @@ export const BulletListLayout: React.FC<LayoutTemplateProps> = ({
           >
             KNOWLEDGE GRAPH
           </div>
-          <KnowledgeGraphSvg
-            frame={frame}
-            fps={fps}
-            palette={palette}
-            slideIndex={slide.slide_index}
-            itemCount={points.length || 3}
-          />
+          <div
+            style={{
+              transform: isPortrait ? 'scale(0.8)' : 'none',
+              margin: isPortrait ? '-44px 0' : '0',
+            }}
+          >
+            <KnowledgeGraphSvg
+              frame={frame}
+              fps={fps}
+              palette={palette}
+              slideIndex={slide.slide_index}
+              itemCount={points.length || 3}
+            />
+          </div>
         </div>
 
         {/* Right Structured Concept Nodes */}
@@ -617,8 +645,12 @@ export const BulletListLayout: React.FC<LayoutTemplateProps> = ({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: secondaryPoints.length > 0 ? '0.95fr 1.25fr' : '1fr',
-          gap: '24px',
+          gridTemplateColumns: isPortrait
+            ? '1fr'
+            : secondaryPoints.length > 0
+            ? '0.95fr 1.25fr'
+            : '1fr',
+          gap: isPortrait ? '18px' : '24px',
           alignItems: 'stretch',
         }}
       >
@@ -629,11 +661,11 @@ export const BulletListLayout: React.FC<LayoutTemplateProps> = ({
               backgroundColor: palette.surfaceAltBg,
               border: `1.5px solid ${palette.primaryColor}`,
               borderTop: `8px solid ${palette.primaryColor}`,
-              padding: '34px 32px',
+              padding: isPortrait ? '26px 28px' : '34px 32px',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              minHeight: '320px',
+              minHeight: isPortrait ? 'auto' : '320px',
             }}
           >
             <div
@@ -685,9 +717,12 @@ export const BulletListLayout: React.FC<LayoutTemplateProps> = ({
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns:
-                secondaryPoints.length >= 3 ? 'repeat(2, minmax(0, 1fr))' : '1fr',
-              gap: '20px',
+              gridTemplateColumns: isPortrait
+                ? '1fr'
+                : secondaryPoints.length >= 3
+                ? 'repeat(2, minmax(0, 1fr))'
+                : '1fr',
+              gap: isPortrait ? '14px' : '20px',
             }}
           >
             {secondaryPoints.map((point, idx) => {
@@ -761,6 +796,7 @@ export const SplitCardLayout: React.FC<LayoutTemplateProps> = ({
   fps,
   palette: providedPalette,
   visualVariant: providedVariant,
+  isPortrait = false,
 }) => {
   const { palette, variant } = getResolvedContext(
     slide,
@@ -784,8 +820,8 @@ export const SplitCardLayout: React.FC<LayoutTemplateProps> = ({
       data-visual-variant={variant}
       style={{
         display: 'grid',
-        gridTemplateColumns: '1fr 1.05fr',
-        gap: '40px',
+        gridTemplateColumns: isPortrait ? '1fr' : '1fr 1.05fr',
+        gap: isPortrait ? '28px' : '40px',
         maxWidth: '1640px',
         width: '100%',
         alignItems: 'stretch',
@@ -920,7 +956,16 @@ export const SplitCardLayout: React.FC<LayoutTemplateProps> = ({
           </span>
         </div>
 
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transform: isPortrait ? 'scale(0.84)' : 'none',
+            margin: isPortrait ? '-28px 0' : '0',
+          }}
+        >
           {variant === 'compare_bars' ? (
             <AnimatedMetricBarsSvg
               frame={frame}
@@ -963,6 +1008,7 @@ export const QuoteHighlightLayout: React.FC<LayoutTemplateProps> = ({
   fps,
   palette: providedPalette,
   visualVariant: providedVariant,
+  isPortrait = false,
 }) => {
   const { palette, variant } = getResolvedContext(
     slide,
@@ -984,8 +1030,12 @@ export const QuoteHighlightLayout: React.FC<LayoutTemplateProps> = ({
         data-visual-variant="focus_callout"
         style={{
           display: 'grid',
-          gridTemplateColumns: points.length > 0 ? '1.3fr 0.85fr' : '1fr',
-          gap: '36px',
+          gridTemplateColumns: isPortrait
+            ? '1fr'
+            : points.length > 0
+            ? '1.3fr 0.85fr'
+            : '1fr',
+          gap: isPortrait ? '24px' : '36px',
           maxWidth: '1600px',
           width: '100%',
           alignItems: 'center',
@@ -1174,6 +1224,7 @@ export const ConclusionCtaLayout: React.FC<LayoutTemplateProps> = ({
   fps,
   palette: providedPalette,
   visualVariant: providedVariant,
+  isPortrait = false,
 }) => {
   const { palette, variant } = getResolvedContext(
     slide,
@@ -1199,20 +1250,20 @@ export const ConclusionCtaLayout: React.FC<LayoutTemplateProps> = ({
         flexDirection: 'column',
         maxWidth: '1640px',
         width: '100%',
-        gap: '26px',
+        gap: isPortrait ? '22px' : '26px',
       }}
     >
       {/* Top Executive Wrap Header */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '1.35fr 0.65fr',
-          gap: '32px',
+          gridTemplateColumns: isPortrait ? '1fr' : '1.35fr 0.65fr',
+          gap: isPortrait ? '20px' : '32px',
           alignItems: 'center',
           backgroundColor: palette.surfaceAltBg,
           border: `1.5px solid ${palette.surfaceBorder}`,
           borderLeft: `10px solid ${palette.primaryColor}`,
-          padding: '28px 38px',
+          padding: isPortrait ? '28px 30px' : '28px 38px',
         }}
       >
         <div>
@@ -1259,8 +1310,10 @@ export const ConclusionCtaLayout: React.FC<LayoutTemplateProps> = ({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: `repeat(${Math.min(4, Math.max(1, points.length))}, minmax(0, 1fr))`,
-            gap: '20px',
+            gridTemplateColumns: isPortrait
+              ? '1fr'
+              : `repeat(${Math.min(4, Math.max(1, points.length))}, minmax(0, 1fr))`,
+            gap: isPortrait ? '14px' : '20px',
           }}
         >
           {points.map((pt, idx) => {

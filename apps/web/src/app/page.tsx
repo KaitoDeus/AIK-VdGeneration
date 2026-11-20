@@ -42,6 +42,8 @@ export default function StudioWorkspacePage() {
     prompt: '',
     language: 'vi',
     aspectRatio: '16:9',
+    videoFormat: 'presentation',
+    voiceSpeed: 1.0,
     targetDuration: 45,
     theme: 'modern_tech',
     voiceProvider: 'edge_tts',
@@ -263,12 +265,22 @@ export default function StudioWorkspacePage() {
 
   const handleApplyTemplate = (template: PromptTemplate) => {
     setValidationError(null);
+    const nextAspect = template.aspectRatio ?? '16:9';
+    const nextFormat =
+      template.videoFormat ?? (nextAspect === '9:16' ? 'short' : 'presentation');
     setFormState((prev) => ({
       ...prev,
       prompt: template.prompt,
       language: template.language,
+      aspectRatio: nextAspect,
+      videoFormat: nextFormat,
       theme: template.theme,
       targetDuration: template.duration,
+      targetSlides: template.targetSlides,
+      voiceSpeed: template.voiceSpeed ?? (nextFormat === 'short' ? 1.1 : 1.0),
+      subtitlesEnabled: template.enableSubtitles ?? prev.subtitlesEnabled,
+      subtitleStyle: template.enableSubtitles ? 'bold_highlight' : prev.subtitleStyle,
+      bgmEnabled: template.enableBgm ?? prev.bgmEnabled,
       voiceProvider: 'edge_tts',
       voiceId: template.language === 'vi' ? 'vi-VN-HoaiMyNeural' : 'en-US-GuyNeural',
     }));
@@ -302,9 +314,18 @@ export default function StudioWorkspacePage() {
     return true;
   };
 
-  const resolveEffectiveTargetSlides = (): number =>
-    formState.targetSlides ??
-    Math.min(30, Math.max(5, Math.round(formState.targetDuration / 9)));
+  const resolveEffectiveFormat = () =>
+    formState.videoFormat || (formState.aspectRatio === '9:16' ? 'short' : 'presentation');
+
+  const resolveEffectiveTargetSlides = (): number => {
+    if (formState.targetSlides !== undefined) {
+      return formState.targetSlides;
+    }
+    if (resolveEffectiveFormat() === 'short') {
+      return Math.min(6, Math.max(3, Math.round(formState.targetDuration / 8)));
+    }
+    return Math.min(30, Math.max(5, Math.round(formState.targetDuration / 9)));
+  };
 
   const handleDraftScript = async () => {
     if (!validatePrompt()) return;
@@ -314,6 +335,8 @@ export default function StudioWorkspacePage() {
       const script = await generateScript({
         prompt: formState.prompt.trim(),
         language: formState.language,
+        aspect_ratio: formState.aspectRatio,
+        video_format: resolveEffectiveFormat(),
         target_duration_seconds: formState.targetDuration,
         theme: formState.theme,
         target_slides: resolveEffectiveTargetSlides(),
@@ -333,11 +356,13 @@ export default function StudioWorkspacePage() {
     setIsSubmitting(true);
     setStatusMessage(null);
     setLiveEvents([]);
+    const effectiveFormat = resolveEffectiveFormat();
     try {
       const resp = await generateVideoJob({
         prompt: formState.prompt.trim(),
         language: formState.language,
         aspect_ratio: formState.aspectRatio,
+        video_format: effectiveFormat,
         target_duration_seconds: formState.targetDuration,
         target_slides: resolveEffectiveTargetSlides(),
         style: {
@@ -348,7 +373,7 @@ export default function StudioWorkspacePage() {
         voice_settings: {
           provider: formState.voiceProvider,
           voice_id: formState.voiceId,
-          speed: 1.0,
+          speed: formState.voiceSpeed ?? 1.0,
         },
         render_video: formState.renderVideo,
         include_stock_visuals: true,
@@ -361,6 +386,7 @@ export default function StudioWorkspacePage() {
         subtitle_settings: {
           enabled: Boolean(formState.subtitlesEnabled),
           style: formState.subtitleStyle || 'karaoke_pill',
+          ...(effectiveFormat === 'short' ? { max_words_per_line: 4 } : {}),
         },
       });
 
@@ -385,6 +411,7 @@ export default function StudioWorkspacePage() {
     setIsSubmitting(true);
     setStatusMessage(null);
     setLiveEvents([]);
+    const effectiveFormat = resolveEffectiveFormat();
     try {
       const resp = await compileEditedScript({
         script: draftScript,
@@ -392,7 +419,7 @@ export default function StudioWorkspacePage() {
         voice_settings: {
           provider: formState.voiceProvider,
           voice_id: formState.voiceId,
-          speed: 1.0,
+          speed: formState.voiceSpeed ?? 1.0,
         },
         render_video: renderVideo,
         include_stock_visuals: true,
@@ -405,6 +432,7 @@ export default function StudioWorkspacePage() {
         subtitle_settings: {
           enabled: Boolean(formState.subtitlesEnabled),
           style: formState.subtitleStyle || 'karaoke_pill',
+          ...(effectiveFormat === 'short' ? { max_words_per_line: 4 } : {}),
         },
         slide_backgrounds: slideBackgrounds,
       });

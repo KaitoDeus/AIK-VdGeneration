@@ -26,6 +26,7 @@ export const KaraokeCaptions: React.FC<KaraokeCaptionsProps> = ({
   const frame = useCurrentFrame();
   const videoConfig = useVideoConfig();
   const fps = videoConfig?.fps || DEFAULT_FPS;
+  const isPortrait = (videoConfig?.height || 1080) > (videoConfig?.width || 1920);
 
   const active = resolveActiveCaptionState(
     words,
@@ -49,12 +50,13 @@ export const KaraokeCaptions: React.FC<KaraokeCaptionsProps> = ({
     <div
       data-testid="karaoke-captions-overlay"
       data-caption-style={captionStyle}
+      data-orientation={isPortrait ? 'portrait' : 'landscape'}
       data-active-word={activeWord}
       style={{
         position: 'absolute',
-        left: '96px',
-        right: '96px',
-        bottom: '54px',
+        left: isPortrait ? '44px' : '96px',
+        right: isPortrait ? '44px' : '96px',
+        bottom: isPortrait ? '144px' : '54px',
         display: 'flex',
         justifyContent: 'center',
         pointerEvents: 'none',
@@ -67,11 +69,11 @@ export const KaraokeCaptions: React.FC<KaraokeCaptionsProps> = ({
           flexWrap: 'wrap',
           justifyContent: 'center',
           alignItems: 'center',
-          gap: '12px',
-          maxWidth: '1400px',
+          gap: isPortrait ? '10px' : '12px',
+          maxWidth: isPortrait ? '960px' : '1400px',
           backgroundColor: containerBg,
           border: '1px solid rgba(255, 255, 255, 0.16)',
-          padding: captionStyle === 'minimal_line' ? '12px 24px' : '16px 30px',
+          padding: captionStyle === 'minimal_line' ? '12px 24px' : isPortrait ? '18px 26px' : '16px 30px',
         }}
       >
         {active.lineWords.map((item, idx) => {
@@ -96,7 +98,14 @@ export const KaraokeCaptions: React.FC<KaraokeCaptionsProps> = ({
               key={`${idx}-${item.start_seconds}`}
               data-word-state={isCurrent ? 'active' : isSpoken ? 'spoken' : 'upcoming'}
               style={{
-                fontSize: captionStyle === 'bold_highlight' ? '36px' : '32px',
+                fontSize:
+                  captionStyle === 'bold_highlight'
+                    ? isPortrait
+                      ? '42px'
+                      : '36px'
+                    : isPortrait
+                    ? '36px'
+                    : '32px',
                 fontWeight: isCurrent ? 700 : 500,
                 lineHeight: 1.25,
                 color,

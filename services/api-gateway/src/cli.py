@@ -194,6 +194,8 @@ def run_cli_pipeline(argv: Optional[List[str]] = None) -> dict:
         target_duration_seconds=args.duration,
         theme=args.theme,
         model_override=args.model,
+        aspect_ratio=args.aspect_ratio,
+        video_format="short" if args.aspect_ratio == "9:16" else "presentation",
     )
     script_path = job_dir / "script.json"
     script_path.write_text(
@@ -248,7 +250,11 @@ def run_cli_pipeline(argv: Optional[List[str]] = None) -> dict:
         subtitle_service = WhisperSubtitleService()
         remotion_props = subtitle_service.enrich_remotion_props(
             props=remotion_props,
-            settings=SubtitleSettings(enabled=True, style=args.subtitle_style),
+            settings=SubtitleSettings(
+                enabled=True,
+                style=args.subtitle_style,
+                max_words_per_line=4 if args.aspect_ratio == "9:16" else 6,
+            ),
             language=args.lang,
             job_dir=job_dir,
         )

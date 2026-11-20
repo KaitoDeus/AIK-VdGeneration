@@ -13,6 +13,7 @@ export type SlideLayout =
 export type SupportedLanguage = 'vi' | 'en';
 export type TTSProviderType = 'edge_tts' | 'elevenlabs' | 'fpt';
 export type AspectRatio = '16:9' | '9:16';
+export type VideoFormatType = 'presentation' | 'short';
 export type VisualTheme = 'modern_tech' | 'corporate' | 'minimal';
 export type StorageProviderType = 'local' | 's3' | 'r2';
 export type RenderEngineType = 'local' | 'lambda';
@@ -234,4 +235,10 @@ export interface PromptTemplate {
   theme: VisualTheme;
   duration: number;
   prompt: string;
+  aspectRatio?: AspectRatio;
+  videoFormat?: VideoFormatType;
+  targetSlides?: number;
+  enableSubtitles?: boolean;
+  enableBgm?: boolean;
+  voiceSpeed?: number;
 }

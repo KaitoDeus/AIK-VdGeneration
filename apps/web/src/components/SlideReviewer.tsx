@@ -461,17 +461,18 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                   </div>
 
                   {/* Mini NotebookLM Diagram Preview Panel */}
-                  {!isVertical &&
-                    (currentSlide.layout === 'split_card' ||
-                      currentSlide.layout === 'title_intro' ||
-                      currentVariant === 'knowledge_graph') && (
-                      <div
-                        className="col-span-4 flex flex-col items-center justify-center border p-3"
-                        style={{
-                          backgroundColor: currentPalette.surfaceAltBg,
-                          borderColor: currentPalette.surfaceBorder,
-                        }}
-                      >
+                  {(currentSlide.layout === 'split_card' ||
+                    currentSlide.layout === 'title_intro' ||
+                    currentVariant === 'knowledge_graph') && (
+                    <div
+                      className={`flex flex-col items-center justify-center border p-3 ${
+                        isVertical ? 'col-span-12 mt-1' : 'col-span-4'
+                      }`}
+                      style={{
+                        backgroundColor: currentPalette.surfaceAltBg,
+                        borderColor: currentPalette.surfaceBorder,
+                      }}
+                    >
                         <svg width="116" height="96" viewBox="0 0 116 96">
                           {currentVariant === 'compare_bars' ? (
                             <g>
@@ -527,6 +528,16 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                         </span>
                       </div>
                     )}
+                </div>
+              )}
+
+              {isVertical && (
+                <div
+                  data-testid="vertical-shorts-caption-preview"
+                  className="relative z-10 mt-2 border border-white/20 bg-[#0F172A]/90 px-3 py-1.5 text-center font-mono text-[10px] font-bold uppercase tracking-[0.06em]"
+                  style={{ color: currentPalette.primaryColor }}
+                >
+                  9:16 SHORTS · KARAOKE SAFE ZONE
                 </div>
               )}
 

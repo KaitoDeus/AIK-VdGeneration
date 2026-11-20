@@ -13,6 +13,7 @@ import {
   PromptTemplate,
   SupportedLanguage,
   TTSProviderType,
+  VideoFormatType,
   VisualTheme,
   VoiceOption,
 } from '@/types/studio';
@@ -21,6 +22,8 @@ export interface StudioFormState {
   prompt: string;
   language: SupportedLanguage;
   aspectRatio: AspectRatio;
+  videoFormat?: VideoFormatType;
+  voiceSpeed?: number;
   targetDuration: number;
   targetSlides?: number;
   theme: VisualTheme;
@@ -68,6 +71,8 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
 }) => {
   const t = STUDIO_DICTIONARY[locale].form;
   const [previewTrackId, setPreviewTrackId] = useState<string | null>(null);
+  const isShortMode = formState.videoFormat === 'short' || formState.aspectRatio === '9:16';
+  const activeVoiceSpeed = formState.voiceSpeed ?? 1.0;
   const hasVietnameseDiacritics =
     /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(
       formState.prompt
@@ -126,6 +131,74 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
             );
           })}
         </div>
+      </div>
+
+      {/* Production Format Switcher: Standard 16:9 Presentation vs Vertical 9:16 Short Video */}
+      <div
+        data-testid="video-format-switcher"
+        className="flex flex-col justify-between gap-3 border-b border-[#E5E5E5] bg-[#FAFAFA] px-8 py-4 lg:flex-row lg:items-center"
+      >
+        <div className="flex flex-wrap items-center gap-2.5">
+          <span className="mr-1 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-[#71717A]">
+            {t.modeLabel}
+          </span>
+          <button
+            type="button"
+            data-testid="mode-presentation-btn"
+            aria-pressed={!isShortMode}
+            onClick={() =>
+              onChange({
+                videoFormat: 'presentation',
+                aspectRatio: '16:9',
+                targetDuration: 45,
+                targetSlides: undefined,
+                voiceSpeed: 1.0,
+              })
+            }
+            className={`h-8 border px-3.5 font-mono text-[11px] font-semibold uppercase tracking-[0.05em] transition-colors duration-150 ${
+              !isShortMode
+                ? 'border-[#0A0A0A] bg-[#0A0A0A] text-[#FAFAFA]'
+                : 'border-[#D4D4D8] bg-[#FFFFFF] text-[#71717A] hover:border-[#0A0A0A] hover:text-[#0A0A0A]'
+            }`}
+          >
+            {t.modePresentationBtn}
+          </button>
+          <button
+            type="button"
+            data-testid="mode-short-video-btn"
+            aria-pressed={isShortMode}
+            onClick={() =>
+              onChange({
+                videoFormat: 'short',
+                aspectRatio: '9:16',
+                targetDuration: 30,
+                targetSlides: 4,
+                subtitlesEnabled: true,
+                subtitleStyle: 'bold_highlight',
+                bgmEnabled: true,
+                bgmMood: formState.bgmMood || 'tech',
+                bgmDuckingEnabled: true,
+                voiceSpeed: 1.1,
+              })
+            }
+            className={`h-8 border px-3.5 font-mono text-[11px] font-semibold uppercase tracking-[0.05em] transition-colors duration-150 ${
+              isShortMode
+                ? 'border-[#0A0A0A] bg-[#0A0A0A] text-[#FAFAFA]'
+                : 'border-[#D4D4D8] bg-[#FFFFFF] text-[#0A0A0A] hover:border-[#0A0A0A]'
+            }`}
+          >
+            {t.modeShortVideoBtn}
+          </button>
+        </div>
+
+        {isShortMode && (
+          <span
+            data-testid="short-mode-badge"
+            className="border border-[#0A0A0A] bg-[#FFFFFF] px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-[#0A0A0A]"
+          >
+            {t.shortActiveSummary}
+          </span>
+        )}
       </div>
 
       {/* Prompt Textarea */}
@@ -233,7 +306,12 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
                   type="button"
                   role="radio"
                   aria-checked={selected}
-                  onClick={() => onChange({ aspectRatio: ratio.value })}
+                  onClick={() =>
+                    onChange({
+                      aspectRatio: ratio.value,
+                      videoFormat: ratio.value === '9:16' ? 'short' : 'presentation',
+                    })
+                  }
                   className="flex items-center gap-3 text-left text-[12px] tracking-[0.04em] text-[#0A0A0A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0A0A0A]"
                 >
                   <span
@@ -272,7 +350,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
             </select>
 
             <div className="flex gap-2">
-              {[30, 45, 60, 90].map((sec) => {
+              {(isShortMode ? [15, 30, 45, 60] : [30, 45, 60, 90]).map((sec) => {
                 const active = formState.targetDuration === sec;
                 return (
                   <button
@@ -292,7 +370,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
             </div>
 
             <div className="flex gap-1.5">
-              {([undefined, 5, 10, 15] as const).map((cnt) => {
+              {(isShortMode ? [undefined, 3, 4, 5] : [undefined, 5, 10, 15]).map((cnt) => {
                 const active = formState.targetSlides === cnt;
                 return (
                   <button
@@ -338,6 +416,30 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
                 </option>
               ))}
             </select>
+
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-[11px] uppercase text-[#71717A]">
+                {t.voiceSpeedLabel}:
+              </span>
+              {[1.0, 1.1, 1.2].map((spd) => {
+                const selected = Math.abs(activeVoiceSpeed - spd) < 0.05;
+                return (
+                  <button
+                    key={spd}
+                    type="button"
+                    data-testid={`voice-speed-${spd.toFixed(1)}`}
+                    onClick={() => onChange({ voiceSpeed: spd })}
+                    className={`h-7 flex-1 border font-mono text-[11px] transition-colors duration-150 ${
+                      selected
+                        ? 'border-[#0A0A0A] bg-[#0A0A0A] text-[#FAFAFA]'
+                        : 'border-[#D4D4D8] text-[#71717A] hover:border-[#0A0A0A] hover:text-[#0A0A0A]'
+                    }`}
+                  >
+                    {spd.toFixed(1)}x
+                  </button>
+                );
+              })}
+            </div>
 
             <button
               type="button"
@@ -554,7 +656,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
             onClick={onGeneratePipeline}
             className="h-12 min-w-[200px] border border-[#0A0A0A] bg-[#0A0A0A] px-8 text-[14px] font-semibold uppercase tracking-[0.06em] text-[#FAFAFA] transition-colors duration-150 hover:bg-[#FFFFFF] hover:text-[#0A0A0A] disabled:cursor-not-allowed disabled:opacity-30"
           >
-            {isSubmitting ? t.processingBtn : t.generateBtn}
+            {isSubmitting ? t.processingBtn : isShortMode ? t.generateShortBtn : t.generateBtn}
           </button>
         </div>
       </div>

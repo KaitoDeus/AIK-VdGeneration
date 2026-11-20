@@ -12,6 +12,7 @@ import {
   SupportedLanguage,
   TTSProviderType,
   VideoDeliveryResponse,
+  VideoFormatType,
   VideoJobResponse,
   VisualTheme,
   VoiceOption,
@@ -137,6 +138,8 @@ export async function previewVoiceAudio(params: {
 export async function generateScript(params: {
   prompt: string;
   language: SupportedLanguage;
+  aspect_ratio?: AspectRatio;
+  video_format?: VideoFormatType;
   target_duration_seconds: number;
   theme: VisualTheme;
   target_slides?: number;
@@ -182,6 +185,7 @@ export async function generateVideoJob(params: {
   prompt: string;
   language: SupportedLanguage;
   aspect_ratio: AspectRatio;
+  video_format?: VideoFormatType;
   target_duration_seconds: number;
   target_slides?: number;
   style: {

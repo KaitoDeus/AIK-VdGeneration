@@ -84,6 +84,8 @@ class LLMWorker(BaseStageWorker):
             theme=task.request.style.theme,
             model_override=task.request.model,
             target_slides=task.request.target_slides,
+            aspect_ratio=task.request.aspect_ratio,
+            video_format=task.request.video_format,
         )
 
         job_dir.mkdir(parents=True, exist_ok=True)
@@ -208,9 +210,16 @@ class TTSWorker(BaseStageWorker):
                 progress_percentage=78,
                 message="Compiling BGM audio ducking & karaoke subtitle timestamps... (78%)",
             )
+            subtitle_cfg = task.request.subtitle_settings
+            if (
+                (task.request.aspect_ratio == "9:16" or task.request.video_format == "short")
+                and subtitle_cfg.max_words_per_line == 6
+            ):
+                subtitle_cfg = subtitle_cfg.model_copy(update={"max_words_per_line": 4})
+
             remotion_props = self.subtitle_service.enrich_remotion_props(
                 props=remotion_props,
-                settings=task.request.subtitle_settings,
+                settings=subtitle_cfg,
                 language=script.language,
                 job_dir=job_dir,
             )

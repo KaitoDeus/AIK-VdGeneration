@@ -30,6 +30,7 @@ export const SlidePresentation: React.FC<VideoPresentationProps> = ({
 }) => {
   const videoConfig = useVideoConfig();
   const fps = videoConfig?.fps || DEFAULT_FPS;
+  const isPortrait = (videoConfig?.height || 1080) > (videoConfig?.width || 1920);
   const audioStartOffsetFrames = Math.round(PADDING_BEFORE_SEC * fps);
   const { windows: speechWindows, totalFrames } = buildSpeechWindows(slides, fps);
 
@@ -79,7 +80,7 @@ export const SlidePresentation: React.FC<VideoPresentationProps> = ({
                   <KaraokeCaptions
                     words={slide.word_timestamps}
                     captionStyle={subtitles.style}
-                    maxWordsPerLine={subtitles.max_words_per_line}
+                    maxWordsPerLine={subtitles.max_words_per_line ?? (isPortrait ? 4 : 6)}
                     highlightColor={subtitles.highlight_color}
                   />
                 )}

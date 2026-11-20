@@ -40,7 +40,8 @@ export const SlideCard: React.FC<SlideCardProps> = ({
   totalSlides = 1,
 }) => {
   const frame = useCurrentFrame();
-  const { fps, durationInFrames } = useVideoConfig();
+  const { fps, durationInFrames, width, height } = useVideoConfig();
+  const isPortrait = (height || 1080) > (width || 1920);
   const resolvedTheme = resolveTheme(theme);
   const hasBackgroundImage = Boolean(slide.background_image_url);
   const palette = resolveSlidePalette(
@@ -98,6 +99,7 @@ export const SlideCard: React.FC<SlideCardProps> = ({
       fps,
       palette,
       visualVariant,
+      isPortrait,
     };
 
     switch (slide.layout) {
@@ -120,6 +122,7 @@ export const SlideCard: React.FC<SlideCardProps> = ({
       data-testid={`slide-card-${slide.slide_index}`}
       data-palette-id={palette.id}
       data-visual-variant={visualVariant}
+      data-orientation={isPortrait ? 'portrait' : 'landscape'}
       style={{
         width: '100%',
         height: '100%',
@@ -130,7 +133,7 @@ export const SlideCard: React.FC<SlideCardProps> = ({
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: '84px 96px 92px 96px',
+        padding: isPortrait ? '112px 54px 250px 54px' : '84px 96px 92px 96px',
         fontFamily: resolvedTheme.fontFamily,
         position: 'relative',
         overflow: 'hidden',
@@ -194,19 +197,29 @@ export const SlideCard: React.FC<SlideCardProps> = ({
         style={{
           position: 'absolute',
           top: '36px',
-          left: '96px',
-          right: '96px',
+          left: isPortrait ? '54px' : '96px',
+          right: isPortrait ? '54px' : '96px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          fontSize: '20px',
+          gap: '16px',
+          fontSize: isPortrait ? '18px' : '20px',
           fontWeight: 600,
           color: palette.chromeMutedColor,
           letterSpacing: '1px',
           zIndex: 2,
         }}
       >
-        <span>{projectTitle}</span>
+        <span
+          style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            minWidth: 0,
+          }}
+        >
+          {projectTitle}
+        </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <span
             style={{

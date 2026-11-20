@@ -71,6 +71,7 @@ Queues the full asynchronous pipeline (`LLM -> TTS + Visuals + BGM + Subtitles -
   "prompt": "Explain event-driven architecture for engineering teams",
   "language": "en",
   "aspect_ratio": "16:9",
+  "video_format": "presentation",
   "target_duration_seconds": 45,
   "style": {
     "theme": "modern_tech",

@@ -18,6 +18,7 @@ SlideLayout = Literal[
 
 SupportedLanguage = Literal["vi", "en"]
 TTSProviderType = Literal["edge_tts", "elevenlabs", "fpt"]
+VideoFormatType = Literal["presentation", "short"]
 WorkerStage = Literal["llm", "tts", "render"]
 StorageProviderType = Literal["local", "s3", "r2"]
 RenderEngineType = Literal["local", "lambda"]
@@ -249,6 +250,14 @@ class ScriptGenerateRequest(BaseModel):
         default="vi",
         description="Target script language: 'vi' for Vietnamese, 'en' for English.",
     )
+    aspect_ratio: Literal["16:9", "9:16"] = Field(
+        default="16:9",
+        description="Target canvas aspect ratio ('16:9' widescreen or '9:16' short vertical).",
+    )
+    video_format: Optional[VideoFormatType] = Field(
+        default=None,
+        description="Optional narrative style ('presentation' or 'short' for TikTok/Reels/Shorts pacing).",
+    )
     target_duration_seconds: int = Field(
         default=60,
         ge=15,
@@ -382,6 +391,10 @@ class VideoGenerateRequest(BaseModel):
     aspect_ratio: Literal["16:9", "9:16"] = Field(
         default="16:9",
         description="Video aspect ratio ('16:9' widescreen or '9:16' vertical).",
+    )
+    video_format: Optional[VideoFormatType] = Field(
+        default=None,
+        description="Optional narrative style ('presentation' or 'short' for 9:16 TikTok/Reels/Shorts pacing).",
     )
     target_duration_seconds: int = Field(
         default=60,

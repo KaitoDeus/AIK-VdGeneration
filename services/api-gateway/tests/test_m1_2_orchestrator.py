@@ -416,3 +416,71 @@ class TestAPIGatewayEndpoints:
                 assert layouts[idx] != layouts[idx - 1], (
                     f"Consecutive duplicate layout {layouts[idx]} at slide {idx + 1} ({lang})"
                 )
+
+    def test_short_video_script_generation_en_and_vi(self):
+        generator = LLMScriptGenerator(api_key="", default_model="gemini-3.8-flash")
+        for lang in ("vi", "en"):
+            script, model_used = generator.generate_script(
+                prompt="Tự động hóa video marketing 9:16" if lang == "vi" else "Automated vertical video hooks",
+                language=lang,
+                target_duration_seconds=30,
+                aspect_ratio="9:16",
+                video_format="short",
+            )
+            assert "mock-fallback" in model_used
+            assert script.language == lang
+            assert script.title.startswith("Shorts:")
+            assert len(script.slides) == 4
+            assert [s.layout for s in script.slides] == [
+                "title_intro",
+                "split_card",
+                "bullet_list",
+                "conclusion_cta",
+            ]
+
+    def test_short_video_endpoint_generates_916_script_and_1080x1920_props(self):
+        script_resp = client.post(
+            "/api/v1/scripts/generate",
+            json={
+                "prompt": "Bí quyết dựng Short Video triệu view",
+                "language": "vi",
+                "aspect_ratio": "9:16",
+                "video_format": "short",
+                "target_duration_seconds": 30,
+            },
+        )
+        assert script_resp.status_code == 200
+        script_data = script_resp.json()
+        assert script_data["title"].startswith("Shorts:")
+        assert len(script_data["slides"]) == 4
+
+        gen_resp = client.post(
+            "/api/v1/videos/generate",
+            json={
+                "prompt": "Bí quyết dựng Short Video triệu view",
+                "language": "vi",
+                "aspect_ratio": "9:16",
+                "video_format": "short",
+                "target_duration_seconds": 30,
+                "voice_settings": {
+                    "provider": "edge_tts",
+                    "voice_id": "vi-VN-HoaiMyNeural",
+                    "speed": 1.1,
+                },
+                "subtitle_settings": {
+                    "enabled": True,
+                    "style": "bold_highlight",
+                },
+                "render_video": False,
+            },
+        )
+        assert gen_resp.status_code == 202
+        job_id = gen_resp.json()["job_id"]
+        status_resp = client.get(f"/api/v1/jobs/{job_id}")
+        assert status_resp.status_code == 200
+        job_data = status_resp.json()
+        assert job_data["status"] == "audio_ready"
+        assert job_data["remotion_props"]["width"] == 1080
+        assert job_data["remotion_props"]["height"] == 1920
+        assert job_data["remotion_props"]["subtitles"]["enabled"] is True
+        assert job_data["remotion_props"]["subtitles"]["max_words_per_line"] == 4

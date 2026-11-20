@@ -400,4 +400,55 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     const voiceSelect = screen.getByLabelText('Narrator Voice Selection') as HTMLSelectElement;
     expect(voiceSelect.value).toBe('vi-VN-HoaiMyNeural');
   });
+
+  it('activates Vertical 9:16 Short Video mode presets, drafts short script, and renders vertical safe-zone canvas', async () => {
+    const user = userEvent.setup();
+    render(<StudioWorkspacePage />);
+
+    // Click the dedicated "Create Short Video 9:16" mode switcher
+    const shortModeBtn = screen.getByTestId('mode-short-video-btn');
+    await user.click(shortModeBtn);
+
+    expect(shortModeBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('short-mode-badge')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tạo Video Short 9:16' })).toBeInTheDocument();
+
+    // Apply VI Short quick template and draft script
+    await user.click(screen.getByRole('button', { name: 'VIDEO SHORT 30S' }));
+    await user.click(screen.getByRole('button', { name: 'Soạn Kịch Bản Trước' }));
+
+    await waitFor(() => {
+      const draftCall = server.fetchMock.mock.calls.find(
+        ([url, init]) => String(url).endsWith('/api/v1/scripts/generate') && init?.method === 'POST'
+      );
+      expect(draftCall).toBeDefined();
+      const body = JSON.parse(String(draftCall?.[1]?.body));
+      expect(body.aspect_ratio).toBe('9:16');
+      expect(body.video_format).toBe('short');
+      expect(body.target_slides).toBe(4);
+    });
+
+    // Live vertical 9:16 preview renders with Shorts karaoke safe-zone badge
+    const canvas = await screen.findByTestId('live-slide-canvas');
+    expect(canvas.className).toContain('aspect-[9/16]');
+    expect(screen.getByTestId('vertical-shorts-caption-preview')).toBeInTheDocument();
+
+    // Enqueue Short Video pipeline -> sends speed 1.1 and 4-word subtitle bursts
+    await user.click(screen.getByRole('button', { name: 'Tạo Video Short 9:16' }));
+    await waitFor(() => {
+      const genCall = server.fetchMock.mock.calls.find(
+        ([url, init]) => String(url).endsWith('/api/v1/videos/generate') && init?.method === 'POST'
+      );
+      expect(genCall).toBeDefined();
+      const body = JSON.parse(String(genCall?.[1]?.body));
+      expect(body.aspect_ratio).toBe('9:16');
+      expect(body.video_format).toBe('short');
+      expect(body.voice_settings.speed).toBe(1.1);
+      expect(body.subtitle_settings).toEqual({
+        enabled: true,
+        style: 'bold_highlight',
+        max_words_per_line: 4,
+      });
+    });
+  });
 });
