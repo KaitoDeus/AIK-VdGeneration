@@ -311,7 +311,7 @@ class TTSAudioPipeline:
         output_base_dir: Optional[Path] = None,
         elevenlabs_api_key: Optional[str] = None,
         timeout_seconds: int = 25,
-        max_retries: int = 4,
+        max_retries: int = 6,
         allow_offline_fallback: bool = True,
     ) -> None:
         default_dir = Path(__file__).resolve().parent.parent.parent / ".temp" / "jobs"
@@ -658,6 +658,16 @@ class TTSAudioPipeline:
                 language=language,
             )
 
+        if actual_voice and actual_voice != voice_id:
+            target_filename = compute_audio_filename(
+                slide_index, text, actual_voice, voice_settings.speed
+            )
+            target_path = audio_dir / target_filename
+            if file_path.exists() and target_path != file_path:
+                file_path.replace(target_path)
+                file_path = target_path
+                relative_url = f"/audio_temp/{job_id}/{target_filename}"
+
         if resolved_voice_out is not None:
             resolved_voice_out.clear()
             resolved_voice_out.append(actual_voice)
@@ -683,13 +693,14 @@ class TTSAudioPipeline:
         width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
         theme_props = THEME_PRESETS.get(script.theme, THEME_PRESETS["modern_tech"])
 
-        remotion_slides = []
-        total_frames = 0
-        total_duration_seconds = 0.0
-        provider_used = settings.provider
+        slide_records: List[dict] = []
         total_slides = len(script.slides)
+        fallback_voice_id: Optional[str] = None
+        fallback_provider: Optional[str] = None
 
         for idx, slide in enumerate(script.slides, start=1):
+            if idx > 1 and active_settings.provider == "edge_tts":
+                time.sleep(0.25)
             if progress_callback:
                 progress_callback(
                     idx - 1,
@@ -705,16 +716,81 @@ class TTSAudioPipeline:
                 job_id=job_id,
                 resolved_voice_out=resolved_voice_holder,
             )
-            if resolved_voice_holder and resolved_voice_holder[0]:
-                # Keep voice consistent and avoid repeated timeouts on subsequent slides
-                chosen = resolved_voice_holder[0]
-                if chosen == "vi-VN-GoogleVi" and active_settings.provider != "google_vi":
-                    active_settings = active_settings.model_copy(
-                        update={"provider": "google_vi", "voice_id": chosen}
-                    )
-                elif chosen != active_settings.voice_id and active_settings.provider == "edge_tts":
-                    active_settings = active_settings.model_copy(update={"voice_id": chosen})
-            provider_used = used_prov
+            chosen_voice = (
+                resolved_voice_holder[0]
+                if resolved_voice_holder and resolved_voice_holder[0]
+                else self.resolve_voice_id(
+                    active_settings.provider, script.language, active_settings.voice_id
+                )
+            )
+            if chosen_voice == "vi-VN-GoogleVi" and active_settings.provider != "google_vi":
+                active_settings = active_settings.model_copy(
+                    update={"provider": "google_vi", "voice_id": chosen_voice}
+                )
+                fallback_voice_id = chosen_voice
+                fallback_provider = "google_vi"
+            elif chosen_voice != active_settings.voice_id and active_settings.provider == "edge_tts":
+                active_settings = active_settings.model_copy(update={"voice_id": chosen_voice})
+                fallback_voice_id = chosen_voice
+                fallback_provider = used_prov
+
+            slide_records.append(
+                {
+                    "slide": slide,
+                    "file_path": file_path,
+                    "relative_url": relative_url,
+                    "duration_sec": duration_sec,
+                    "provider_used": used_prov,
+                    "voice_id": chosen_voice,
+                }
+            )
+            if progress_callback:
+                progress_callback(
+                    idx,
+                    total_slides,
+                    f"Voiceover slide {idx}/{total_slides} ready ({duration_sec:.1f}s).",
+                )
+
+        # Guarantee strict single-speaker consistency across EVERY slide in the presentation.
+        # If a fallback happened mid-deck (e.g. Slide 2 switched voices), re-synthesize any earlier
+        # slides using the locked fallback voice so the entire video has one unified speaker.
+        final_voice_id = fallback_voice_id or (
+            slide_records[-1]["voice_id"] if slide_records else None
+        )
+        if final_voice_id and len({r["voice_id"] for r in slide_records}) > 1:
+            logger.info(
+                "Unifying speaker voice across %d slides to '%s' (%s) for seamless consistency.",
+                len(slide_records),
+                final_voice_id,
+                fallback_provider or active_settings.provider,
+            )
+            for rec in slide_records:
+                if rec["voice_id"] == final_voice_id:
+                    continue
+                slide = rec["slide"]
+                unified_holder: List[str] = []
+                fp, rurl, dsec, uprov = self.synthesize_slide_audio(
+                    slide_index=slide.slide_index,
+                    text=slide.voiceover_script,
+                    language=script.language,
+                    voice_settings=active_settings,
+                    job_id=job_id,
+                    resolved_voice_out=unified_holder,
+                )
+                rec["file_path"] = fp
+                rec["relative_url"] = rurl
+                rec["duration_sec"] = dsec
+                rec["provider_used"] = uprov
+                rec["voice_id"] = unified_holder[0] if unified_holder else final_voice_id
+
+        remotion_slides = []
+        total_frames = 0
+        total_duration_seconds = 0.0
+        provider_used = settings.provider
+        for rec in slide_records:
+            slide = rec["slide"]
+            duration_sec = rec["duration_sec"]
+            provider_used = rec["provider_used"]
             frames = calculate_slide_frames(duration_sec, fps=fps)
             slide_total_sec = round(frames / fps, 3)
 
@@ -728,19 +804,13 @@ class TTSAudioPipeline:
                     heading=slide.heading,
                     bullet_points=slide.bullet_points,
                     voiceover_script=slide.voiceover_script,
-                    voiceover_audio_url=relative_url,
-                    voiceover_audio_path=str(file_path.resolve()),
+                    voiceover_audio_url=rec["relative_url"],
+                    voiceover_audio_path=str(rec["file_path"].resolve()),
                     voiceover_duration_seconds=duration_sec,
                     calculated_frames=frames,
                     background_image_url=None,
                 )
             )
-            if progress_callback:
-                progress_callback(
-                    idx,
-                    total_slides,
-                    f"Voiceover slide {idx}/{total_slides} ready ({duration_sec:.1f}s).",
-                )
 
         props = RemotionCompositionProps(
             project_title=script.title,

@@ -398,3 +398,44 @@ class TestM13APIEndpoints:
         assert file_path.exists()
         assert file_path.stat().st_size >= MIN_AUDIO_FILE_BYTES
         assert duration_sec > 1.5
+
+    def test_synthesize_presentation_backfills_earlier_slides_for_single_speaker_uniformity(self, tmp_path: Path):
+        """
+        If Slide 1 uses Male (vi-VN-NamMinhNeural) and Slide 2 triggers fallback to
+        HoaiMy/GoogleVi, Slide 1 MUST be re-synthesized with the locked fallback voice
+        so the entire presentation uses one single speaker without switching mid-video.
+        """
+        valid_mp3_nam = (b"\xff\xfb\x90\x00" + (b"\x00" * 413)) * 120
+        valid_mp3_nu = (b"\xff\xfb\x90\x00" + (b"\x00" * 413)) * 155
+        synth_calls = []
+
+        def _mock_single_voice(self_obj, text: str, voice_id: str, speed: float, out_path: Path):
+            synth_calls.append((voice_id, text[:20]))
+            if voice_id == "vi-VN-NamMinhNeural" and "ba mô hình" in text:
+                raise RuntimeError("No audio was received.")
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(valid_mp3_nam if voice_id == "vi-VN-NamMinhNeural" else valid_mp3_nu)
+
+        script = _build_sample_script("vi")
+        pipeline = TTSAudioPipeline(
+            output_base_dir=tmp_path,
+            max_retries=1,
+            allow_offline_fallback=False,
+        )
+        with patch("src.services.tts_service.time.sleep", return_value=None), patch.object(
+            TTSAudioPipeline, "_run_edge_tts_single_voice", new=_mock_single_voice
+        ):
+            props, _ = pipeline.synthesize_presentation(
+                script=script,
+                voice_settings=VoiceSettings(provider="edge_tts", voice_id="vi-VN-NamMinhNeural"),
+                job_id="job_unified_voice",
+            )
+
+        # Slide 1 originally wrote with NamMinh (120 frames payload), Slide 2 failed NamMinh and switched to HoaiMy (155 frames),
+        # Slide 3 ran on HoaiMy, and THEN Slide 1 was backfilled cleanly with HoaiMy!
+        assert [s.voiceover_audio_path for s in props.slides]
+        for slide in props.slides:
+            # Verify Slide 1's final duration matches the backfilled HoaiMy 155-frame payload (~4.0s), NOT initial 120 frames (~3.1s)
+            assert slide.voiceover_duration_seconds > 3.8
+        assert props.total_frames == sum(s.calculated_frames for s in props.slides)
+        assert ("vi-VN-HoaiMyNeural", "Chào mừng bạn đến vớ") in synth_calls
