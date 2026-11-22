@@ -226,6 +226,8 @@ describe('M2.2 Web Studio Bilingual UI Components SSR Rendering', () => {
         onGeneratePipeline={vi.fn()}
       />
     );
+    expect(htmlEn).toContain('Landscape (16:9)');
+    expect(htmlEn).toContain('Portrait (9:16)');
     expect(htmlEn).toContain('TECH EXPLAINER');
     expect(htmlEn).toContain('AUDITION VOICE SAMPLE');
     expect(htmlEn).toContain('Generate Presentation');
@@ -254,6 +256,8 @@ describe('M2.2 Web Studio Bilingual UI Components SSR Rendering', () => {
     );
     expect(htmlVi).not.toContain('01 / PROMPT &amp; THAM SỐ CẤU HÌNH');
     expect(htmlVi).not.toContain('<h1');
+    expect(htmlVi).toContain('Chiều ngang (16:9)');
+    expect(htmlVi).toContain('Chiều dọc (9:16)');
     expect(htmlVi).toContain('Chủ Đề Thuyết Trình Hoặc Nội Dung Thô');
     expect(htmlVi).toContain('NGHE THỬ GIỌNG ĐỌC');
     expect(htmlVi).toContain('Tạo Video Thuyết Trình');
