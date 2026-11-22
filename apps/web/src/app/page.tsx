@@ -21,7 +21,7 @@ import {
   uploadBgmAudio,
 } from '@/lib/api';
 import { STUDIO_DICTIONARY, UiLocale } from '@/lib/i18n';
-import { DEFAULT_VOICES } from '@/lib/templates';
+import { DEFAULT_VOICES, PROMPT_TEMPLATES, resolveTemplatePrompt } from '@/lib/templates';
 import {
   HealthResponse,
   JobLifecycleStatus,
@@ -36,11 +36,20 @@ import {
 const LOCALE_STORAGE_KEY = 'aik-studio-locale';
 
 function syncLocaleToForm(prev: StudioFormState, targetLocale: UiLocale): StudioFormState {
-  if (prev.language === targetLocale) {
+  const trimmedPrompt = prev.prompt.trim();
+  const matchedTemplate = PROMPT_TEMPLATES.find(
+    (tpl) => tpl.prompts.en.trim() === trimmedPrompt || tpl.prompts.vi.trim() === trimmedPrompt
+  );
+  const nextPrompt = matchedTemplate
+    ? resolveTemplatePrompt(matchedTemplate, targetLocale)
+    : prev.prompt;
+
+  if (prev.language === targetLocale && nextPrompt === prev.prompt) {
     return prev;
   }
   return {
     ...prev,
+    prompt: nextPrompt,
     language: targetLocale,
     voiceProvider: 'edge_tts',
     voiceId: targetLocale === 'vi' ? 'vi-VN-HoaiMyNeural' : 'en-US-GuyNeural',
@@ -283,14 +292,14 @@ export default function StudioWorkspacePage() {
 
   const handleApplyTemplate = (template: PromptTemplate) => {
     setValidationError(null);
-    persistLocalePreference(template.language);
+    const activeLang = locale;
+    const nextPrompt = resolveTemplatePrompt(template, activeLang);
     const nextAspect = template.aspectRatio ?? '16:9';
     const nextFormat =
       template.videoFormat ?? (nextAspect === '9:16' ? 'short' : 'presentation');
     setFormState((prev) => ({
       ...prev,
-      prompt: template.prompt,
-      language: template.language,
+      prompt: nextPrompt,
       aspectRatio: nextAspect,
       videoFormat: nextFormat,
       theme: template.theme,
@@ -300,8 +309,6 @@ export default function StudioWorkspacePage() {
       subtitlesEnabled: template.enableSubtitles ?? prev.subtitlesEnabled,
       subtitleStyle: template.enableSubtitles ? 'bold_highlight' : prev.subtitleStyle,
       bgmEnabled: prev.customAudioId ? (template.enableBgm ?? prev.bgmEnabled) : false,
-      voiceProvider: 'edge_tts',
-      voiceId: template.language === 'vi' ? 'vi-VN-HoaiMyNeural' : 'en-US-GuyNeural',
     }));
   };
 

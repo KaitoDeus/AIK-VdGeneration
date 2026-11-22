@@ -247,7 +247,10 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
             {t.templatesLabel}
           </span>
           {PROMPT_TEMPLATES.map((tpl) => {
-            const isSelected = formState.prompt.trim() === tpl.prompt.trim();
+            const normalizedPrompt = formState.prompt.trim();
+            const isSelected =
+              normalizedPrompt === tpl.prompts.en.trim() ||
+              normalizedPrompt === tpl.prompts.vi.trim();
             const label =
               t.templateNames[tpl.id as keyof typeof t.templateNames] || tpl.label;
             return (

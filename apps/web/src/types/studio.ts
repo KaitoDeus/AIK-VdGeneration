@@ -241,10 +241,14 @@ export interface PromptTemplate {
   id: string;
   label: string;
   category: string;
-  language: SupportedLanguage;
+  language?: SupportedLanguage;
   theme: VisualTheme;
   duration: number;
   prompt: string;
+  prompts: {
+    en: string;
+    vi: string;
+  };
   aspectRatio?: AspectRatio;
   videoFormat?: VideoFormatType;
   targetSlides?: number;

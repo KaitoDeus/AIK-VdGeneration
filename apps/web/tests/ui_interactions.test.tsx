@@ -460,8 +460,8 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     expect(screen.queryByTestId('short-mode-badge')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Generate Short Video 9:16' })).toBeInTheDocument();
 
-    // Apply EN Short quick template and draft script
-    await user.click(screen.getByRole('button', { name: 'EN SHORTS HOOK' }));
+    // Apply Short quick template and draft script
+    await user.click(screen.getByRole('button', { name: 'SHORTS HOOK (30S)' }));
     await user.click(screen.getByRole('button', { name: 'Draft Script First' }));
 
     await waitFor(() => {
@@ -520,9 +520,9 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     await user.selectOptions(voiceSelect, 'vi-VN-GoogleVi');
     expect(voiceSelect.value).toBe('vi-VN-GoogleVi');
 
+    // Apply VI template preserves VI language AND Google Vi narrator voice without resetting
     await user.click(screen.getByRole('button', { name: 'GIÁO DỤC' }));
-    // Apply VI template keeps VI; select Google Vi cleanly and submit
-    await user.selectOptions(voiceSelect, 'vi-VN-GoogleVi');
+    expect(voiceSelect.value).toBe('vi-VN-GoogleVi');
     await user.click(screen.getByRole('button', { name: 'Tạo Video Thuyết Trình' }));
 
     await waitFor(() => {
@@ -534,5 +534,40 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
       expect(body.voice_settings.provider).toBe('google_vi');
       expect(body.voice_settings.voice_id).toBe('vi-VN-GoogleVi');
     });
+  });
+
+  it('keeps active language locked across all templates and translates active template when toggling EN/VIE', async () => {
+    const user = userEvent.setup();
+    render(<StudioWorkspacePage />);
+
+    const promptInput = screen.getByLabelText('Presentation Topic or Raw Narrative') as HTMLTextAreaElement;
+    const voiceSelect = screen.getByLabelText('Narrator Voice Selection') as HTMLSelectElement;
+
+    // Default EN: clicking EDUCATIONAL or MARKETING populates English prompt and stays on EN
+    await user.click(screen.getByRole('button', { name: 'EDUCATIONAL' }));
+    expect(screen.getByTestId('lang-switch-en')).toHaveAttribute('aria-pressed', 'true');
+    expect(voiceSelect.value).toBe('en-US-GuyNeural');
+    expect(promptInput.value).toContain('Cloud Computing');
+
+    await user.click(screen.getByRole('button', { name: 'MARKETING' }));
+    expect(screen.getByTestId('lang-switch-en')).toHaveAttribute('aria-pressed', 'true');
+    expect(voiceSelect.value).toBe('en-US-GuyNeural');
+    expect(promptInput.value).toContain('synchronized bilingual studio-grade presentation videos');
+
+    // Switching global language to VIE translates the selected template to Vietnamese simultaneously
+    await user.click(screen.getByTestId('lang-switch-vie'));
+    expect(screen.getByTestId('lang-switch-vie')).toHaveAttribute('aria-pressed', 'true');
+    expect(voiceSelect.value).toBe('vi-VN-HoaiMyNeural');
+    expect(screen.getByLabelText('Chủ Đề Thuyết Trình Hoặc Nội Dung Thô')).toHaveValue(
+      'Giới thiệu nền tảng tự động biến văn bản thành video thuyết trình song ngữ Anh - Việt trong 60 giây với chất lượng phòng thu.'
+    );
+
+    // While in VIE: clicking TECH EXPLAINER / PITCH DECK fills Vietnamese prompt and NEVER flips back to EN
+    await user.click(screen.getByRole('button', { name: 'GIẢI THÍCH CÔNG NGHỆ' }));
+    expect(screen.getByTestId('lang-switch-vie')).toHaveAttribute('aria-pressed', 'true');
+    expect(voiceSelect.value).toBe('vi-VN-HoaiMyNeural');
+    expect((screen.getByLabelText('Chủ Đề Thuyết Trình Hoặc Nội Dung Thô') as HTMLTextAreaElement).value).toContain(
+      'Microservices hướng sự kiện'
+    );
   });
 });

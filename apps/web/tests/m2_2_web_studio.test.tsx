@@ -438,4 +438,13 @@ describe('M2.2 Web Studio Bilingual UI Components SSR Rendering', () => {
       expect(html).not.toContain('SAPPHIRE STUDIO');
     }
   });
+
+  it('provides simultaneous EN and VI prompts on every quick template without locking language', () => {
+    expect(PROMPT_TEMPLATES.length).toBeGreaterThanOrEqual(6);
+    for (const tpl of PROMPT_TEMPLATES) {
+      expect(tpl.prompts.en.trim().length).toBeGreaterThan(20);
+      expect(tpl.prompts.vi.trim().length).toBeGreaterThan(20);
+      expect(tpl.prompts.en).not.toBe(tpl.prompts.vi);
+    }
+  });
 });

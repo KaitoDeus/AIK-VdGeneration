@@ -1,51 +1,94 @@
-import { PromptTemplate, SlideLayout, VisualTheme, VoiceOption } from '@/types/studio';
+import {
+  PromptTemplate,
+  SlideLayout,
+  SupportedLanguage,
+  VisualTheme,
+  VoiceOption,
+} from '@/types/studio';
+
+const EN_TECH_PROMPT =
+  'Explain Event-Driven Microservices Architecture and how asynchronous message queues prevent system bottlenecks.';
+const VI_TECH_PROMPT =
+  'Giải thích Kiến trúc Microservices hướng sự kiện (Event-Driven) và cách hàng đợi tin nhắn bất đồng bộ giúp tránh nghẽn cổ chai hệ thống.';
+
+const EN_EDU_PROMPT =
+  'Explain how Cloud Computing works and compare IaaS, PaaS, and SaaS service models for beginners.';
+const VI_EDU_PROMPT =
+  'Giải thích nguyên lý hoạt động của Điện toán Đám mây (Cloud Computing) và ba mô hình IaaS, PaaS, SaaS cho người mới bắt đầu.';
+
+const EN_PITCH_PROMPT =
+  'Investor pitch presentation for an AI-powered automated video production SaaS targeting global creators and B2B marketing teams.';
+const VI_PITCH_PROMPT =
+  'Bài thuyết trình gọi vốn cho nền tảng SaaS tự động sản xuất video bằng AI dành cho nhà sáng tạo nội dung và đội ngũ tiếp thị B2B.';
+
+const EN_MKT_PROMPT =
+  'Introduce an automated platform that converts plain text into synchronized bilingual studio-grade presentation videos in 60 seconds.';
+const VI_MKT_PROMPT =
+  'Giới thiệu nền tảng tự động biến văn bản thành video thuyết trình song ngữ Anh - Việt trong 60 giây với chất lượng phòng thu.';
+
+const EN_SHORT_WORKFLOW_PROMPT =
+  '3 automation secrets that turn any plain text note into an engaging 9:16 vertical short video in 30 seconds.';
+const VI_SHORT_WORKFLOW_PROMPT =
+  '3 bí quyết giúp AI tự động dựng video Short 9:16 cuốn hút từ văn bản thô chỉ trong 30 giây.';
+
+const EN_SHORT_HOOK_PROMPT =
+  '3 reasons why automated AI vertical shorts convert viewers faster on TikTok and YouTube Shorts.';
+const VI_SHORT_HOOK_PROMPT =
+  '3 lý do video ngắn AI khung dọc giúp giữ chân người xem lâu hơn trên TikTok và YouTube Shorts.';
 
 export const PROMPT_TEMPLATES: PromptTemplate[] = [
   {
     id: 'tech-explainer',
     label: 'TECH EXPLAINER',
     category: 'Architecture',
-    language: 'en',
     theme: 'modern_tech',
     duration: 60,
-    prompt:
-      'Explain Event-Driven Microservices Architecture and how asynchronous message queues prevent system bottlenecks.',
+    prompt: EN_TECH_PROMPT,
+    prompts: {
+      en: EN_TECH_PROMPT,
+      vi: VI_TECH_PROMPT,
+    },
   },
   {
     id: 'educational',
     label: 'EDUCATIONAL',
     category: 'Foundations',
-    language: 'vi',
     theme: 'minimal',
     duration: 60,
-    prompt:
-      'Giải thích nguyên lý hoạt động của Điện toán Đám mây (Cloud Computing) và ba mô hình IaaS, PaaS, SaaS cho người mới bắt đầu.',
+    prompt: EN_EDU_PROMPT,
+    prompts: {
+      en: EN_EDU_PROMPT,
+      vi: VI_EDU_PROMPT,
+    },
   },
   {
     id: 'pitch-deck',
     label: 'PITCH DECK',
     category: 'Venture',
-    language: 'en',
     theme: 'corporate',
     duration: 45,
-    prompt:
-      'Investor pitch presentation for an AI-powered automated video production SaaS targeting global creators and B2B marketing teams.',
+    prompt: EN_PITCH_PROMPT,
+    prompts: {
+      en: EN_PITCH_PROMPT,
+      vi: VI_PITCH_PROMPT,
+    },
   },
   {
     id: 'marketing',
     label: 'MARKETING',
     category: 'Product Launch',
-    language: 'vi',
     theme: 'modern_tech',
     duration: 45,
-    prompt:
-      'Giới thiệu nền tảng tự động biến văn bản thành video thuyết trình song ngữ Anh - Việt trong 60 giây với chất lượng phòng thu.',
+    prompt: EN_MKT_PROMPT,
+    prompts: {
+      en: EN_MKT_PROMPT,
+      vi: VI_MKT_PROMPT,
+    },
   },
   {
     id: 'shorts-vi',
-    label: 'SHORT DỌC 30S',
+    label: 'PRODUCT SHORT (30S)',
     category: 'Reels / Shorts',
-    language: 'vi',
     theme: 'modern_tech',
     duration: 30,
     aspectRatio: '9:16',
@@ -54,14 +97,16 @@ export const PROMPT_TEMPLATES: PromptTemplate[] = [
     enableSubtitles: true,
     enableBgm: true,
     voiceSpeed: 1.1,
-    prompt:
-      '3 bí quyết giúp AI tự động dựng video Short 9:16 cuốn hút từ văn bản thô chỉ trong 30 giây.',
+    prompt: EN_SHORT_WORKFLOW_PROMPT,
+    prompts: {
+      en: EN_SHORT_WORKFLOW_PROMPT,
+      vi: VI_SHORT_WORKFLOW_PROMPT,
+    },
   },
   {
     id: 'shorts-en',
-    label: 'SHORTS HOOK 30S',
+    label: 'SHORTS HOOK (30S)',
     category: 'TikTok / Shorts',
-    language: 'en',
     theme: 'modern_tech',
     duration: 30,
     aspectRatio: '9:16',
@@ -70,10 +115,20 @@ export const PROMPT_TEMPLATES: PromptTemplate[] = [
     enableSubtitles: true,
     enableBgm: true,
     voiceSpeed: 1.1,
-    prompt:
-      '3 reasons why automated AI vertical shorts convert viewers faster on TikTok and YouTube Shorts.',
+    prompt: EN_SHORT_HOOK_PROMPT,
+    prompts: {
+      en: EN_SHORT_HOOK_PROMPT,
+      vi: VI_SHORT_HOOK_PROMPT,
+    },
   },
 ];
+
+export function resolveTemplatePrompt(
+  template: PromptTemplate,
+  language: SupportedLanguage
+): string {
+  return template.prompts[language] ?? template.prompt;
+}
 
 export const DEFAULT_VOICES: VoiceOption[] = [
   {
