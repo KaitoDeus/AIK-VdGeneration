@@ -246,51 +246,10 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
         </div>
       </div>
 
-      {/* Strict 3-Column Geometric Parameter Grid (Language controlled globally in top-right header) */}
-      <div className="grid grid-cols-1 divide-y divide-[#E5E5E5] border-b border-[#E5E5E5] md:grid-cols-3 md:divide-x md:divide-y-0">
+      {/* Balanced 2-Column Geometric Parameter Grid (Aspect ratio & language are controlled by top-level switchers) */}
+      <div className="grid grid-cols-1 divide-y divide-[#E5E5E5] border-b border-[#E5E5E5] md:grid-cols-2 md:divide-x md:divide-y-0">
 
-        {/* Column 2: Aspect Ratio (StudioBlank Radio Style) */}
-        <div className="p-6">
-          <span className="mb-3 block text-[12px] font-semibold uppercase tracking-[0.08em] text-[#71717A]">
-            {t.aspectRatioLabel}
-          </span>
-          <div className="flex flex-col gap-2">
-            {([
-              { value: '16:9', label: t.aspect169 },
-              { value: '9:16', label: t.aspect916 },
-            ] as const).map((ratio) => {
-              const selected = formState.aspectRatio === ratio.value;
-              return (
-                <button
-                  key={ratio.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  onClick={() =>
-                    onChange({
-                      aspectRatio: ratio.value,
-                      videoFormat: ratio.value === '9:16' ? 'short' : 'presentation',
-                    })
-                  }
-                  className="flex items-center gap-3 text-left text-[12px] tracking-[0.04em] text-[#0A0A0A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0A0A0A]"
-                >
-                  <span
-                    className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center border ${
-                      selected ? 'border-[#0A0A0A]' : 'border-[#D4D4D8]'
-                    }`}
-                  >
-                    {selected && <span className="h-2 w-2 bg-[#0A0A0A]" />}
-                  </span>
-                  <span className={selected ? 'font-semibold' : 'text-[#71717A]'}>
-                    {ratio.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Column 3: Visual Theme & Duration */}
+        {/* Column 1: Visual Theme & Duration */}
         <div className="p-6">
           <span className="mb-3 block text-[12px] font-semibold uppercase tracking-[0.08em] text-[#71717A]">
             {t.themeDurationLabel}

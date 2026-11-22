@@ -57,9 +57,11 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     expect(screen.getByTestId('quick-prompt-templates')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Generate Presentation' })).toBeInTheDocument();
 
-    // Redundant inline Language buttons in the parameter grid must not exist
+    // Redundant inline Language and Aspect Ratio columns in the parameter grid must not exist
     expect(screen.queryByRole('button', { name: 'VIETNAMESE' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'ENGLISH' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Aspect Ratio')).not.toBeInTheDocument();
+    expect(screen.queryByText('16:9 WIDESCREEN (1920×1080)')).not.toBeInTheDocument();
 
     // Default narrator voice matches EN cleanly
     const voiceSelect = screen.getByLabelText('Narrator Voice Selection') as HTMLSelectElement;
