@@ -186,7 +186,7 @@ describe('NotebookLM Per-Slide Palette Alternation & Visual Variants', () => {
           backgroundColor: '#132B63',
           primaryColor: '#38BDF8',
           textColor: '#FFFFFF',
-          fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
+          fontFamily: '"Noto Sans Display", "Noto Sans", "Segoe UI", sans-serif',
         }}
       />
     );
@@ -199,7 +199,7 @@ describe('NotebookLM Per-Slide Palette Alternation & Visual Variants', () => {
           backgroundColor: '#102A43',
           primaryColor: '#E6A852',
           textColor: '#F8FAFC',
-          fontFamily: 'Georgia, "Times New Roman", "Noto Serif", serif',
+          fontFamily: '"Noto Serif Display", "Noto Serif", "Times New Roman", serif',
         }}
       />
     );
@@ -212,7 +212,7 @@ describe('NotebookLM Per-Slide Palette Alternation & Visual Variants', () => {
           backgroundColor: '#FFF0EB',
           primaryColor: '#EA580C',
           textColor: '#292524',
-          fontFamily: '"Helvetica Neue", "Segoe UI", Arial, sans-serif',
+          fontFamily: '"Noto Sans", "Segoe UI", Arial, sans-serif',
         }}
       />
     );
@@ -223,7 +223,7 @@ describe('NotebookLM Per-Slide Palette Alternation & Visual Variants', () => {
 
     expect(corpHtml).toContain('data-theme-preset="corporate"');
     expect(corpHtml).toContain('data-palette-id="corp_admiralty_navy"');
-    expect(corpHtml).toContain('Georgia');
+    expect(corpHtml).toContain('Noto Serif');
     expect(corpHtml).toContain('font-weight:700');
 
     expect(minimalHtml).toContain('data-theme-preset="minimal"');
@@ -234,6 +234,8 @@ describe('NotebookLM Per-Slide Palette Alternation & Visual Variants', () => {
       expect(html).not.toContain('KEYNOTE BRIEFING');
       expect(html).not.toContain('ACTION 01');
       expect(html).not.toContain('SUMMARY COMPLETE');
+      expect(html).not.toContain('Georgia');
+      expect(html).not.toContain('Helvetica Neue');
     }
   });
 });

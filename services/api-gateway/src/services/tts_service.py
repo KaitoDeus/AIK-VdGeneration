@@ -66,21 +66,21 @@ THEME_PRESETS: Dict[str, RemotionThemeProps] = {
         backgroundColor="#132B63",
         primaryColor="#38BDF8",
         textColor="#FFFFFF",
-        fontFamily='"Plus Jakarta Sans", "Inter", "Segoe UI", system-ui, sans-serif',
+        fontFamily='"Noto Sans Display", "Noto Sans", "Bahnschrift", "Segoe UI", system-ui, sans-serif',
     ),
     "corporate": RemotionThemeProps(
         preset="corporate",
         backgroundColor="#102A43",
         primaryColor="#D97706",
         textColor="#FAF7F2",
-        fontFamily='Georgia, "Times New Roman", "Noto Serif", serif',
+        fontFamily='"Noto Serif Display", "Noto Serif", "Sitka Heading", "Cambria", "Times New Roman", serif',
     ),
     "minimal": RemotionThemeProps(
         preset="minimal",
         backgroundColor="#FFF0EB",
         primaryColor="#EA580C",
         textColor="#1F2937",
-        fontFamily='"Helvetica Neue", "Segoe UI", Arial, sans-serif',
+        fontFamily='"Noto Sans", "Segoe UI Variable Text", "Segoe UI", Arial, sans-serif',
     ),
 }
 

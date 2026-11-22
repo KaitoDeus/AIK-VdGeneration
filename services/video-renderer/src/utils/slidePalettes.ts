@@ -455,8 +455,8 @@ export function resolveThemeVisualStyle(baseTheme: Required<ThemeConfig>): Theme
   if (preset === 'corporate') {
     return {
       preset,
-      headingFont: 'Georgia, "Times New Roman", "Noto Serif", serif',
-      bodyFont: '"Segoe UI", "Helvetica Neue", Arial, sans-serif',
+      headingFont: '"Noto Serif Display", "Noto Serif", "Sitka Heading", "Cambria", "Times New Roman", serif',
+      bodyFont: '"Noto Sans", "Calibri", "Segoe UI", Arial, sans-serif',
       headingWeight: 700,
       topBarHeight: '3px',
       accentStripeWidth: '3px',
@@ -465,8 +465,8 @@ export function resolveThemeVisualStyle(baseTheme: Required<ThemeConfig>): Theme
   if (preset === 'minimal') {
     return {
       preset,
-      headingFont: '"Helvetica Neue", "Segoe UI", Arial, sans-serif',
-      bodyFont: '"Helvetica Neue", "Segoe UI", Arial, sans-serif',
+      headingFont: '"Noto Sans", "Segoe UI Variable Text", "Segoe UI", Arial, sans-serif',
+      bodyFont: '"Noto Sans", "Segoe UI Variable Text", "Segoe UI", Arial, sans-serif',
       headingWeight: 500,
       topBarHeight: '0px',
       accentStripeWidth: '0px',
@@ -474,8 +474,8 @@ export function resolveThemeVisualStyle(baseTheme: Required<ThemeConfig>): Theme
   }
   return {
     preset,
-    headingFont: '"Plus Jakarta Sans", "Inter", "Segoe UI", system-ui, sans-serif',
-    bodyFont: '"Inter", "Segoe UI", system-ui, sans-serif',
+    headingFont: '"Noto Sans Display", "Noto Sans", "Bahnschrift", "Segoe UI", system-ui, sans-serif',
+    bodyFont: '"Noto Sans", "Segoe UI", system-ui, sans-serif',
     headingWeight: 800,
     topBarHeight: '8px',
     accentStripeWidth: '6px',

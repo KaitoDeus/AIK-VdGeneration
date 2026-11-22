@@ -422,20 +422,23 @@ describe('M2.2 Web Studio Bilingual UI Components SSR Rendering', () => {
 
     expect(techHtml).toContain('data-theme-preset="modern_tech"');
     expect(techHtml).toContain('data-palette-id="sapphire_studio"');
-    expect(techHtml).toContain('Plus Jakarta Sans');
+    expect(techHtml).toContain('Bahnschrift');
 
     expect(corpHtml).toContain('data-theme-preset="corporate"');
     expect(corpHtml).toContain('data-palette-id="corp_admiralty_navy"');
-    expect(corpHtml).toContain('Georgia');
+    expect(corpHtml).toContain('Cambria');
+    expect(corpHtml).toContain('Noto Serif');
 
     expect(minimalHtml).toContain('data-theme-preset="minimal"');
     expect(minimalHtml).toContain('data-palette-id="minimal_peach_silk"');
-    expect(minimalHtml).toContain('Helvetica Neue');
+    expect(minimalHtml).toContain('Segoe UI Variable Text');
 
     for (const html of [techHtml, corpHtml, minimalHtml]) {
       expect(html).not.toContain('DARK STUDIO');
       expect(html).not.toContain('VISUAL:');
       expect(html).not.toContain('SAPPHIRE STUDIO');
+      expect(html).not.toContain('Georgia');
+      expect(html).not.toContain('Helvetica Neue');
     }
   });
 

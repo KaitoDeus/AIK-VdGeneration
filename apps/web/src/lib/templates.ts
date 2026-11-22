@@ -224,8 +224,8 @@ export function resolveWebThemeStyle(theme: VisualTheme = 'modern_tech'): WebThe
   if (theme === 'corporate') {
     return {
       preset: 'corporate',
-      headingFont: 'Georgia, "Times New Roman", "Noto Serif", serif',
-      bodyFont: '"Segoe UI", "Helvetica Neue", Arial, sans-serif',
+      headingFont: '"Sitka Heading", "Cambria", "Noto Serif Display", "Noto Serif", "Times New Roman", serif',
+      bodyFont: 'var(--font-inter), "Calibri", "Segoe UI", "Noto Sans", sans-serif',
       headingWeight: 700,
       topBarHeight: '3px',
       accentStripeWidth: '3px',
@@ -234,8 +234,8 @@ export function resolveWebThemeStyle(theme: VisualTheme = 'modern_tech'): WebThe
   if (theme === 'minimal') {
     return {
       preset: 'minimal',
-      headingFont: '"Helvetica Neue", "Segoe UI", Arial, sans-serif',
-      bodyFont: '"Helvetica Neue", "Segoe UI", Arial, sans-serif',
+      headingFont: '"Segoe UI Variable Text", "Segoe UI", var(--font-inter), "Noto Sans", Arial, sans-serif',
+      bodyFont: '"Segoe UI Variable Text", "Segoe UI", var(--font-inter), "Noto Sans", Arial, sans-serif',
       headingWeight: 500,
       topBarHeight: '0px',
       accentStripeWidth: '0px',
@@ -243,8 +243,8 @@ export function resolveWebThemeStyle(theme: VisualTheme = 'modern_tech'): WebThe
   }
   return {
     preset: 'modern_tech',
-    headingFont: '"Plus Jakarta Sans", "Inter", "Segoe UI", system-ui, sans-serif',
-    bodyFont: '"Inter", "Segoe UI", system-ui, sans-serif',
+    headingFont: 'var(--font-inter), "Bahnschrift", "Segoe UI Variable Display", "Noto Sans Display", sans-serif',
+    bodyFont: 'var(--font-inter), "Segoe UI", "Noto Sans", system-ui, sans-serif',
     headingWeight: 800,
     topBarHeight: '6px',
     accentStripeWidth: '4px',

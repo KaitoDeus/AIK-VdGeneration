@@ -93,6 +93,9 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
     currentSlide.layout,
     currentSlide.heading
   );
+  const displayProjectTitle = script.title.normalize('NFC');
+  const displayHeading = currentSlide.heading.normalize('NFC');
+  const displayBullets = currentSlide.bullet_points.map((bp) => bp.normalize('NFC'));
 
   const handleSearchStock = async () => {
     setIsSearchingStock(true);
@@ -365,7 +368,7 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                 }}
               >
                 <span className="truncate font-semibold" style={{ color: currentPalette.primaryColor }}>
-                  {script.title}
+                  {displayProjectTitle}
                 </span>
                 <span style={{ color: currentPalette.mutedTextColor }}>
                   {String(currentSlide.slide_index).padStart(2, '0')} /{' '}
@@ -413,14 +416,14 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                       fontWeight: themeStyle.headingWeight,
                     }}
                   >
-                    {currentSlide.heading}
+                    {displayHeading}
                   </h3>
-                  {currentSlide.bullet_points.length > 0 && (
+                  {displayBullets.length > 0 && (
                     <p
                       className="mt-3 text-[12px] leading-relaxed"
                       style={{ color: currentPalette.mutedTextColor }}
                     >
-                      {currentSlide.bullet_points.slice(0, 3).join('  ·  ')}
+                      {displayBullets.slice(0, 3).join('  ·  ')}
                     </p>
                   )}
                 </div>
@@ -456,10 +459,10 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                           : 'text-[19px] md:text-[24px]'
                       }`}
                     >
-                      {currentSlide.heading}
+                      {displayHeading}
                     </h3>
 
-                    {currentSlide.bullet_points.length > 0 &&
+                    {displayBullets.length > 0 &&
                       (currentSlide.layout === 'title_intro' ? (
                         <p
                           className="mt-4 text-[13px] leading-relaxed"
@@ -472,11 +475,11 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                             paddingLeft: themeStyle.preset === 'minimal' ? '12px' : undefined,
                           }}
                         >
-                          {currentSlide.bullet_points.join('  ·  ')}
+                          {displayBullets.join('  ·  ')}
                         </p>
                       ) : currentSlide.layout === 'split_card' ? (
                         <div className="mt-4 flex flex-col gap-2.5">
-                          {currentSlide.bullet_points.map((point, idx) => (
+                          {displayBullets.map((point, idx) => (
                             <p
                               key={idx}
                               style={{
@@ -501,7 +504,7 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                               : 'grid-cols-1'
                           }`}
                         >
-                          {currentSlide.bullet_points.map((point, idx) => {
+                          {displayBullets.map((point, idx) => {
                             const accent =
                               idx % 2 === 0
                                 ? currentPalette.primaryColor

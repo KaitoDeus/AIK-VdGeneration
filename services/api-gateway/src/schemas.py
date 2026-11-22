@@ -4,6 +4,7 @@ Adheres to docs/API_SPEC.md, .agent/skills/video-prompt-engineering/SKILL.md,
 and .agent/rules/audio-sync-rules.md.
 """
 
+import unicodedata
 from typing import Dict, List, Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
@@ -62,7 +63,7 @@ class SlideScriptItem(BaseModel):
     @field_validator("heading", "voiceover_script", "visual_keywords")
     @classmethod
     def must_not_be_blank(cls, value: str) -> str:
-        cleaned = value.strip()
+        cleaned = unicodedata.normalize("NFC", value.strip())
         if not cleaned:
             raise ValueError("Field cannot be empty or whitespace only.")
         return cleaned
@@ -70,7 +71,7 @@ class SlideScriptItem(BaseModel):
     @field_validator("bullet_points")
     @classmethod
     def enforce_max_bullets(cls, points: List[str]) -> List[str]:
-        cleaned = [p.strip() for p in points if p and p.strip()]
+        cleaned = [unicodedata.normalize("NFC", p.strip()) for p in points if p and p.strip()]
         if len(cleaned) > 5:
             raise ValueError("A slide cannot exceed 5 bullet points to prevent visual overcrowding.")
         return cleaned
@@ -101,6 +102,14 @@ class PresentationScript(BaseModel):
         max_length=MAX_PRESENTATION_SLIDES,
         description="Ordered sequence of 3 to 30 presentation slides.",
     )
+
+    @field_validator("title")
+    @classmethod
+    def normalize_title_nfc(cls, value: str) -> str:
+        cleaned = unicodedata.normalize("NFC", value.strip())
+        if not cleaned:
+            raise ValueError("Title cannot be empty.")
+        return cleaned
 
 
 class SlideExpansionBatch(BaseModel):
