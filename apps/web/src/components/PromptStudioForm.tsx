@@ -151,15 +151,6 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
             {t.modeShortVideoBtn}
           </button>
         </div>
-
-        {isShortMode && (
-          <span
-            data-testid="short-mode-badge"
-            className="border border-[#0A0A0A] bg-[#FFFFFF] px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-[#0A0A0A]"
-          >
-            {t.shortActiveSummary}
-          </span>
-        )}
       </div>
 
       {/* Prompt Textarea */}

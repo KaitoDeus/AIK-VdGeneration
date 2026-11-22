@@ -436,7 +436,7 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     await user.click(shortModeBtn);
 
     expect(shortModeBtn).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('short-mode-badge')).toBeInTheDocument();
+    expect(screen.queryByTestId('short-mode-badge')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Generate Short Video 9:16' })).toBeInTheDocument();
 
     // Apply EN Short quick template and draft script
