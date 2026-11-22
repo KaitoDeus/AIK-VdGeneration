@@ -35,24 +35,47 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     server.restore();
   });
 
-  it('connects to API telemetry and switches full UI between VIE and EN via top-right flags', async () => {
+  it('defaults to EN on initial load, couples top-right VIE/EN switcher with narrator voice, and omits duplicate language buttons', async () => {
     const user = userEvent.setup();
     render(<StudioWorkspacePage />);
 
-    // Initial health & telemetry loaded
+    // Initial health & telemetry loaded in English by default
     await waitFor(() => {
-      expect(screen.getByTestId('api-status-chip')).toHaveTextContent('API TRỰC TUYẾN');
+      expect(screen.getByTestId('api-status-chip')).toHaveTextContent('API ONLINE');
     });
 
-    // Top-right VIE & EN buttons with flag SVGs are visible
+    // Top-right VIE & EN buttons with flag SVGs are visible; EN is active by default
     const vieBtn = screen.getByTestId('lang-switch-vie');
     const enBtn = screen.getByTestId('lang-switch-en');
-    expect(vieBtn).toHaveAttribute('aria-pressed', 'true');
-    expect(enBtn).toHaveAttribute('aria-pressed', 'false');
+    expect(enBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(vieBtn).toHaveAttribute('aria-pressed', 'false');
     expect(vieBtn.querySelector('svg[data-flag="vn"]')).toBeInTheDocument();
     expect(enBtn.querySelector('svg[data-flag="gb"]')).toBeInTheDocument();
+    expect(screen.getByText('Script & Voice Configuration')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Generate Presentation' })).toBeInTheDocument();
 
-    // Switch to English
+    // Redundant inline Language buttons in the parameter grid must not exist
+    expect(screen.queryByRole('button', { name: 'VIETNAMESE' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'ENGLISH' })).not.toBeInTheDocument();
+
+    // Default narrator voice matches EN cleanly
+    const voiceSelect = screen.getByLabelText('Narrator Voice Selection') as HTMLSelectElement;
+    expect(voiceSelect.value).toBe('en-US-GuyNeural');
+    expect(Array.from(voiceSelect.options).some((o) => o.value === 'en-US-GuyNeural')).toBe(true);
+    expect(Array.from(voiceSelect.options).some((o) => o.value === 'vi-VN-HoaiMyNeural')).toBe(false);
+
+    // Switch to Vietnamese via global switcher -> UI text AND narrator voice switch together
+    await user.click(vieBtn);
+    expect(vieBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(window.localStorage.getItem('aik-studio-locale')).toBe('vi');
+    expect(screen.getByText('Thiết Lập Kịch Bản & Giọng Đọc')).toBeInTheDocument();
+    expect(screen.queryByText('Biến Prompt thành Video Slide Đồng Bộ.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tạo Video Thuyết Trình' })).toBeInTheDocument();
+    expect(voiceSelect.value).toBe('vi-VN-HoaiMyNeural');
+    expect(Array.from(voiceSelect.options).some((o) => o.value === 'vi-VN-HoaiMyNeural')).toBe(true);
+    expect(Array.from(voiceSelect.options).some((o) => o.value === 'en-US-GuyNeural')).toBe(false);
+
+    // Switch back to English -> UI text AND narrator voice revert together
     await user.click(enBtn);
     expect(enBtn).toHaveAttribute('aria-pressed', 'true');
     expect(window.localStorage.getItem('aik-studio-locale')).toBe('en');
@@ -60,14 +83,7 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     expect(screen.queryByText('Prompt to Synchronized Slide Video.')).not.toBeInTheDocument();
     expect(screen.getByTestId('api-status-chip')).toHaveTextContent('API ONLINE');
     expect(screen.getByRole('button', { name: 'Generate Presentation' })).toBeInTheDocument();
-
-    // Switch back to Vietnamese
-    await user.click(vieBtn);
-    expect(vieBtn).toHaveAttribute('aria-pressed', 'true');
-    expect(window.localStorage.getItem('aik-studio-locale')).toBe('vi');
-    expect(screen.getByText('Thiết Lập Kịch Bản & Giọng Đọc')).toBeInTheDocument();
-    expect(screen.queryByText('Biến Prompt thành Video Slide Đồng Bộ.')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Tạo Video Thuyết Trình' })).toBeInTheDocument();
+    expect(voiceSelect.value).toBe('en-US-GuyNeural');
   });
 
   it('shows validation alert on empty prompt, applies quick template, and auditions voice audio', async () => {
@@ -75,21 +91,21 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     render(<StudioWorkspacePage />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('api-status-chip')).toHaveTextContent('API TRỰC TUYẾN');
+      expect(screen.getByTestId('api-status-chip')).toHaveTextContent('API ONLINE');
     });
 
     // Submit empty prompt -> displays localized validation error
-    await user.click(screen.getByRole('button', { name: 'Tạo Video Thuyết Trình' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('Prompt phải chứa ít nhất 3 ký tự.');
+    await user.click(screen.getByRole('button', { name: 'Generate Presentation' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Prompt must contain at least 3 characters.');
 
     // Click quick template chip -> clears error and populates prompt & settings
-    await user.click(screen.getByRole('button', { name: 'GIẢI THÍCH CÔNG NGHỆ' }));
+    await user.click(screen.getByRole('button', { name: 'TECH EXPLAINER' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    const promptBox = screen.getByLabelText('Chủ Đề Thuyết Trình Hoặc Nội Dung Thô') as HTMLTextAreaElement;
+    const promptBox = screen.getByLabelText('Presentation Topic or Raw Narrative') as HTMLTextAreaElement;
     expect(promptBox.value).toContain('Event-Driven Microservices');
 
     // Audition Voice Sample mounts audio preview player
-    await user.click(screen.getByRole('button', { name: 'NGHE THỬ GIỌNG ĐỌC' }));
+    await user.click(screen.getByRole('button', { name: 'AUDITION VOICE SAMPLE' }));
     await waitFor(() => {
       const audioEl = screen.getByTestId('voice-audition-player') as HTMLAudioElement;
       expect(audioEl).toBeInTheDocument();
@@ -101,36 +117,36 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     const user = userEvent.setup();
     render(<StudioWorkspacePage />);
 
-    await user.click(screen.getByRole('button', { name: 'GIẢI THÍCH CÔNG NGHỆ' }));
-    await user.click(screen.getByRole('button', { name: 'Soạn Kịch Bản Trước' }));
+    await user.click(screen.getByRole('button', { name: 'TECH EXPLAINER' }));
+    await user.click(screen.getByRole('button', { name: 'Draft Script First' }));
 
     // SlideReviewer mounts with 3 slides
     await waitFor(() => {
       expect(screen.getByTestId('live-slide-canvas')).toBeInTheDocument();
     });
-    expect(screen.getByText('DANH SÁCH SLIDE (3 / 30)')).toBeInTheDocument();
+    expect(screen.getByText('SLIDES (3 / 30)')).toBeInTheDocument();
 
     // Edit Slide 1 heading -> immediately reflected on live slide canvas
-    const headingInput = screen.getByLabelText('Tiêu Đề Slide') as HTMLInputElement;
+    const headingInput = screen.getByLabelText('Slide Heading') as HTMLInputElement;
     await user.clear(headingInput);
     await user.type(headingInput, 'Custom Studio Heading');
     expect(screen.getByTestId('live-slide-canvas')).toHaveTextContent('Custom Studio Heading');
 
     // Switch layout template -> updates live canvas data-layout attribute
-    await user.selectOptions(screen.getByLabelText('Mẫu Bố Cục (Layout)'), 'quote_highlight');
+    await user.selectOptions(screen.getByLabelText('Layout Template'), 'quote_highlight');
     expect(screen.getByTestId('live-slide-canvas')).toHaveAttribute('data-layout', 'quote_highlight');
 
     // Add slide -> increases from 3/30 to 4/30, then Remove -> drops back to 3/30
-    await user.click(screen.getByRole('button', { name: '+ THÊM' }));
-    expect(screen.getByText('DANH SÁCH SLIDE (4 / 30)')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '+ ADD' }));
+    expect(screen.getByText('SLIDES (4 / 30)')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'XÓA' }));
-    expect(screen.getByText('DANH SÁCH SLIDE (3 / 30)')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'REMOVE' }));
+    expect(screen.getByText('SLIDES (3 / 30)')).toBeInTheDocument();
 
     // Auto-expand +10 continuation slides via AI button -> reaches 13 / 30
     await user.click(screen.getByTestId('ai-expand-10-btn'));
     await waitFor(() => {
-      expect(screen.getByText('DANH SÁCH SLIDE (13 / 30)')).toBeInTheDocument();
+      expect(screen.getByText('SLIDES (13 / 30)')).toBeInTheDocument();
     });
     expect(screen.getByRole('listbox', { name: 'Slide list' })).toHaveTextContent(
       'AI Continuation Slide 10'
@@ -141,10 +157,12 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     const user = userEvent.setup();
     render(<StudioWorkspacePage />);
 
-    await user.click(screen.getByRole('button', { name: 'GIẢI THÍCH CÔNG NGHỆ' }));
-    const renderCheckbox = screen.getByRole('checkbox', { name: /Kết xuất ngay video MP4 1080p/i });
+    await user.click(screen.getByRole('button', { name: 'TECH EXPLAINER' }));
+    const renderCheckbox = screen.getByRole('checkbox', {
+      name: /Compile final 1080p MP4 via Remotion immediately/i,
+    });
     expect(renderCheckbox).toHaveAttribute('aria-checked', 'true');
-    await user.click(screen.getByRole('button', { name: 'Tạo Video Thuyết Trình' }));
+    await user.click(screen.getByRole('button', { name: 'Generate Presentation' }));
 
     await waitFor(() => {
       const genCall = server.fetchMock.mock.calls.find(
@@ -153,6 +171,8 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
       expect(genCall).toBeDefined();
       const body = JSON.parse(String(genCall?.[1]?.body));
       expect(body.render_video).toBe(true);
+      expect(body.language).toBe('en');
+      expect(body.voice_settings.voice_id).toBe('en-US-GuyNeural');
       expect(body.target_slides).toBeGreaterThanOrEqual(5);
     });
 
@@ -175,7 +195,7 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
       });
     });
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '58');
-    expect(screen.getByTestId('job-status-chip')).toHaveTextContent('ĐANG TẠO GIỌNG ĐỌC');
+    expect(screen.getByTestId('job-status-chip')).toHaveTextContent('SYNTHESIZING AUDIO');
     expect(screen.getByTestId('live-activity-ticker')).toHaveTextContent('Voiceover slide 3/5 ready');
 
     await act(async () => {
@@ -188,7 +208,7 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
       });
     });
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '91');
-    expect(screen.getByTestId('job-status-chip')).toHaveTextContent('ĐANG KẾT XUẤT VIDEO');
+    expect(screen.getByTestId('job-status-chip')).toHaveTextContent('RENDERING VIDEO');
     expect(screen.getByTestId('live-activity-ticker')).toHaveTextContent('Rendering frame 180/300');
 
     // Update backend job state and emit completion over WebSocket
@@ -211,7 +231,7 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     await waitFor(() => {
       expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100');
       expect(screen.getByTestId('rendered-video-player')).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Tải Xuống MP4 1080p' })).toHaveAttribute(
+      expect(screen.getByRole('link', { name: 'Download 1080p MP4' })).toHaveAttribute(
         'href',
         'http://localhost:8000/api/v1/jobs/job_mock_99/video'
       );
@@ -226,7 +246,7 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     await user.click(archiveRow);
 
     await waitFor(() => {
-      expect(screen.getByTestId('job-status-chip')).toHaveTextContent('HOÀN TẤT');
+      expect(screen.getByTestId('job-status-chip')).toHaveTextContent('COMPLETED');
       expect(screen.getByTestId('live-slide-canvas')).toBeInTheDocument();
     });
   });
@@ -235,15 +255,15 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     const user = userEvent.setup();
     render(<StudioWorkspacePage />);
 
-    await user.click(screen.getByRole('button', { name: 'GIẢI THÍCH CÔNG NGHỆ' }));
-    await user.click(screen.getByRole('button', { name: 'Soạn Kịch Bản Trước' }));
+    await user.click(screen.getByRole('button', { name: 'TECH EXPLAINER' }));
+    await user.click(screen.getByRole('button', { name: 'Draft Script First' }));
 
     await waitFor(() => {
       expect(screen.getByTestId('live-slide-canvas')).toBeInTheDocument();
     });
 
     // Search Unsplash/Pexels stock backgrounds
-    await user.click(screen.getByRole('button', { name: 'Tìm Ảnh Nền Stock' }));
+    await user.click(screen.getByRole('button', { name: 'Search Stock Visuals' }));
     const firstCandidateBtn = await screen.findByRole('button', { name: /unsplash · Taylor Vick/i });
     await user.click(firstCandidateBtn);
 
@@ -256,7 +276,7 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     );
 
     // Compiling edited deck passes slide_backgrounds override to /api/v1/jobs/compile
-    await user.click(screen.getByRole('button', { name: 'Biên Dịch & Xuất MP4 1080p' }));
+    await user.click(screen.getByRole('button', { name: 'Compile & Render 1080p MP4' }));
     await waitFor(() => {
       const compileCall = server.fetchMock.mock.calls.find(
         ([url, init]) => String(url).endsWith('/api/v1/jobs/compile') && init?.method === 'POST'
@@ -270,7 +290,7 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     });
 
     // Clear override -> reverts canvas backdrop to pure gradient
-    await user.click(screen.getByRole('button', { name: 'Dùng Nền Gradient' }));
+    await user.click(screen.getByRole('button', { name: 'Use Gradient' }));
     expect(screen.queryByTestId('canvas-stock-backdrop')).not.toBeInTheDocument();
 
     // Missing keys / empty match triggers graceful fallback note without error crash
@@ -280,7 +300,7 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
       fallback_to_gradient: true,
       results: [],
     });
-    await user.click(screen.getByRole('button', { name: 'Tìm Ảnh Nền Stock' }));
+    await user.click(screen.getByRole('button', { name: 'Search Stock Visuals' }));
     await waitFor(() => {
       expect(screen.getByTestId('stock-fallback-note')).toBeInTheDocument();
     });
@@ -297,7 +317,7 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
       expect(screen.getByTestId('storage-provider-chip')).toHaveTextContent('AWS S3 SIGNED');
     });
 
-    const downloadLink = screen.getByRole('link', { name: 'Tải Xuống MP4 1080p' });
+    const downloadLink = screen.getByRole('link', { name: 'Download 1080p MP4' });
     expect(downloadLink).toHaveAttribute(
       'href',
       'https://aik-bucket.s3.us-east-1.amazonaws.com/videos/job_archive_s3/job_archive_s3.mp4?X-Amz-Signature=initial'
@@ -320,7 +340,7 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     const user = userEvent.setup();
     render(<StudioWorkspacePage />);
 
-    await user.click(screen.getByRole('button', { name: 'GIẢI THÍCH CÔNG NGHỆ' }));
+    await user.click(screen.getByRole('button', { name: 'TECH EXPLAINER' }));
     await user.click(screen.getByTestId('bgm-mood-inspiring'));
 
     expect(screen.getByTestId('bgm-ducking-toggle')).toBeInTheDocument();
@@ -330,7 +350,7 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     expect(bgmPlayer).toBeInTheDocument();
     expect(bgmPlayer.getAttribute('src')).toContain('/api/v1/bgm/tracks/inspiring-horizon/preview');
 
-    await user.click(screen.getByRole('button', { name: 'Tạo Video Thuyết Trình' }));
+    await user.click(screen.getByRole('button', { name: 'Generate Presentation' }));
     await waitFor(() => {
       const genCall = server.fetchMock.mock.calls.find(
         ([url, init]) => String(url).endsWith('/api/v1/videos/generate') && init?.method === 'POST'
@@ -353,8 +373,8 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     // Enable subtitles & pick bold_highlight style
     await user.click(screen.getByTestId('subtitles-enable-toggle'));
     await user.click(screen.getByTestId('subtitle-style-bold_highlight'));
-    await user.click(screen.getByRole('button', { name: 'GIẢI THÍCH CÔNG NGHỆ' }));
-    await user.click(screen.getByRole('button', { name: 'Tạo Video Thuyết Trình' }));
+    await user.click(screen.getByRole('button', { name: 'TECH EXPLAINER' }));
+    await user.click(screen.getByRole('button', { name: 'Generate Presentation' }));
 
     await waitFor(() => {
       const genCall = server.fetchMock.mock.calls.find(
@@ -382,21 +402,21 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     });
   });
 
-  it('detects Vietnamese prompt pasted while English video language is active and switches via 1-click button', async () => {
+  it('detects Vietnamese prompt pasted while English language is active and syncs UI + voice via 1-click button', async () => {
     const user = userEvent.setup();
     render(<StudioWorkspacePage />);
 
-    // Select ENGLISH video language
-    await user.click(screen.getByRole('button', { name: 'TIẾNG ANH' }));
-    const promptBox = screen.getByLabelText('Chủ Đề Thuyết Trình Hoặc Nội Dung Thô') as HTMLTextAreaElement;
+    // Default active language is already EN; typing Vietnamese triggers mismatch notice
+    const promptBox = screen.getByLabelText('Presentation Topic or Raw Narrative') as HTMLTextAreaElement;
     await user.type(promptBox, 'Hướng dẫn sử dụng điện toán đám mây');
 
     // Warning banner prompts switching to Vietnamese
     expect(screen.getByTestId('language-mismatch-warning')).toBeInTheDocument();
     await user.click(screen.getByTestId('switch-to-vi-btn'));
 
-    // Switching resolves mismatch and restores Vietnamese voice selection
+    // Switching resolves mismatch, flips top-right switcher to VIE, and sets Vietnamese voice
     expect(screen.queryByTestId('language-mismatch-warning')).not.toBeInTheDocument();
+    expect(screen.getByTestId('lang-switch-vie')).toHaveAttribute('aria-pressed', 'true');
     const voiceSelect = screen.getByLabelText('Narrator Voice Selection') as HTMLSelectElement;
     expect(voiceSelect.value).toBe('vi-VN-HoaiMyNeural');
   });
@@ -411,11 +431,11 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
 
     expect(shortModeBtn).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('short-mode-badge')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Tạo Video Short 9:16' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Generate Short Video 9:16' })).toBeInTheDocument();
 
-    // Apply VI Short quick template and draft script
-    await user.click(screen.getByRole('button', { name: 'VIDEO SHORT 30S' }));
-    await user.click(screen.getByRole('button', { name: 'Soạn Kịch Bản Trước' }));
+    // Apply EN Short quick template and draft script
+    await user.click(screen.getByRole('button', { name: 'EN SHORTS HOOK' }));
+    await user.click(screen.getByRole('button', { name: 'Draft Script First' }));
 
     await waitFor(() => {
       const draftCall = server.fetchMock.mock.calls.find(
@@ -434,7 +454,7 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     expect(screen.getByTestId('vertical-shorts-caption-preview')).toBeInTheDocument();
 
     // Enqueue Short Video pipeline -> sends speed 1.1 and 4-word subtitle bursts
-    await user.click(screen.getByRole('button', { name: 'Tạo Video Short 9:16' }));
+    await user.click(screen.getByRole('button', { name: 'Generate Short Video 9:16' }));
     await waitFor(() => {
       const genCall = server.fetchMock.mock.calls.find(
         ([url, init]) => String(url).endsWith('/api/v1/videos/generate') && init?.method === 'POST'
@@ -452,9 +472,12 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     });
   });
 
-  it('shows strictly pure Vietnamese narrator voices when Vietnamese language is active (hiding English Rachel)', async () => {
+  it('shows strictly pure Vietnamese narrator voices when switched to VIE via global header toggle (hiding English Rachel)', async () => {
     const user = userEvent.setup();
     render(<StudioWorkspacePage />);
+
+    // Switch global UI + voice language to Vietnamese via top-right flag toggle
+    await user.click(screen.getByTestId('lang-switch-vie'));
 
     const voiceSelect = screen.getByLabelText('Narrator Voice Selection') as HTMLSelectElement;
     const optionTextsVi = Array.from(voiceSelect.options).map((opt) => opt.text);
@@ -469,7 +492,7 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     expect(voiceSelect.value).toBe('vi-VN-GoogleVi');
 
     await user.click(screen.getByRole('button', { name: 'GIÁO DỤC' }));
-    // Apply VI template keeps VI; let's select Google Vi again cleanly and submit
+    // Apply VI template keeps VI; select Google Vi cleanly and submit
     await user.selectOptions(voiceSelect, 'vi-VN-GoogleVi');
     await user.click(screen.getByRole('button', { name: 'Tạo Video Thuyết Trình' }));
 

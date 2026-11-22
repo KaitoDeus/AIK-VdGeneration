@@ -356,7 +356,7 @@ test.describe('AIK Web Studio Real Browser Verification (StudioBlank)', () => {
     expect(consoleErrors).toEqual([]);
   });
 
-  test('renders VIE & EN flag switcher in top-right corner and persists language across reload', async ({
+  test('defaults to EN, couples VIE & EN flag switcher with voiceover language, and persists locale across reload', async ({
     page,
   }) => {
     await attachMockApiGateway(page);
@@ -365,9 +365,17 @@ test.describe('AIK Web Studio Real Browser Verification (StudioBlank)', () => {
     const switcher = page.getByTestId('ui-language-switcher');
     const vieBtn = page.getByTestId('lang-switch-vie');
     const enBtn = page.getByTestId('lang-switch-en');
+    const voiceSelect = page.getByLabel('Narrator Voice Selection');
 
     await expect(vieBtn.locator('svg[data-flag="vn"]')).toBeVisible();
     await expect(enBtn.locator('svg[data-flag="gb"]')).toBeVisible();
+    await expect(enBtn).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+      'Script & Voice Configuration'
+    );
+    await expect(voiceSelect).toHaveValue('en-US-GuyNeural');
+    await expect(page.getByRole('button', { name: 'VIETNAMESE' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'ENGLISH' })).toHaveCount(0);
 
     // Verify physical placement in top-right quadrant of the viewport
     const viewport = page.viewportSize()!;
@@ -376,21 +384,24 @@ test.describe('AIK Web Studio Real Browser Verification (StudioBlank)', () => {
     expect(box!.x + box!.width).toBeGreaterThan(viewport.width * 0.6);
     expect(box!.y).toBeLessThan(64);
 
-    // Click EN -> translates full UI & persists on reload
-    await enBtn.click();
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-      'Script & Voice Configuration'
-    );
-    await page.reload();
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-      'Script & Voice Configuration'
-    );
-
-    // Click VIE -> switches back cleanly to Vietnamese
+    // Click VIE -> translates full UI, auto-switches narrator voice to VI, & persists on reload
     await vieBtn.click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(
       'Thiết Lập Kịch Bản & Giọng Đọc'
     );
+    await expect(voiceSelect).toHaveValue('vi-VN-HoaiMyNeural');
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+      'Thiết Lập Kịch Bản & Giọng Đọc'
+    );
+    await expect(voiceSelect).toHaveValue('vi-VN-HoaiMyNeural');
+
+    // Click EN -> switches back cleanly to English UI and English narrator voice
+    await enBtn.click();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+      'Script & Voice Configuration'
+    );
+    await expect(voiceSelect).toHaveValue('en-US-GuyNeural');
   });
 
   test('completes end-to-end Draft -> Interactive Slide Edit -> WebSocket Render flow in Chrome', async ({
@@ -400,10 +411,10 @@ test.describe('AIK Web Studio Real Browser Verification (StudioBlank)', () => {
     await page.goto('/');
 
     // Select quick template, enable BGM & Whisper captions, and draft script
-    await page.getByRole('button', { name: 'GIẢI THÍCH CÔNG NGHỆ' }).click();
+    await page.getByRole('button', { name: 'TECH EXPLAINER' }).click();
     await page.getByTestId('bgm-mood-tech').click();
     await page.getByTestId('subtitles-enable-toggle').click();
-    await page.getByRole('button', { name: 'Soạn Kịch Bản Trước' }).click();
+    await page.getByRole('button', { name: 'Draft Script First' }).click();
 
     const canvas = page.getByTestId('live-slide-canvas');
     await expect(canvas).toBeVisible();
@@ -419,22 +430,22 @@ test.describe('AIK Web Studio Real Browser Verification (StudioBlank)', () => {
 
     // Auto-expand +10 AI continuation slides -> deck grows cleanly from 3 to 13 / 30 with no overflow
     await page.getByTestId('ai-expand-10-btn').click();
-    await expect(page.getByText('DANH SÁCH SLIDE (13 / 30)')).toBeVisible();
+    await expect(page.getByText('SLIDES (13 / 30)')).toBeVisible();
     const overflowAfterExpand = await page.evaluate(
       () => document.documentElement.scrollWidth > window.innerWidth
     );
     expect(overflowAfterExpand).toBe(false);
 
     // Search stock visuals and pick backdrop onto live slide canvas
-    await page.getByRole('button', { name: 'Tìm Ảnh Nền Stock' }).click();
+    await page.getByRole('button', { name: 'Search Stock Visuals' }).click();
     await page.getByRole('button', { name: /unsplash · Studio Photographer/i }).click();
     await expect(page.getByTestId('canvas-stock-backdrop')).toBeVisible();
 
     // Compile edited deck -> streams WebSocket progress to 100% and reveals MP4 download
-    await page.getByRole('button', { name: 'Biên Dịch & Xuất MP4 1080p' }).click();
+    await page.getByRole('button', { name: 'Compile & Render 1080p MP4' }).click();
     await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100');
     await expect(page.getByTestId('storage-provider-chip')).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Tải Xuống MP4 1080p' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Download 1080p MP4' })).toBeVisible();
     await expect(page.locator('video')).toBeVisible();
   });
 });

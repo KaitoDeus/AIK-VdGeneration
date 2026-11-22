@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { UkFlagIcon, VietnamFlagIcon } from '@/components/FlagIcons';
 import { getBgmPreviewUrl } from '@/lib/api';
 import { STUDIO_DICTIONARY, UiLocale } from '@/lib/i18n';
 import { PROMPT_TEMPLATES, THEME_OPTIONS } from '@/lib/templates';
@@ -49,6 +48,7 @@ interface PromptStudioFormProps {
   validationError: string | null;
   onChange: (patch: Partial<StudioFormState>) => void;
   onApplyTemplate: (template: PromptTemplate) => void;
+  onSwitchLanguage?: (lang: SupportedLanguage) => void;
   onAuditionVoice: () => void;
   onDraftScript: () => void;
   onGeneratePipeline: () => void;
@@ -65,6 +65,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
   validationError,
   onChange,
   onApplyTemplate,
+  onSwitchLanguage,
   onAuditionVoice,
   onDraftScript,
   onGeneratePipeline,
@@ -235,13 +236,17 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
             <button
               type="button"
               data-testid="switch-to-vi-btn"
-              onClick={() =>
+              onClick={() => {
+                if (onSwitchLanguage) {
+                  onSwitchLanguage('vi');
+                  return;
+                }
                 onChange({
                   language: 'vi',
                   voiceProvider: 'edge_tts',
                   voiceId: 'vi-VN-HoaiMyNeural',
-                })
-              }
+                });
+              }}
               className="h-7 shrink-0 border border-[#0A0A0A] bg-[#0A0A0A] px-3 font-mono text-[11px] uppercase tracking-[0.05em] text-[#FAFAFA] transition-colors duration-150 hover:bg-[#FFFFFF] hover:text-[#0A0A0A]"
             >
               {t.languageMismatchSwitchBtn}
@@ -250,42 +255,8 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
         )}
       </div>
 
-      {/* Strict 4-Column Geometric Parameter Grid */}
-      <div className="grid grid-cols-1 divide-y divide-[#E5E5E5] border-b border-[#E5E5E5] md:grid-cols-2 md:divide-x md:divide-y-0 lg:grid-cols-4">
-        {/* Column 1: Language */}
-        <div className="p-6">
-          <span className="mb-3 block text-[12px] font-semibold uppercase tracking-[0.08em] text-[#71717A]">
-            {t.languageLabel}
-          </span>
-          <div className="flex gap-2">
-            {(['vi', 'en'] as SupportedLanguage[]).map((lang) => {
-              const active = formState.language === lang;
-              return (
-                <button
-                  key={lang}
-                  type="button"
-                  onClick={() => {
-                    const defaultVoice =
-                      lang === 'vi' ? 'vi-VN-HoaiMyNeural' : 'en-US-GuyNeural';
-                    onChange({
-                      language: lang,
-                      voiceProvider: 'edge_tts',
-                      voiceId: defaultVoice,
-                    });
-                  }}
-                  className={`inline-flex h-8 flex-1 items-center justify-center gap-1.5 border px-2 text-[11px] uppercase tracking-[0.05em] transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0A0A0A] ${
-                    active
-                      ? 'border-[#0A0A0A] bg-[#0A0A0A] text-[#FAFAFA]'
-                      : 'border-[#D4D4D8] bg-transparent text-[#71717A] hover:border-[#A1A1AA] hover:text-[#0A0A0A]'
-                  }`}
-                >
-                  {lang === 'vi' ? <VietnamFlagIcon /> : <UkFlagIcon />}
-                  <span>{lang === 'vi' ? t.languageVi : t.languageEn}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+      {/* Strict 3-Column Geometric Parameter Grid (Language controlled globally in top-right header) */}
+      <div className="grid grid-cols-1 divide-y divide-[#E5E5E5] border-b border-[#E5E5E5] md:grid-cols-3 md:divide-x md:divide-y-0">
 
         {/* Column 2: Aspect Ratio (StudioBlank Radio Style) */}
         <div className="p-6">

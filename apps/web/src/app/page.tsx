@@ -36,18 +36,30 @@ import {
 
 const LOCALE_STORAGE_KEY = 'aik-studio-locale';
 
+function syncLocaleToForm(prev: StudioFormState, targetLocale: UiLocale): StudioFormState {
+  if (prev.language === targetLocale) {
+    return prev;
+  }
+  return {
+    ...prev,
+    language: targetLocale,
+    voiceProvider: 'edge_tts',
+    voiceId: targetLocale === 'vi' ? 'vi-VN-HoaiMyNeural' : 'en-US-GuyNeural',
+  };
+}
+
 export default function StudioWorkspacePage() {
-  const [locale, setLocale] = useState<UiLocale>('vi');
+  const [locale, setLocale] = useState<UiLocale>('en');
   const [formState, setFormState] = useState<StudioFormState>({
     prompt: '',
-    language: 'vi',
+    language: 'en',
     aspectRatio: '16:9',
     videoFormat: 'presentation',
     voiceSpeed: 1.0,
     targetDuration: 45,
     theme: 'modern_tech',
     voiceProvider: 'edge_tts',
-    voiceId: 'vi-VN-HoaiMyNeural',
+    voiceId: 'en-US-GuyNeural',
     renderVideo: true,
     bgmEnabled: false,
     bgmMood: 'tech',
@@ -84,12 +96,24 @@ export default function StudioWorkspacePage() {
 
   const t = STUDIO_DICTIONARY[locale];
 
-  // Hydrate saved UI locale preference on client mount
+  const persistLocalePreference = (nextLocale: UiLocale) => {
+    setLocale(nextLocale);
+    document.documentElement.lang = nextLocale;
+    try {
+      window.localStorage.setItem(LOCALE_STORAGE_KEY, nextLocale);
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  // Hydrate saved UI locale preference on client mount and keep voice language aligned
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem(LOCALE_STORAGE_KEY);
       if (saved === 'en' || saved === 'vi') {
         setLocale(saved);
+        document.documentElement.lang = saved;
+        setFormState((prev) => syncLocaleToForm(prev, saved));
       }
     } catch {
       // ignore storage errors
@@ -97,14 +121,9 @@ export default function StudioWorkspacePage() {
   }, []);
 
   const handleLocaleChange = (nextLocale: UiLocale) => {
-    setLocale(nextLocale);
+    persistLocalePreference(nextLocale);
+    setFormState((prev) => syncLocaleToForm(prev, nextLocale));
     setValidationError(null);
-    document.documentElement.lang = nextLocale;
-    try {
-      window.localStorage.setItem(LOCALE_STORAGE_KEY, nextLocale);
-    } catch {
-      // ignore storage errors
-    }
   };
 
   const loadTelemetry = useCallback(async () => {
@@ -265,6 +284,7 @@ export default function StudioWorkspacePage() {
 
   const handleApplyTemplate = (template: PromptTemplate) => {
     setValidationError(null);
+    persistLocalePreference(template.language);
     const nextAspect = template.aspectRatio ?? '16:9';
     const nextFormat =
       template.videoFormat ?? (nextAspect === '9:16' ? 'short' : 'presentation');
@@ -516,6 +536,7 @@ export default function StudioWorkspacePage() {
             validationError={validationError}
             onChange={(patch) => setFormState((prev) => ({ ...prev, ...patch }))}
             onApplyTemplate={handleApplyTemplate}
+            onSwitchLanguage={handleLocaleChange}
             onAuditionVoice={handleAuditionVoice}
             onDraftScript={handleDraftScript}
             onGeneratePipeline={handleGeneratePipeline}
