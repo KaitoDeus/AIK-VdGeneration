@@ -5,6 +5,7 @@ import { getJobAssetUrl, getJobAudioUrl, searchStockAssets } from '@/lib/api';
 import { STUDIO_DICTIONARY, UiLocale } from '@/lib/i18n';
 import {
   resolveWebSlidePalette,
+  resolveWebThemeStyle,
   resolveWebVisualVariant,
   SLIDE_LAYOUT_LABELS,
   WebSlidePalette,
@@ -17,6 +18,7 @@ import {
   SlideLayout,
   SlideScriptItem,
   StockImageCandidate,
+  VisualTheme,
 } from '@/types/studio';
 
 const MAX_SLIDES = 30;
@@ -27,6 +29,7 @@ interface SlideReviewerProps {
   script: PresentationScript;
   remotionProps: RemotionCompositionProps | null;
   aspectRatio: AspectRatio;
+  activeTheme?: VisualTheme;
   isCompiling: boolean;
   isExpanding?: boolean;
   slideBackgrounds?: Record<number, string>;
@@ -50,6 +53,7 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
   script,
   remotionProps,
   aspectRatio,
+  activeTheme,
   isCompiling,
   isExpanding = false,
   slideBackgrounds = {},
@@ -59,6 +63,8 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
   onExpandSlides,
 }) => {
   const t = STUDIO_DICTIONARY[locale].reviewer;
+  const resolvedTheme: VisualTheme = activeTheme || (script.theme as VisualTheme) || 'modern_tech';
+  const themeStyle = resolveWebThemeStyle(resolvedTheme);
   const [activeIndex, setActiveIndex] = useState<number>(0);
   const [isSearchingStock, setIsSearchingStock] = useState<boolean>(false);
   const [stockResults, setStockResults] = useState<StockImageCandidate[]>([]);
@@ -79,7 +85,8 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
     : null;
   const currentPalette: WebSlidePalette = resolveWebSlidePalette(
     currentSlide.slide_index,
-    Boolean(resolvedCanvasBgUrl)
+    Boolean(resolvedCanvasBgUrl),
+    resolvedTheme
   );
   const currentVariant: WebVisualVariant = resolveWebVisualVariant(
     currentSlide.slide_index,
@@ -249,7 +256,7 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
               const timingSlide = remotionProps?.slides.find(
                 (s) => s.slide_index === slide.slide_index
               );
-              const itemPalette = resolveWebSlidePalette(slide.slide_index, false);
+              const itemPalette = resolveWebSlidePalette(slide.slide_index, false, resolvedTheme);
               return (
                 <li key={slide.slide_index}>
                   <button
@@ -302,10 +309,12 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
               data-layout={currentSlide.layout}
               data-palette-id={currentPalette.id}
               data-visual-variant={currentVariant}
+              data-theme-preset={themeStyle.preset}
               style={{
                 backgroundColor: currentPalette.backgroundColor,
                 backgroundImage: currentPalette.backgroundImage,
                 color: currentPalette.textColor,
+                fontFamily: themeStyle.bodyFont,
               }}
               className={`relative flex flex-col justify-between overflow-hidden border border-[#0A0A0A] p-7 ${
                 isVertical ? 'aspect-[9/16] w-full max-w-[320px]' : 'aspect-video w-full max-w-[760px]'
@@ -326,20 +335,37 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                 </div>
               )}
 
-              {/* Top Accent Bar mirroring Remotion SlideCard */}
-              <div
-                className="absolute left-0 right-0 top-0 z-10 h-1.5"
-                style={{
-                  background: `linear-gradient(90deg, ${currentPalette.primaryColor} 0%, ${currentPalette.secondaryColor} 100%)`,
-                }}
-              />
+              {/* Top Accent Bar mirroring Remotion SlideCard (hidden cleanly on Minimal theme) */}
+              {themeStyle.topBarHeight !== '0px' && (
+                <div
+                  className="absolute left-0 right-0 top-0 z-10"
+                  style={{
+                    height: themeStyle.topBarHeight,
+                    background:
+                      themeStyle.preset === 'corporate'
+                        ? currentPalette.primaryColor
+                        : `linear-gradient(90deg, ${currentPalette.primaryColor} 0%, ${currentPalette.secondaryColor} 100%)`,
+                  }}
+                />
+              )}
 
               <div
-                className="relative z-10 mb-3 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.12em]"
-                style={{ color: currentPalette.primaryColor }}
+                className="relative z-10 mb-3 flex items-center justify-between text-[11px] tracking-[0.04em]"
+                style={{
+                  color: currentPalette.mutedTextColor,
+                  fontFamily:
+                    themeStyle.preset === 'corporate'
+                      ? themeStyle.headingFont
+                      : themeStyle.bodyFont,
+                  borderBottom:
+                    themeStyle.preset === 'corporate'
+                      ? `1px solid ${currentPalette.surfaceBorder}`
+                      : undefined,
+                  paddingBottom: themeStyle.preset === 'corporate' ? '8px' : undefined,
+                }}
               >
-                <span>
-                  {SLIDE_LAYOUT_LABELS[currentSlide.layout]} // {currentPalette.name}
+                <span className="truncate font-semibold" style={{ color: currentPalette.primaryColor }}>
+                  {script.title}
                 </span>
                 <span style={{ color: currentPalette.mutedTextColor }}>
                   {String(currentSlide.slide_index).padStart(2, '0')} /{' '}
@@ -349,41 +375,53 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
 
               {currentSlide.layout === 'quote_highlight' ? (
                 <div
-                  className="relative z-10 my-auto border p-5"
+                  className="relative z-10 my-auto p-5"
                   style={{
-                    backgroundColor: currentPalette.surfaceBg,
-                    borderTopColor: currentPalette.surfaceBorder,
-                    borderRightColor: currentPalette.surfaceBorder,
-                    borderBottomColor: currentPalette.surfaceBorder,
-                    borderLeftWidth: currentVariant === 'focus_callout' ? '6px' : '1px',
+                    backgroundColor:
+                      themeStyle.preset === 'minimal' ? 'transparent' : currentPalette.surfaceBg,
+                    border:
+                      themeStyle.preset === 'minimal'
+                        ? 'none'
+                        : `1px solid ${currentPalette.surfaceBorder}`,
+                    borderLeftWidth:
+                      themeStyle.preset === 'minimal'
+                        ? '3px'
+                        : currentVariant === 'focus_callout'
+                        ? '5px'
+                        : '1px',
+                    borderLeftStyle: 'solid',
                     borderLeftColor: currentPalette.primaryColor,
-                    textAlign: currentVariant === 'focus_callout' ? 'left' : 'center',
+                    textAlign:
+                      themeStyle.preset === 'minimal' || currentVariant === 'focus_callout'
+                        ? 'left'
+                        : 'center',
                   }}
                 >
                   <div
                     className="text-[36px] font-bold leading-none"
-                    style={{ color: currentPalette.primaryColor }}
+                    style={{
+                      color: currentPalette.primaryColor,
+                      fontFamily: themeStyle.headingFont,
+                    }}
                   >
                     &ldquo;
                   </div>
-                  <h3 className="mt-1 text-[20px] font-bold italic leading-snug md:text-[24px]">
+                  <h3
+                    className="mt-1 italic leading-snug text-[20px] md:text-[24px]"
+                    style={{
+                      fontFamily: themeStyle.headingFont,
+                      fontWeight: themeStyle.headingWeight,
+                    }}
+                  >
                     {currentSlide.heading}
                   </h3>
                   {currentSlide.bullet_points.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {currentSlide.bullet_points.slice(0, 3).map((pt, idx) => (
-                        <span
-                          key={idx}
-                          className="border px-2.5 py-1 text-[11px] font-semibold"
-                          style={{
-                            borderColor: currentPalette.primaryColor,
-                            backgroundColor: currentPalette.surfaceAltBg,
-                          }}
-                        >
-                          {pt}
-                        </span>
-                      ))}
-                    </div>
+                    <p
+                      className="mt-3 text-[12px] leading-relaxed"
+                      style={{ color: currentPalette.mutedTextColor }}
+                    >
+                      {currentSlide.bullet_points.slice(0, 3).join('  ·  ')}
+                    </p>
                   )}
                 </div>
               ) : (
@@ -408,7 +446,11 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                     }
                   >
                     <h3
-                      className={`font-bold leading-[1.2] ${
+                      style={{
+                        fontFamily: themeStyle.headingFont,
+                        fontWeight: themeStyle.headingWeight,
+                      }}
+                      className={`leading-[1.2] ${
                         currentSlide.layout === 'title_intro'
                           ? 'text-[22px] md:text-[28px]'
                           : 'text-[19px] md:text-[24px]'
@@ -417,60 +459,106 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                       {currentSlide.heading}
                     </h3>
 
-                    {currentSlide.bullet_points.length > 0 && (
-                      <div
-                        className={`mt-4 grid gap-2 ${
-                          currentVariant === 'process_pipeline' && !isVertical
-                            ? 'grid-cols-2 md:grid-cols-3'
-                            : currentVariant === 'bento_mosaic' && !isVertical
-                            ? 'grid-cols-2'
-                            : 'grid-cols-1'
-                        }`}
-                      >
-                        {currentSlide.bullet_points.map((point, idx) => {
-                          const accent =
-                            idx % 2 === 0
-                              ? currentPalette.primaryColor
-                              : currentPalette.secondaryColor;
-                          return (
-                            <div
+                    {currentSlide.bullet_points.length > 0 &&
+                      (currentSlide.layout === 'title_intro' ? (
+                        <p
+                          className="mt-4 text-[13px] leading-relaxed"
+                          style={{
+                            color: currentPalette.mutedTextColor,
+                            borderLeft:
+                              themeStyle.preset === 'minimal'
+                                ? `2px solid ${currentPalette.primaryColor}`
+                                : undefined,
+                            paddingLeft: themeStyle.preset === 'minimal' ? '12px' : undefined,
+                          }}
+                        >
+                          {currentSlide.bullet_points.join('  ·  ')}
+                        </p>
+                      ) : currentSlide.layout === 'split_card' ? (
+                        <div className="mt-4 flex flex-col gap-2.5">
+                          {currentSlide.bullet_points.map((point, idx) => (
+                            <p
                               key={idx}
                               style={{
-                                backgroundColor:
-                                  idx === 0 ? currentPalette.surfaceAltBg : currentPalette.surfaceBg,
-                                borderTopColor: currentPalette.surfaceBorder,
-                                borderRightColor: currentPalette.surfaceBorder,
-                                borderBottomColor: currentPalette.surfaceBorder,
-                                borderLeftColor: accent,
-                                borderLeftWidth: '3px',
+                                color: currentPalette.textColor,
+                                borderTop:
+                                  idx > 0 ? `1px solid ${currentPalette.surfaceBorder}` : 'none',
+                                paddingTop: idx > 0 ? '8px' : '0px',
                               }}
-                              className="flex items-start gap-2 border px-3 py-2 text-[12px] leading-snug"
+                              className="text-[12.5px] leading-relaxed"
                             >
-                              <span
-                                className="font-mono text-[10px] font-bold"
-                                style={{ color: accent }}
+                              {point}
+                            </p>
+                          ))}
+                        </div>
+                      ) : (
+                        <div
+                          className={`mt-4 grid gap-2.5 ${
+                            currentVariant === 'process_pipeline' && !isVertical
+                              ? 'grid-cols-2 md:grid-cols-3'
+                              : currentVariant === 'bento_mosaic' && !isVertical
+                              ? 'grid-cols-2'
+                              : 'grid-cols-1'
+                          }`}
+                        >
+                          {currentSlide.bullet_points.map((point, idx) => {
+                            const accent =
+                              idx % 2 === 0
+                                ? currentPalette.primaryColor
+                                : currentPalette.secondaryColor;
+                            return (
+                              <div
+                                key={idx}
+                                style={{
+                                  backgroundColor:
+                                    themeStyle.preset === 'minimal'
+                                      ? 'transparent'
+                                      : idx === 0
+                                      ? currentPalette.surfaceAltBg
+                                      : currentPalette.surfaceBg,
+                                  borderTopWidth: themeStyle.preset === 'minimal' ? '0px' : '1px',
+                                  borderRightWidth: themeStyle.preset === 'minimal' ? '0px' : '1px',
+                                  borderBottomWidth: '1px',
+                                  borderBottomColor: currentPalette.surfaceBorder,
+                                  borderTopColor: currentPalette.surfaceBorder,
+                                  borderRightColor: currentPalette.surfaceBorder,
+                                  borderLeftColor:
+                                    themeStyle.accentStripeWidth === '0px'
+                                      ? currentPalette.surfaceBorder
+                                      : accent,
+                                  borderLeftWidth:
+                                    themeStyle.accentStripeWidth === '0px'
+                                      ? '0px'
+                                      : themeStyle.accentStripeWidth,
+                                  borderStyle: 'solid',
+                                }}
+                                className="px-3 py-2 text-[12px] leading-snug"
                               >
-                                {String(idx + 1).padStart(2, '0')}
-                              </span>
-                              <span>{point}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                                {point}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
                   </div>
 
-                  {/* Mini NotebookLM Diagram Preview Panel */}
+                  {/* Visual Focal Panel (no robotic technical captions) */}
                   {(currentSlide.layout === 'split_card' ||
                     currentSlide.layout === 'title_intro' ||
                     currentVariant === 'knowledge_graph') && (
                     <div
-                      className={`flex flex-col items-center justify-center border p-3 ${
+                      className={`flex flex-col items-center justify-center p-3 ${
                         isVertical ? 'col-span-12 mt-1' : 'col-span-4'
                       }`}
                       style={{
-                        backgroundColor: currentPalette.surfaceAltBg,
-                        borderColor: currentPalette.surfaceBorder,
+                        backgroundColor:
+                          themeStyle.preset === 'minimal'
+                            ? 'transparent'
+                            : currentPalette.surfaceAltBg,
+                        border:
+                          themeStyle.preset === 'minimal'
+                            ? 'none'
+                            : `1px solid ${currentPalette.surfaceBorder}`,
                       }}
                     >
                         <svg width="116" height="96" viewBox="0 0 116 96">
@@ -520,12 +608,6 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                             </g>
                           )}
                         </svg>
-                        <span
-                          className="mt-1 font-mono text-[9px] uppercase tracking-[0.08em]"
-                          style={{ color: currentPalette.mutedTextColor }}
-                        >
-                          {currentVariant.replace('_', ' ')}
-                        </span>
                       </div>
                     )}
                 </div>
@@ -534,7 +616,7 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
               {isVertical && (
                 <div
                   data-testid="vertical-shorts-caption-preview"
-                  className="relative z-10 mt-2 border border-white/20 bg-[#0F172A]/90 px-3 py-1.5 text-center font-mono text-[10px] font-bold uppercase tracking-[0.06em]"
+                  className="relative z-10 mt-2 border border-white/20 bg-[#0F172A]/90 px-3 py-1.5 text-center text-[10px] font-semibold tracking-[0.04em]"
                   style={{ color: currentPalette.primaryColor }}
                 >
                   {locale === 'vi'
@@ -544,11 +626,18 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
               )}
 
               <div
-                className="relative z-10 mt-3 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.1em]"
-                style={{ color: currentPalette.mutedTextColor }}
+                className="relative z-10 mt-2 h-1 w-full overflow-hidden"
+                style={{ backgroundColor: currentPalette.surfaceBorder }}
               >
-                <span>VISUAL: {currentVariant}</span>
-                <span>{currentPalette.isLight ? 'LIGHT PAPER' : 'DARK STUDIO'}</span>
+                <div
+                  className="h-full"
+                  style={{
+                    width: `${Math.round(
+                      ((safeIndex + 1) / Math.max(1, script.slides.length)) * 100
+                    )}%`,
+                    backgroundColor: currentPalette.primaryColor,
+                  }}
+                />
               </div>
             </div>
           </div>

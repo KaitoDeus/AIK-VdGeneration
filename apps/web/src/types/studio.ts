@@ -127,6 +127,7 @@ export interface RemotionCompositionProps {
   total_duration_seconds: number;
   total_frames: number;
   theme: {
+    preset?: VisualTheme;
     backgroundColor: string;
     primaryColor: string;
     textColor: string;

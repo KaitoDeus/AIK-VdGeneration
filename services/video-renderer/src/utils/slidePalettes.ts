@@ -1,10 +1,11 @@
 /**
- * Per-Slide Visual Palettes and Visual Archetype Resolvers (NotebookLM-Inspired).
- * Alternates curated dark studio surfaces and bright warm paper/editorial palettes
- * alongside distinct procedural infographic archetypes per slide.
+ * Theme-Differentiated Slide Palettes, Typography Profiles & Visual Archetypes:
+ *  - modern_tech: Vivid multi-color jewel & electric studio palettes with modern geometric sans
+ *  - corporate: Authoritative executive consulting palettes with classic serif headings
+ *  - minimal: Airy luminous pastel gallery palettes with light humanist sans & high whitespace
  */
 
-import { SlideData, SlideLayout, ThemeConfig } from '../types';
+import { SlideData, SlideLayout, ThemeConfig, ThemePreset } from '../types';
 import { DEFAULT_THEME } from './timing';
 
 export type VisualVariant =
@@ -37,56 +38,65 @@ export interface SlidePalette {
   chromeMutedColor: string;
 }
 
+export interface ThemeVisualStyle {
+  preset: ThemePreset;
+  headingFont: string;
+  bodyFont: string;
+  headingWeight: number;
+  topBarHeight: string;
+  accentStripeWidth: string;
+}
+
 export const SLIDE_PALETTES: readonly SlidePalette[] = [
   {
     id: 'sapphire_studio',
-    name: 'Sapphire Studio',
+    name: 'Cobalt Pulse',
     isLight: false,
-    backgroundColor: '#0B1220',
+    backgroundColor: '#132B63',
     backgroundImage:
-      'radial-gradient(circle at 82% 18%, rgba(56, 189, 248, 0.24) 0%, transparent 48%), radial-gradient(circle at 14% 84%, rgba(99, 102, 241, 0.22) 0%, transparent 50%)',
-    surfaceBg: 'rgba(255, 255, 255, 0.06)',
-    surfaceAltBg: 'rgba(56, 189, 248, 0.11)',
-    surfaceBorder: 'rgba(148, 163, 184, 0.22)',
+      'radial-gradient(circle at 82% 18%, rgba(56, 189, 248, 0.36) 0%, transparent 50%), radial-gradient(circle at 14% 84%, rgba(244, 114, 182, 0.24) 0%, transparent 52%)',
+    surfaceBg: 'rgba(255, 255, 255, 0.10)',
+    surfaceAltBg: 'rgba(56, 189, 248, 0.18)',
+    surfaceBorder: 'rgba(255, 255, 255, 0.24)',
     primaryColor: '#38BDF8',
-    secondaryColor: '#818CF8',
-    accentSoft: 'rgba(56, 189, 248, 0.18)',
-    textColor: '#F8FAFC',
-    mutedTextColor: '#94A3B8',
+    secondaryColor: '#FBBF24',
+    accentSoft: 'rgba(56, 189, 248, 0.20)',
+    textColor: '#FFFFFF',
+    mutedTextColor: '#DBEAFE',
     badgeTextColor: '#0F172A',
-    chromeMutedColor: '#94A3B8',
+    chromeMutedColor: '#BFDBFE',
   },
   {
     id: 'warm_editorial_paper',
-    name: 'Warm Editorial Paper',
+    name: 'Tangerine Cream',
     isLight: true,
-    backgroundColor: '#FAF6EE',
+    backgroundColor: '#FFF4E8',
     backgroundImage:
-      'radial-gradient(circle at 88% 14%, rgba(234, 88, 12, 0.14) 0%, transparent 46%), radial-gradient(circle at 10% 88%, rgba(29, 78, 216, 0.10) 0%, transparent 48%)',
+      'radial-gradient(circle at 88% 14%, rgba(249, 115, 22, 0.22) 0%, transparent 48%), radial-gradient(circle at 10% 88%, rgba(37, 99, 235, 0.14) 0%, transparent 50%)',
     surfaceBg: '#FFFFFF',
-    surfaceAltBg: '#FFF4E6',
-    surfaceBorder: 'rgba(20, 24, 36, 0.14)',
+    surfaceAltBg: '#FFEAD5',
+    surfaceBorder: 'rgba(234, 88, 12, 0.22)',
     primaryColor: '#EA580C',
-    secondaryColor: '#1D4ED8',
-    accentSoft: 'rgba(234, 88, 12, 0.14)',
-    textColor: '#141824',
-    mutedTextColor: '#475569',
+    secondaryColor: '#2563EB',
+    accentSoft: 'rgba(234, 88, 12, 0.15)',
+    textColor: '#1C1917',
+    mutedTextColor: '#57534E',
     badgeTextColor: '#FFFFFF',
-    chromeMutedColor: '#475569',
+    chromeMutedColor: '#78716C',
   },
   {
     id: 'emerald_forest',
-    name: 'Emerald Forest',
+    name: 'Tropical Jade',
     isLight: false,
-    backgroundColor: '#06211B',
+    backgroundColor: '#0B4236',
     backgroundImage:
-      'radial-gradient(circle at 84% 20%, rgba(16, 185, 129, 0.24) 0%, transparent 48%), radial-gradient(circle at 18% 82%, rgba(251, 191, 36, 0.16) 0%, transparent 48%)',
-    surfaceBg: 'rgba(236, 253, 245, 0.06)',
-    surfaceAltBg: 'rgba(16, 185, 129, 0.14)',
-    surfaceBorder: 'rgba(52, 211, 153, 0.24)',
+      'radial-gradient(circle at 84% 20%, rgba(52, 211, 153, 0.34) 0%, transparent 50%), radial-gradient(circle at 18% 82%, rgba(251, 191, 36, 0.24) 0%, transparent 50%)',
+    surfaceBg: 'rgba(255, 255, 255, 0.10)',
+    surfaceAltBg: 'rgba(16, 185, 129, 0.20)',
+    surfaceBorder: 'rgba(110, 231, 183, 0.28)',
     primaryColor: '#34D399',
-    secondaryColor: '#FBBF24',
-    accentSoft: 'rgba(52, 211, 153, 0.18)',
+    secondaryColor: '#FCD34D',
+    accentSoft: 'rgba(52, 211, 153, 0.20)',
     textColor: '#F0FDF4',
     mutedTextColor: '#A7F3D0',
     badgeTextColor: '#052E16',
@@ -94,16 +104,16 @@ export const SLIDE_PALETTES: readonly SlidePalette[] = [
   },
   {
     id: 'cobalt_porcelain',
-    name: 'Cobalt Porcelain',
+    name: 'Azure Sky',
     isLight: true,
-    backgroundColor: '#F2F6FC',
+    backgroundColor: '#E8F3FF',
     backgroundImage:
-      'radial-gradient(circle at 86% 18%, rgba(37, 99, 235, 0.15) 0%, transparent 46%), radial-gradient(circle at 12% 84%, rgba(124, 58, 237, 0.12) 0%, transparent 48%)',
+      'radial-gradient(circle at 86% 18%, rgba(37, 99, 235, 0.20) 0%, transparent 48%), radial-gradient(circle at 12% 84%, rgba(147, 51, 234, 0.16) 0%, transparent 50%)',
     surfaceBg: '#FFFFFF',
-    surfaceAltBg: '#EBF2FE',
-    surfaceBorder: 'rgba(37, 99, 235, 0.18)',
+    surfaceAltBg: '#DCEBFF',
+    surfaceBorder: 'rgba(37, 99, 235, 0.22)',
     primaryColor: '#2563EB',
-    secondaryColor: '#7C3AED',
+    secondaryColor: '#9333EA',
     accentSoft: 'rgba(37, 99, 235, 0.14)',
     textColor: '#0F172A',
     mutedTextColor: '#475569',
@@ -112,71 +122,71 @@ export const SLIDE_PALETTES: readonly SlidePalette[] = [
   },
   {
     id: 'aubergine_spark',
-    name: 'Aubergine Spark',
+    name: 'Plum Berry',
     isLight: false,
-    backgroundColor: '#1B102E',
+    backgroundColor: '#3A1563',
     backgroundImage:
-      'radial-gradient(circle at 85% 18%, rgba(244, 63, 94, 0.24) 0%, transparent 46%), radial-gradient(circle at 16% 84%, rgba(245, 158, 11, 0.18) 0%, transparent 48%)',
-    surfaceBg: 'rgba(255, 255, 255, 0.06)',
-    surfaceAltBg: 'rgba(244, 63, 94, 0.14)',
-    surfaceBorder: 'rgba(251, 113, 133, 0.25)',
+      'radial-gradient(circle at 85% 18%, rgba(244, 63, 94, 0.34) 0%, transparent 48%), radial-gradient(circle at 16% 84%, rgba(56, 189, 248, 0.24) 0%, transparent 50%)',
+    surfaceBg: 'rgba(255, 255, 255, 0.10)',
+    surfaceAltBg: 'rgba(244, 63, 94, 0.20)',
+    surfaceBorder: 'rgba(251, 113, 133, 0.30)',
     primaryColor: '#FB7185',
-    secondaryColor: '#F59E0B',
-    accentSoft: 'rgba(251, 113, 133, 0.18)',
+    secondaryColor: '#38BDF8',
+    accentSoft: 'rgba(251, 113, 133, 0.20)',
     textColor: '#FFF1F2',
-    mutedTextColor: '#E2D4F0',
+    mutedTextColor: '#F3E8FF',
     badgeTextColor: '#1B102E',
-    chromeMutedColor: '#D8B4FE',
+    chromeMutedColor: '#E9D5FF',
   },
   {
     id: 'sage_botanical',
-    name: 'Sage Botanical',
+    name: 'Meadow Mint',
     isLight: true,
-    backgroundColor: '#EEF5EE',
+    backgroundColor: '#E9F7EF',
     backgroundImage:
-      'radial-gradient(circle at 84% 16%, rgba(13, 148, 136, 0.16) 0%, transparent 46%), radial-gradient(circle at 15% 86%, rgba(217, 119, 6, 0.12) 0%, transparent 46%)',
+      'radial-gradient(circle at 84% 16%, rgba(16, 185, 129, 0.20) 0%, transparent 48%), radial-gradient(circle at 15% 86%, rgba(245, 158, 11, 0.16) 0%, transparent 48%)',
     surfaceBg: '#FFFFFF',
-    surfaceAltBg: '#E0F2EE',
-    surfaceBorder: 'rgba(15, 118, 110, 0.20)',
-    primaryColor: '#0F766E',
+    surfaceAltBg: '#D1FAE5',
+    surfaceBorder: 'rgba(5, 150, 105, 0.22)',
+    primaryColor: '#059669',
     secondaryColor: '#D97706',
-    accentSoft: 'rgba(15, 118, 110, 0.14)',
-    textColor: '#11221C',
-    mutedTextColor: '#3B5249',
+    accentSoft: 'rgba(5, 150, 105, 0.14)',
+    textColor: '#064E3B',
+    mutedTextColor: '#374151',
     badgeTextColor: '#FFFFFF',
-    chromeMutedColor: '#3B5249',
+    chromeMutedColor: '#4B5563',
   },
   {
     id: 'obsidian_amber',
-    name: 'Obsidian Amber',
+    name: 'Terracotta Gold',
     isLight: false,
-    backgroundColor: '#161412',
+    backgroundColor: '#4D1F0D',
     backgroundImage:
-      'radial-gradient(circle at 86% 18%, rgba(245, 158, 11, 0.22) 0%, transparent 46%), radial-gradient(circle at 14% 85%, rgba(6, 182, 212, 0.18) 0%, transparent 46%)',
-    surfaceBg: 'rgba(255, 250, 240, 0.06)',
-    surfaceAltBg: 'rgba(245, 158, 11, 0.14)',
-    surfaceBorder: 'rgba(251, 191, 36, 0.24)',
-    primaryColor: '#F59E0B',
-    secondaryColor: '#22D3EE',
-    accentSoft: 'rgba(245, 158, 11, 0.18)',
+      'radial-gradient(circle at 86% 18%, rgba(245, 158, 11, 0.34) 0%, transparent 48%), radial-gradient(circle at 14% 85%, rgba(20, 184, 166, 0.24) 0%, transparent 48%)',
+    surfaceBg: 'rgba(255, 250, 240, 0.10)',
+    surfaceAltBg: 'rgba(245, 158, 11, 0.20)',
+    surfaceBorder: 'rgba(251, 191, 36, 0.30)',
+    primaryColor: '#FBBF24',
+    secondaryColor: '#2DD4BF',
+    accentSoft: 'rgba(251, 191, 36, 0.20)',
     textColor: '#FFFBEB',
-    mutedTextColor: '#D6CFC7',
-    badgeTextColor: '#161412',
-    chromeMutedColor: '#D6CFC7',
+    mutedTextColor: '#FDE68A',
+    badgeTextColor: '#1C1917',
+    chromeMutedColor: '#FDE68A',
   },
   {
     id: 'blush_sand_studio',
-    name: 'Blush Sand Studio',
+    name: 'Coral Sunset',
     isLight: true,
-    backgroundColor: '#FDF4F0',
+    backgroundColor: '#FFF0F3',
     backgroundImage:
-      'radial-gradient(circle at 86% 16%, rgba(225, 29, 72, 0.14) 0%, transparent 46%), radial-gradient(circle at 14% 84%, rgba(79, 70, 229, 0.11) 0%, transparent 46%)',
+      'radial-gradient(circle at 86% 16%, rgba(225, 29, 72, 0.18) 0%, transparent 48%), radial-gradient(circle at 14% 84%, rgba(79, 70, 229, 0.14) 0%, transparent 48%)',
     surfaceBg: '#FFFFFF',
-    surfaceAltBg: '#FFE4E6',
-    surfaceBorder: 'rgba(190, 18, 60, 0.18)',
+    surfaceAltBg: '#FFE4E8',
+    surfaceBorder: 'rgba(225, 29, 72, 0.22)',
     primaryColor: '#E11D48',
     secondaryColor: '#4F46E5',
-    accentSoft: 'rgba(225, 29, 72, 0.13)',
+    accentSoft: 'rgba(225, 29, 72, 0.14)',
     textColor: '#1F1317',
     mutedTextColor: '#5B454B',
     badgeTextColor: '#FFFFFF',
@@ -184,9 +194,297 @@ export const SLIDE_PALETTES: readonly SlidePalette[] = [
   },
 ];
 
+export const CORPORATE_PALETTES: readonly SlidePalette[] = [
+  {
+    id: 'corp_admiralty_navy',
+    name: 'Admiralty Navy',
+    isLight: false,
+    backgroundColor: '#102A43',
+    backgroundImage:
+      'radial-gradient(circle at 88% 12%, rgba(217, 119, 6, 0.14) 0%, transparent 46%)',
+    surfaceBg: 'rgba(255, 255, 255, 0.06)',
+    surfaceAltBg: 'rgba(255, 255, 255, 0.10)',
+    surfaceBorder: 'rgba(226, 232, 240, 0.24)',
+    primaryColor: '#E6A852',
+    secondaryColor: '#9FB3C8',
+    accentSoft: 'rgba(230, 168, 82, 0.16)',
+    textColor: '#F8FAFC',
+    mutedTextColor: '#CBD5E1',
+    badgeTextColor: '#102A43',
+    chromeMutedColor: '#9FB3C8',
+  },
+  {
+    id: 'corp_warm_ivory',
+    name: 'Cotton Linen',
+    isLight: true,
+    backgroundColor: '#FAF7F2',
+    backgroundImage:
+      'radial-gradient(circle at 90% 90%, rgba(16, 42, 67, 0.06) 0%, transparent 50%)',
+    surfaceBg: '#FFFFFF',
+    surfaceAltBg: '#F3EDE2',
+    surfaceBorder: 'rgba(30, 41, 59, 0.16)',
+    primaryColor: '#8B2635',
+    secondaryColor: '#1E3A5F',
+    accentSoft: 'rgba(139, 38, 53, 0.10)',
+    textColor: '#1E293B',
+    mutedTextColor: '#475569',
+    badgeTextColor: '#FFFFFF',
+    chromeMutedColor: '#64748B',
+  },
+  {
+    id: 'corp_forest_reserve',
+    name: 'Heritage Pine',
+    isLight: false,
+    backgroundColor: '#173B34',
+    backgroundImage:
+      'radial-gradient(circle at 85% 20%, rgba(217, 119, 6, 0.16) 0%, transparent 48%)',
+    surfaceBg: 'rgba(255, 255, 255, 0.06)',
+    surfaceAltBg: 'rgba(255, 255, 255, 0.10)',
+    surfaceBorder: 'rgba(209, 250, 229, 0.22)',
+    primaryColor: '#E09F3E',
+    secondaryColor: '#99F6E4',
+    accentSoft: 'rgba(224, 159, 62, 0.16)',
+    textColor: '#F9FAFB',
+    mutedTextColor: '#CBD5E1',
+    badgeTextColor: '#173B34',
+    chromeMutedColor: '#CBD5E1',
+  },
+  {
+    id: 'corp_parchment_slate',
+    name: 'Pearl Consulting',
+    isLight: true,
+    backgroundColor: '#F1F5F9',
+    backgroundImage:
+      'radial-gradient(circle at 12% 14%, rgba(30, 64, 175, 0.07) 0%, transparent 48%)',
+    surfaceBg: '#FFFFFF',
+    surfaceAltBg: '#E2E8F0',
+    surfaceBorder: 'rgba(15, 23, 42, 0.15)',
+    primaryColor: '#1E40AF',
+    secondaryColor: '#9A3412',
+    accentSoft: 'rgba(30, 64, 175, 0.10)',
+    textColor: '#0F172A',
+    mutedTextColor: '#475569',
+    badgeTextColor: '#FFFFFF',
+    chromeMutedColor: '#475569',
+  },
+  {
+    id: 'corp_wine_atelier',
+    name: 'Bordeaux Executive',
+    isLight: false,
+    backgroundColor: '#4A192C',
+    backgroundImage:
+      'radial-gradient(circle at 82% 16%, rgba(253, 230, 138, 0.14) 0%, transparent 46%)',
+    surfaceBg: 'rgba(255, 255, 255, 0.06)',
+    surfaceAltBg: 'rgba(255, 255, 255, 0.10)',
+    surfaceBorder: 'rgba(253, 230, 138, 0.24)',
+    primaryColor: '#FDE68A',
+    secondaryColor: '#FCA5A5',
+    accentSoft: 'rgba(253, 230, 138, 0.15)',
+    textColor: '#FFF8F6',
+    mutedTextColor: '#F5D0FE',
+    badgeTextColor: '#4A192C',
+    chromeMutedColor: '#E2D4DC',
+  },
+  {
+    id: 'corp_warm_sand',
+    name: 'Sandstone Digest',
+    isLight: true,
+    backgroundColor: '#F5EFE6',
+    backgroundImage:
+      'radial-gradient(circle at 85% 85%, rgba(15, 118, 110, 0.08) 0%, transparent 50%)',
+    surfaceBg: '#FFFDF9',
+    surfaceAltBg: '#EAE0D2',
+    surfaceBorder: 'rgba(41, 37, 36, 0.15)',
+    primaryColor: '#0F766E',
+    secondaryColor: '#B45309',
+    accentSoft: 'rgba(15, 118, 110, 0.10)',
+    textColor: '#1C1917',
+    mutedTextColor: '#57534E',
+    badgeTextColor: '#FFFFFF',
+    chromeMutedColor: '#57534E',
+  },
+];
+
+export const MINIMAL_PALETTES: readonly SlidePalette[] = [
+  {
+    id: 'minimal_peach_silk',
+    name: 'Peach Silk',
+    isLight: true,
+    backgroundColor: '#FFF0EB',
+    backgroundImage:
+      'radial-gradient(circle at 88% 12%, rgba(251, 146, 60, 0.16) 0%, transparent 45%)',
+    surfaceBg: '#FFFFFF',
+    surfaceAltBg: '#FFE3D8',
+    surfaceBorder: 'rgba(234, 88, 12, 0.16)',
+    primaryColor: '#EA580C',
+    secondaryColor: '#9A3412',
+    accentSoft: 'rgba(234, 88, 12, 0.10)',
+    textColor: '#292524',
+    mutedTextColor: '#57534E',
+    badgeTextColor: '#FFFFFF',
+    chromeMutedColor: '#78716C',
+  },
+  {
+    id: 'minimal_mint_breeze',
+    name: 'Mint Breeze',
+    isLight: true,
+    backgroundColor: '#EAFBF3',
+    backgroundImage:
+      'radial-gradient(circle at 14% 86%, rgba(16, 185, 129, 0.16) 0%, transparent 45%)',
+    surfaceBg: '#FFFFFF',
+    surfaceAltBg: '#D3F7E6',
+    surfaceBorder: 'rgba(5, 150, 105, 0.16)',
+    primaryColor: '#059669',
+    secondaryColor: '#0F766E',
+    accentSoft: 'rgba(5, 150, 105, 0.10)',
+    textColor: '#111827',
+    mutedTextColor: '#4B5563',
+    badgeTextColor: '#FFFFFF',
+    chromeMutedColor: '#6B7280',
+  },
+  {
+    id: 'minimal_sky_cloud',
+    name: 'Sky Pastel',
+    isLight: true,
+    backgroundColor: '#EAF5FF',
+    backgroundImage:
+      'radial-gradient(circle at 86% 16%, rgba(14, 165, 233, 0.16) 0%, transparent 46%)',
+    surfaceBg: '#FFFFFF',
+    surfaceAltBg: '#D8EDFF',
+    surfaceBorder: 'rgba(2, 132, 199, 0.16)',
+    primaryColor: '#0284C7',
+    secondaryColor: '#1D4ED8',
+    accentSoft: 'rgba(2, 132, 199, 0.10)',
+    textColor: '#0F172A',
+    mutedTextColor: '#475569',
+    badgeTextColor: '#FFFFFF',
+    chromeMutedColor: '#64748B',
+  },
+  {
+    id: 'minimal_lavender_veil',
+    name: 'Lavender Veil',
+    isLight: true,
+    backgroundColor: '#F3EEFF',
+    backgroundImage:
+      'radial-gradient(circle at 15% 15%, rgba(139, 92, 246, 0.14) 0%, transparent 46%)',
+    surfaceBg: '#FFFFFF',
+    surfaceAltBg: '#E7DEFF',
+    surfaceBorder: 'rgba(109, 40, 217, 0.16)',
+    primaryColor: '#6D28D9',
+    secondaryColor: '#9333EA',
+    accentSoft: 'rgba(109, 40, 217, 0.10)',
+    textColor: '#1F2937',
+    mutedTextColor: '#4B5563',
+    badgeTextColor: '#FFFFFF',
+    chromeMutedColor: '#6B7280',
+  },
+  {
+    id: 'minimal_buttercream',
+    name: 'Buttercream',
+    isLight: true,
+    backgroundColor: '#FEF9E3',
+    backgroundImage:
+      'radial-gradient(circle at 88% 82%, rgba(234, 179, 8, 0.18) 0%, transparent 46%)',
+    surfaceBg: '#FFFFFF',
+    surfaceAltBg: '#FEF0B8',
+    surfaceBorder: 'rgba(202, 138, 4, 0.18)',
+    primaryColor: '#B45309',
+    secondaryColor: '#D97706',
+    accentSoft: 'rgba(180, 83, 9, 0.10)',
+    textColor: '#1C1917',
+    mutedTextColor: '#57534E',
+    badgeTextColor: '#FFFFFF',
+    chromeMutedColor: '#78716C',
+  },
+  {
+    id: 'minimal_blush_rose',
+    name: 'Blush Petal',
+    isLight: true,
+    backgroundColor: '#FCEFF2',
+    backgroundImage:
+      'radial-gradient(circle at 18% 84%, rgba(236, 72, 153, 0.14) 0%, transparent 46%)',
+    surfaceBg: '#FFFFFF',
+    surfaceAltBg: '#F9DCE4',
+    surfaceBorder: 'rgba(219, 39, 119, 0.16)',
+    primaryColor: '#BE185D',
+    secondaryColor: '#DB2777',
+    accentSoft: 'rgba(190, 24, 93, 0.10)',
+    textColor: '#1F1218',
+    mutedTextColor: '#5B454F',
+    badgeTextColor: '#FFFFFF',
+    chromeMutedColor: '#6B535D',
+  },
+];
+
+const BUILTIN_PRESET_BG_COLORS = new Set([
+  '#0f172a',
+  '#132b63',
+  '#102a43',
+  '#1e293b',
+  '#18181b',
+  '#fff0eb',
+  '#faf9f6',
+]);
+
+const BUILTIN_PRESET_PRIMARY_COLORS = new Set([
+  '#38bdf8',
+  '#60a5fa',
+  '#a855f7',
+  '#d97706',
+  '#ea580c',
+  '#6d28d9',
+]);
+
+export function resolveThemePreset(baseTheme: Required<ThemeConfig>): ThemePreset {
+  if (
+    baseTheme.preset === 'modern_tech' ||
+    baseTheme.preset === 'corporate' ||
+    baseTheme.preset === 'minimal'
+  ) {
+    return baseTheme.preset;
+  }
+  const ff = (baseTheme.fontFamily || '').toLowerCase();
+  if (ff.includes('serif')) return 'corporate';
+  const bg = (baseTheme.backgroundColor || '').toLowerCase();
+  if (bg === '#fff0eb' || bg === '#faf9f6' || bg === '#18181b') return 'minimal';
+  return 'modern_tech';
+}
+
+export function resolveThemeVisualStyle(baseTheme: Required<ThemeConfig>): ThemeVisualStyle {
+  const preset = resolveThemePreset(baseTheme);
+  if (preset === 'corporate') {
+    return {
+      preset,
+      headingFont: 'Georgia, "Times New Roman", "Noto Serif", serif',
+      bodyFont: '"Segoe UI", "Helvetica Neue", Arial, sans-serif',
+      headingWeight: 700,
+      topBarHeight: '3px',
+      accentStripeWidth: '3px',
+    };
+  }
+  if (preset === 'minimal') {
+    return {
+      preset,
+      headingFont: '"Helvetica Neue", "Segoe UI", Arial, sans-serif',
+      bodyFont: '"Helvetica Neue", "Segoe UI", Arial, sans-serif',
+      headingWeight: 500,
+      topBarHeight: '0px',
+      accentStripeWidth: '0px',
+    };
+  }
+  return {
+    preset,
+    headingFont: '"Plus Jakarta Sans", "Inter", "Segoe UI", system-ui, sans-serif',
+    bodyFont: '"Inter", "Segoe UI", system-ui, sans-serif',
+    headingWeight: 800,
+    topBarHeight: '8px',
+    accentStripeWidth: '6px',
+  };
+}
+
 /**
- * Selects a visually distinct palette per slide index while honoring explicit custom
- * caller theme overrides (or darkening text contrast when a stock backdrop is rendered).
+ * Selects a distinct palette family based on the user's selected theme (`modern_tech`,
+ * `corporate`, or `minimal`) and cycles colors cleanly per slide index.
  */
 export function resolveSlidePalette(
   slideIndex: number,
@@ -194,25 +492,40 @@ export function resolveSlidePalette(
   baseTheme: Required<ThemeConfig>,
   hasBackgroundImage: boolean = false
 ): SlidePalette {
+  const preset = resolveThemePreset(baseTheme);
+  const family =
+    preset === 'corporate'
+      ? CORPORATE_PALETTES
+      : preset === 'minimal'
+      ? MINIMAL_PALETTES
+      : SLIDE_PALETTES;
+
   const safeIndex = Math.max(0, (Math.floor(slideIndex) || 1) - 1);
-  const chosen = SLIDE_PALETTES[safeIndex % SLIDE_PALETTES.length];
+  const chosen = family[safeIndex % family.length];
 
-  const hasCustomPrimary =
-    baseTheme.primaryColor.toLowerCase() !== DEFAULT_THEME.primaryColor.toLowerCase();
-  const hasCustomBg =
-    baseTheme.backgroundColor.toLowerCase() !== DEFAULT_THEME.backgroundColor.toLowerCase();
+  const primaryLower = (baseTheme.primaryColor || DEFAULT_THEME.primaryColor).toLowerCase();
+  const bgLower = (baseTheme.backgroundColor || DEFAULT_THEME.backgroundColor).toLowerCase();
+  const textLower = (baseTheme.textColor || DEFAULT_THEME.textColor).toLowerCase();
+
+  const hasCustomPrimary = !BUILTIN_PRESET_PRIMARY_COLORS.has(primaryLower);
+  const hasCustomBg = !BUILTIN_PRESET_BG_COLORS.has(bgLower);
   const hasCustomText =
-    baseTheme.textColor.toLowerCase() !== DEFAULT_THEME.textColor.toLowerCase();
+    textLower !== '#f8fafc' &&
+    textLower !== '#ffffff' &&
+    textLower !== '#faf7f2' &&
+    textLower !== '#1f2937' &&
+    textLower !== '#18181b' &&
+    textLower !== '#fafafa';
 
-  // When stock photography overlays a dark contrast scrim, keep typography crisp & luminous
+  // When stock photography overlays a dark contrast scrim, keep typography luminous & legible
   if (hasBackgroundImage) {
     return {
       ...chosen,
       isLight: false,
-      backgroundColor: hasCustomBg ? baseTheme.backgroundColor : '#0B1220',
+      backgroundColor: hasCustomBg ? baseTheme.backgroundColor : '#10213D',
       surfaceBg: 'rgba(15, 23, 42, 0.66)',
       surfaceAltBg: 'rgba(15, 23, 42, 0.80)',
-      surfaceBorder: 'rgba(255, 255, 255, 0.20)',
+      surfaceBorder: 'rgba(255, 255, 255, 0.22)',
       primaryColor: hasCustomPrimary ? baseTheme.primaryColor : chosen.primaryColor,
       textColor: '#F8FAFC',
       mutedTextColor: '#CBD5E1',
@@ -229,8 +542,7 @@ export function resolveSlidePalette(
 }
 
 /**
- * Deterministically assigns a rich procedural visual archetype for the slide layout
- * so repeated layouts across a multi-slide deck never render with identical structure.
+ * Deterministically assigns a structural visual archetype for each slide layout.
  */
 export function resolveVisualVariant(slide: SlideData): VisualVariant {
   const idx = Math.max(1, Math.floor(slide.slide_index) || 1);

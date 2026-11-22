@@ -22,6 +22,7 @@ import {
 } from '../utils/timing';
 import {
   resolveSlidePalette,
+  resolveThemeVisualStyle,
   resolveVisualVariant,
 } from '../utils/slidePalettes';
 import { KineticBackdropScene } from './SlideVisuals';
@@ -43,6 +44,7 @@ export const SlideCard: React.FC<SlideCardProps> = ({
   const { fps, durationInFrames, width, height } = useVideoConfig();
   const isPortrait = (height || 1080) > (width || 1920);
   const resolvedTheme = resolveTheme(theme);
+  const themeStyle = resolveThemeVisualStyle(resolvedTheme);
   const hasBackgroundImage = Boolean(slide.background_image_url);
   const palette = resolveSlidePalette(
     slide.slide_index,
@@ -99,6 +101,7 @@ export const SlideCard: React.FC<SlideCardProps> = ({
       fps,
       palette,
       visualVariant,
+      themeStyle,
       isPortrait,
     };
 
@@ -122,6 +125,7 @@ export const SlideCard: React.FC<SlideCardProps> = ({
       data-testid={`slide-card-${slide.slide_index}`}
       data-palette-id={palette.id}
       data-visual-variant={visualVariant}
+      data-theme-preset={themeStyle.preset}
       data-orientation={isPortrait ? 'portrait' : 'landscape'}
       style={{
         width: '100%',
@@ -134,7 +138,7 @@ export const SlideCard: React.FC<SlideCardProps> = ({
         justifyContent: 'center',
         alignItems: 'center',
         padding: isPortrait ? '112px 54px 250px 54px' : '84px 96px 92px 96px',
-        fontFamily: resolvedTheme.fontFamily,
+        fontFamily: themeStyle.bodyFont,
         position: 'relative',
         overflow: 'hidden',
         boxSizing: 'border-box',
@@ -179,34 +183,39 @@ export const SlideCard: React.FC<SlideCardProps> = ({
         </div>
       )}
 
-      {/* Top Decorative Dual-Tone Gradient Accent Bar */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: '8px',
-          background: `linear-gradient(90deg, ${palette.primaryColor} 0%, ${palette.secondaryColor} 100%)`,
-          zIndex: 2,
-        }}
-      />
+      {/* Top Decorative Theme Accent Rule */}
+      {themeStyle.topBarHeight !== '0px' && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: themeStyle.topBarHeight,
+            background:
+              themeStyle.preset === 'corporate'
+                ? palette.primaryColor
+                : `linear-gradient(90deg, ${palette.primaryColor} 0%, ${palette.secondaryColor} 100%)`,
+            zIndex: 2,
+          }}
+        />
+      )}
 
       {/* Top Header Chrome (Project Title & Slide Counter) */}
       <div
         style={{
           position: 'absolute',
-          top: '36px',
+          top: '34px',
           left: isPortrait ? '54px' : '96px',
           right: isPortrait ? '54px' : '96px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           gap: '16px',
+          fontFamily: themeStyle.bodyFont,
           fontSize: isPortrait ? '18px' : '20px',
-          fontWeight: 600,
+          fontWeight: 500,
           color: palette.chromeMutedColor,
-          letterSpacing: '1px',
           zIndex: 2,
         }}
       >
@@ -220,26 +229,10 @@ export const SlideCard: React.FC<SlideCardProps> = ({
         >
           {projectTitle}
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <span
-            style={{
-              fontSize: '14px',
-              fontWeight: 700,
-              letterSpacing: '1.5px',
-              textTransform: 'uppercase',
-              color: palette.primaryColor,
-              padding: '4px 12px',
-              backgroundColor: palette.accentSoft,
-              border: `1px solid ${palette.surfaceBorder}`,
-            }}
-          >
-            {palette.name}
-          </span>
-          <span>
-            {String(slide.slide_index).padStart(2, '0')} /{' '}
-            {String(Math.max(totalSlides, slide.slide_index)).padStart(2, '0')}
-          </span>
-        </div>
+        <span>
+          {String(slide.slide_index).padStart(2, '0')} /{' '}
+          {String(Math.max(totalSlides, slide.slide_index)).padStart(2, '0')}
+        </span>
       </div>
 
       {/* Main Animated Slide Content */}

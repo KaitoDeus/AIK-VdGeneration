@@ -476,7 +476,7 @@ export default function StudioWorkspacePage() {
     const effectiveFormat = resolveEffectiveFormat();
     try {
       const resp = await compileEditedScript({
-        script: draftScript,
+        script: { ...draftScript, theme: formState.theme },
         aspect_ratio: formState.aspectRatio,
         voice_settings: {
           provider: formState.voiceProvider,
@@ -596,6 +596,7 @@ export default function StudioWorkspacePage() {
               script={draftScript}
               remotionProps={activeJob?.remotion_props ?? null}
               aspectRatio={formState.aspectRatio}
+              activeTheme={formState.theme}
               isCompiling={isSubmitting}
               isExpanding={isExpanding}
               slideBackgrounds={slideBackgrounds}

@@ -399,4 +399,43 @@ describe('M2.2 Web Studio Bilingual UI Components SSR Rendering', () => {
     expect(slideOneHtml).toContain('data-visual-variant="orbital_hero"');
     expect(slideOneHtml).toContain('<svg');
   });
+
+  it('renders distinct palettes & typography per theme (modern_tech, corporate, minimal) and strips AI labels', () => {
+    const renderByTheme = (theme: 'modern_tech' | 'corporate' | 'minimal') =>
+      renderToStaticMarkup(
+        <SlideReviewer
+          locale="vi"
+          jobId="job_theme_diff"
+          script={{ ...SAMPLE_SCRIPT, theme }}
+          remotionProps={null}
+          aspectRatio="16:9"
+          activeTheme={theme}
+          isCompiling={false}
+          onUpdateScript={vi.fn()}
+          onCompileSlides={vi.fn()}
+        />
+      );
+
+    const techHtml = renderByTheme('modern_tech');
+    const corpHtml = renderByTheme('corporate');
+    const minimalHtml = renderByTheme('minimal');
+
+    expect(techHtml).toContain('data-theme-preset="modern_tech"');
+    expect(techHtml).toContain('data-palette-id="sapphire_studio"');
+    expect(techHtml).toContain('Plus Jakarta Sans');
+
+    expect(corpHtml).toContain('data-theme-preset="corporate"');
+    expect(corpHtml).toContain('data-palette-id="corp_admiralty_navy"');
+    expect(corpHtml).toContain('Georgia');
+
+    expect(minimalHtml).toContain('data-theme-preset="minimal"');
+    expect(minimalHtml).toContain('data-palette-id="minimal_peach_silk"');
+    expect(minimalHtml).toContain('Helvetica Neue');
+
+    for (const html of [techHtml, corpHtml, minimalHtml]) {
+      expect(html).not.toContain('DARK STUDIO');
+      expect(html).not.toContain('VISUAL:');
+      expect(html).not.toContain('SAPPHIRE STUDIO');
+    }
+  });
 });

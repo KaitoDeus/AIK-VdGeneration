@@ -33,6 +33,7 @@ export const PADDING_AFTER_SEC = 0.5;
 export const MIN_SLIDE_FRAMES = 90; // Minimum 3.0 seconds at 30 FPS
 
 export const DEFAULT_THEME: Required<ThemeConfig> = {
+  preset: 'modern_tech',
   backgroundColor: '#0f172a',
   primaryColor: '#38bdf8',
   textColor: '#f8fafc',
@@ -43,7 +44,17 @@ export const DEFAULT_THEME: Required<ThemeConfig> = {
  * Resolves a complete theme object by merging user overrides with default design tokens.
  */
 export function resolveTheme(theme?: ThemeConfig): Required<ThemeConfig> {
+  const inferredPreset =
+    theme?.preset ??
+    (theme?.fontFamily?.toLowerCase().includes('serif')
+      ? 'corporate'
+      : theme?.backgroundColor?.toLowerCase() === '#fff0eb' ||
+        theme?.backgroundColor?.toLowerCase() === '#faf9f6'
+      ? 'minimal'
+      : DEFAULT_THEME.preset);
+
   return {
+    preset: inferredPreset,
     backgroundColor: theme?.backgroundColor || DEFAULT_THEME.backgroundColor,
     primaryColor: theme?.primaryColor || DEFAULT_THEME.primaryColor,
     textColor: theme?.textColor || DEFAULT_THEME.textColor,

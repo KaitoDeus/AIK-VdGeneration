@@ -135,6 +135,7 @@ class VoiceSettings(BaseModel):
 class RemotionThemeProps(BaseModel):
     """Visual theme properties passed into Remotion composition."""
 
+    preset: str = Field(default="modern_tech")
     backgroundColor: str = Field(default="#0f172a")
     primaryColor: str = Field(default="#38bdf8")
     textColor: str = Field(default="#f8fafc")

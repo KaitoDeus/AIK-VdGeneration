@@ -1,8 +1,8 @@
 /**
- * NotebookLM-Inspired Animated Slide Layout Templates for Remotion (Visual Upgrade):
- * Preserves the 5 canonical SlideLayout enums while dispatching multiple structural
- * sub-variants (`visualVariant`) and per-slide contrasting palettes (`SlidePalette`)
- * paired with live animated SVG diagrams from SlideVisuals.
+ * Theme-Differentiated Slide Layout Templates for Remotion:
+ * Renders 5 canonical SlideLayout structures adapted dynamically across 3 distinct
+ * visual identities (`modern_tech`, `corporate`, `minimal`) with colorful cards,
+ * expressive editorial typography, and non-repetitive prose/block formatting.
  */
 
 import React from 'react';
@@ -19,8 +19,10 @@ import {
 import { SlideData, ThemeConfig } from '../types';
 import {
   SlidePalette,
+  ThemeVisualStyle,
   VisualVariant,
   resolveSlidePalette,
+  resolveThemeVisualStyle,
   resolveVisualVariant,
 } from '../utils/slidePalettes';
 
@@ -31,6 +33,7 @@ export interface LayoutTemplateProps {
   fps: number;
   palette?: SlidePalette;
   visualVariant?: VisualVariant;
+  themeStyle?: ThemeVisualStyle;
   isPortrait?: boolean;
 }
 
@@ -38,8 +41,9 @@ function getResolvedContext(
   slide: SlideData,
   theme: Required<ThemeConfig>,
   palette?: SlidePalette,
-  visualVariant?: VisualVariant
-): { palette: SlidePalette; variant: VisualVariant } {
+  visualVariant?: VisualVariant,
+  themeStyle?: ThemeVisualStyle
+): { palette: SlidePalette; variant: VisualVariant; style: ThemeVisualStyle } {
   return {
     palette:
       palette ??
@@ -50,6 +54,7 @@ function getResolvedContext(
         Boolean(slide.background_image_url)
       ),
     variant: visualVariant ?? resolveVisualVariant(slide),
+    style: themeStyle ?? resolveThemeVisualStyle(theme),
   };
 }
 
@@ -73,7 +78,7 @@ function computeStaggeredSpring(
 
 /**
  * 1. Hero Title Intro Layout (`title_intro`)
- * Asymmetric editorial opener pairing bold typography with a live orbital SVG diagram.
+ * Bold expressive opener with cohesive narrative summary copy instead of numbered bullets.
  */
 export const TitleIntroLayout: React.FC<LayoutTemplateProps> = ({
   slide,
@@ -82,28 +87,25 @@ export const TitleIntroLayout: React.FC<LayoutTemplateProps> = ({
   fps,
   palette: providedPalette,
   visualVariant: providedVariant,
+  themeStyle: providedStyle,
   isPortrait = false,
 }) => {
-  const { palette, variant } = getResolvedContext(
+  const { palette, variant, style } = getResolvedContext(
     slide,
     theme,
     providedPalette,
-    providedVariant
+    providedVariant,
+    providedStyle
   );
-
-  const badgeSpring = spring({
-    frame,
-    fps,
-    config: { damping: 14, stiffness: 120 },
-  });
 
   const dividerWidth = interpolate(
     spring({ frame: Math.max(0, frame - 6), fps, config: { damping: 16, stiffness: 90 } }),
     [0, 1],
-    [0, 280]
+    [0, style.preset === 'minimal' ? 120 : 220]
   );
 
   const points = (slide.bullet_points || []).slice(0, 4);
+  const leadNarrative = points.join('  ·  ');
   const headingSize = isPortrait
     ? slide.heading.length > 48
       ? '48px'
@@ -116,10 +118,11 @@ export const TitleIntroLayout: React.FC<LayoutTemplateProps> = ({
     <div
       data-layout="title_intro"
       data-visual-variant={variant}
+      data-theme-preset={style.preset}
       style={{
         display: 'grid',
         gridTemplateColumns: isPortrait ? '1fr' : '1.35fr 0.95fr',
-        gap: isPortrait ? '32px' : '48px',
+        gap: isPortrait ? '32px' : '52px',
         alignItems: 'center',
         maxWidth: '1640px',
         width: '100%',
@@ -127,31 +130,15 @@ export const TitleIntroLayout: React.FC<LayoutTemplateProps> = ({
     >
       {/* Left Typographic Hero Stage */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-        <div
-          style={{
-            transform: `scale(${interpolate(badgeSpring, [0, 1], [0.88, 1])})`,
-            padding: '10px 22px',
-            backgroundColor: palette.accentSoft,
-            border: `1.5px solid ${palette.primaryColor}`,
-            color: palette.primaryColor,
-            fontSize: '18px',
-            fontWeight: 800,
-            letterSpacing: '2.5px',
-            textTransform: 'uppercase',
-            marginBottom: '26px',
-          }}
-        >
-          KEYNOTE BRIEFING / SLIDE {String(slide.slide_index).padStart(2, '0')}
-        </div>
-
         <h1
           style={{
+            fontFamily: style.headingFont,
             fontSize: headingSize,
-            fontWeight: 800,
-            lineHeight: 1.12,
+            fontWeight: style.headingWeight,
+            lineHeight: 1.14,
             color: palette.textColor,
             margin: '0 0 24px 0',
-            letterSpacing: '-1px',
+            letterSpacing: style.preset === 'corporate' ? '-0.3px' : '-0.8px',
           }}
         >
           {slide.heading}
@@ -160,76 +147,46 @@ export const TitleIntroLayout: React.FC<LayoutTemplateProps> = ({
         <div
           style={{
             width: `${dividerWidth}px`,
-            height: '6px',
-            background: `linear-gradient(90deg, ${palette.primaryColor} 0%, ${palette.secondaryColor} 100%)`,
-            marginBottom: '30px',
+            height: style.preset === 'minimal' ? '3px' : '5px',
+            background:
+              style.preset === 'modern_tech'
+                ? `linear-gradient(90deg, ${palette.primaryColor} 0%, ${palette.secondaryColor} 100%)`
+                : palette.primaryColor,
+            marginBottom: '28px',
           }}
         />
 
-        {points.length > 0 && (
-          <div
+        {leadNarrative && (
+          <p
             style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '14px',
-              width: '100%',
+              fontFamily: style.bodyFont,
+              fontSize: isPortrait ? '26px' : '29px',
+              fontWeight: style.preset === 'minimal' ? 400 : 500,
+              lineHeight: 1.5,
+              color: palette.mutedTextColor,
+              margin: 0,
+              maxWidth: '860px',
+              paddingLeft: style.preset === 'corporate' ? '22px' : '0px',
+              borderLeft:
+                style.preset === 'corporate' ? `3px solid ${palette.primaryColor}` : 'none',
             }}
           >
-            {points.map((point, idx) => {
-              const motion = computeStaggeredSpring(frame, fps, idx, 10, 5);
-              const accent = idx % 2 === 0 ? palette.primaryColor : palette.secondaryColor;
-              return (
-                <div
-                  key={`intro-pt-${idx}`}
-                  style={{
-                    opacity: motion.opacity,
-                    transform: `translateY(${motion.translateY}px)`,
-                    padding: '16px 24px',
-                    backgroundColor: palette.surfaceBg,
-                    border: `1px solid ${palette.surfaceBorder}`,
-                    borderLeft: `6px solid ${accent}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '18px',
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: '18px',
-                      fontWeight: 800,
-                      color: accent,
-                      minWidth: '32px',
-                    }}
-                  >
-                    {String(idx + 1).padStart(2, '0')}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '25px',
-                      fontWeight: 600,
-                      color: palette.textColor,
-                      lineHeight: 1.35,
-                    }}
-                  >
-                    {point}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+            {leadNarrative}
+          </p>
         )}
       </div>
 
-      {/* Right Procedural Orbital Infographic Card */}
+      {/* Right Colorful Hero Illustration Panel */}
       <div
         style={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: isPortrait ? '20px' : '32px',
-          backgroundColor: palette.surfaceAltBg,
-          border: `1.5px solid ${palette.surfaceBorder}`,
+          padding: isPortrait ? '20px' : '34px',
+          backgroundColor: style.preset === 'minimal' ? 'transparent' : palette.surfaceAltBg,
+          border:
+            style.preset === 'minimal' ? 'none' : `1px solid ${palette.surfaceBorder}`,
           position: 'relative',
         }}
       >
@@ -246,29 +203,14 @@ export const TitleIntroLayout: React.FC<LayoutTemplateProps> = ({
             slideIndex={slide.slide_index}
           />
         </div>
-        <div
-          style={{
-            marginTop: '8px',
-            fontSize: '15px',
-            fontWeight: 700,
-            letterSpacing: '2px',
-            textTransform: 'uppercase',
-            color: palette.mutedTextColor,
-          }}
-        >
-          VISUAL SYNTHESIS / {palette.name}
-        </div>
       </div>
     </div>
   );
 };
 
 /**
- * 2. Bullet List Layout (`bullet_list`)
- * Dynamically branches into 3 visually distinct NotebookLM architectures:
- *  - process_pipeline: Horizontal stepped sequence + flowing SVG pulse beam
- *  - knowledge_graph: Live hub-and-spoke SVG network + crisp takeaway stack
- *  - bento_mosaic: Asymmetric NotebookLM Bento highlight + secondary tile grid
+ * 2. Multi-Variant Content Showcase (`bullet_list`)
+ * Renders colorful tiled pillars, connected visual flows, or bento highlights without numbered bullet lists.
  */
 export const BulletListLayout: React.FC<LayoutTemplateProps> = ({
   slide,
@@ -277,79 +219,54 @@ export const BulletListLayout: React.FC<LayoutTemplateProps> = ({
   fps,
   palette: providedPalette,
   visualVariant: providedVariant,
+  themeStyle: providedStyle,
   isPortrait = false,
 }) => {
-  const { palette, variant } = getResolvedContext(
+  const { palette, variant, style } = getResolvedContext(
     slide,
     theme,
     providedPalette,
-    providedVariant
+    providedVariant,
+    providedStyle
   );
   const points = (slide.bullet_points || []).slice(0, 5);
   const headingSize = slide.heading.length > 50 ? '48px' : '54px';
 
-  // Variant A: Horizontal Process Flow Pipeline
+  // Variant A: Flowing Color Block Grid with Visual Flow Beam
   if (variant === 'process_pipeline') {
     const colCount = Math.max(2, Math.min(4, points.length || 2));
     return (
       <div
         data-layout="bullet_list"
         data-visual-variant="process_pipeline"
+        data-theme-preset={style.preset}
         style={{
           display: 'flex',
           flexDirection: 'column',
           maxWidth: '1640px',
           width: '100%',
-          gap: '24px',
+          gap: '26px',
         }}
       >
         <div
           style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-end',
-            borderBottom: `2px solid ${palette.surfaceBorder}`,
-            paddingBottom: '18px',
+            borderBottom:
+              style.preset === 'minimal' ? 'none' : `1px solid ${palette.surfaceBorder}`,
+            paddingBottom: '12px',
           }}
         >
-          <div>
-            <div
-              style={{
-                fontSize: '17px',
-                fontWeight: 800,
-                letterSpacing: '3px',
-                textTransform: 'uppercase',
-                color: palette.primaryColor,
-                marginBottom: '10px',
-              }}
-            >
-              WORKFLOW SEQUENCE / SLIDE {String(slide.slide_index).padStart(2, '0')}
-            </div>
-            <h2
-              style={{
-                fontSize: headingSize,
-                fontWeight: 800,
-                color: palette.textColor,
-                margin: 0,
-                lineHeight: 1.15,
-              }}
-            >
-              {slide.heading}
-            </h2>
-          </div>
-          <span
+          <h2
             style={{
-              padding: '8px 18px',
-              backgroundColor: palette.accentSoft,
-              border: `1px solid ${palette.primaryColor}`,
-              color: palette.primaryColor,
-              fontSize: '16px',
-              fontWeight: 700,
-              letterSpacing: '1.5px',
+              fontFamily: style.headingFont,
+              fontSize: headingSize,
+              fontWeight: style.headingWeight,
+              color: palette.textColor,
+              margin: 0,
+              lineHeight: 1.18,
             }}
           >
-            {points.length} STAGES
-          </span>
+            {slide.heading}
+          </h2>
         </div>
 
         <ProcessFlowBeamSvg frame={frame} palette={palette} />
@@ -360,72 +277,47 @@ export const BulletListLayout: React.FC<LayoutTemplateProps> = ({
             gridTemplateColumns: isPortrait
               ? '1fr'
               : `repeat(${colCount}, minmax(0, 1fr))`,
-            gap: isPortrait ? '16px' : '22px',
+            gap: isPortrait ? '16px' : '24px',
           }}
         >
           {points.map((point, idx) => {
             const motion = computeStaggeredSpring(frame, fps, idx);
             const accent = idx % 2 === 0 ? palette.primaryColor : palette.secondaryColor;
+            const isHeroTile = style.preset === 'modern_tech' && idx === 0;
             return (
               <div
                 key={`pipe-step-${idx}`}
                 style={{
                   opacity: motion.opacity,
                   transform: `translateY(${motion.translateY}px)`,
-                  backgroundColor: idx === 0 ? palette.surfaceAltBg : palette.surfaceBg,
-                  border: `1.5px solid ${palette.surfaceBorder}`,
-                  borderTop: isPortrait ? `1.5px solid ${palette.surfaceBorder}` : `6px solid ${accent}`,
-                  borderLeft: isPortrait ? `6px solid ${accent}` : `1.5px solid ${palette.surfaceBorder}`,
-                  padding: isPortrait ? '20px 24px' : '26px 24px',
+                  backgroundColor: isHeroTile
+                    ? accent
+                    : idx % 2 === 0
+                    ? palette.surfaceAltBg
+                    : palette.surfaceBg,
+                  color: isHeroTile ? palette.badgeTextColor : palette.textColor,
+                  border:
+                    style.preset === 'minimal'
+                      ? `1px solid ${palette.surfaceBorder}`
+                      : `1px solid ${palette.surfaceBorder}`,
+                  borderTop:
+                    style.preset === 'minimal'
+                      ? `1px solid ${palette.surfaceBorder}`
+                      : `5px solid ${accent}`,
+                  padding: isPortrait ? '22px 24px' : '28px 26px',
                   display: 'flex',
-                  flexDirection: isPortrait ? 'row' : 'column',
-                  alignItems: isPortrait ? 'center' : 'stretch',
-                  justifyContent: isPortrait ? 'flex-start' : 'space-between',
-                  gap: isPortrait ? '20px' : '0px',
-                  minHeight: isPortrait ? 'auto' : '220px',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  minHeight: isPortrait ? 'auto' : '200px',
                 }}
               >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '18px',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '48px',
-                      height: '48px',
-                      backgroundColor: accent,
-                      color: palette.badgeTextColor,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '20px',
-                      fontWeight: 800,
-                    }}
-                  >
-                    0{idx + 1}
-                  </div>
-                  <span
-                    style={{
-                      fontSize: '13px',
-                      fontWeight: 700,
-                      letterSpacing: '1.5px',
-                      color: palette.mutedTextColor,
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    STEP 0{idx + 1}
-                  </span>
-                </div>
                 <p
                   style={{
+                    fontFamily: style.bodyFont,
                     fontSize: points.length >= 4 ? '24px' : '27px',
-                    fontWeight: 600,
-                    color: palette.textColor,
-                    lineHeight: 1.4,
+                    fontWeight: style.preset === 'minimal' ? 400 : 600,
+                    color: isHeroTile ? palette.badgeTextColor : palette.textColor,
+                    lineHeight: 1.45,
                     margin: 0,
                   }}
                 >
@@ -439,46 +331,34 @@ export const BulletListLayout: React.FC<LayoutTemplateProps> = ({
     );
   }
 
-  // Variant B: Hub-and-Spoke Knowledge Graph Synthesis
+  // Variant B: Hub-and-Spoke Visual Paired with Smooth Concept Statements
   if (variant === 'knowledge_graph') {
     return (
       <div
         data-layout="bullet_list"
         data-visual-variant="knowledge_graph"
+        data-theme-preset={style.preset}
         style={{
           display: 'grid',
           gridTemplateColumns: isPortrait ? '1fr' : '0.92fr 1.25fr',
-          gap: isPortrait ? '26px' : '42px',
+          gap: isPortrait ? '26px' : '48px',
           alignItems: 'center',
           maxWidth: '1640px',
           width: '100%',
         }}
       >
-        {/* Left Interactive Mind-Map Stage */}
         <div
           style={{
-            backgroundColor: palette.surfaceAltBg,
-            border: `1.5px solid ${palette.surfaceBorder}`,
-            padding: isPortrait ? '20px' : '28px',
+            backgroundColor: style.preset === 'minimal' ? 'transparent' : palette.surfaceAltBg,
+            border:
+              style.preset === 'minimal' ? 'none' : `1px solid ${palette.surfaceBorder}`,
+            padding: isPortrait ? '20px' : '30px',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <div
-            style={{
-              alignSelf: 'flex-start',
-              fontSize: '15px',
-              fontWeight: 800,
-              letterSpacing: '2px',
-              textTransform: 'uppercase',
-              color: palette.primaryColor,
-              marginBottom: '6px',
-            }}
-          >
-            KNOWLEDGE GRAPH
-          </div>
           <div
             style={{
               transform: isPortrait ? 'scale(0.8)' : 'none',
@@ -495,35 +375,21 @@ export const BulletListLayout: React.FC<LayoutTemplateProps> = ({
           </div>
         </div>
 
-        {/* Right Structured Concept Nodes */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div>
-            <div
-              style={{
-                fontSize: '17px',
-                fontWeight: 800,
-                letterSpacing: '2.8px',
-                textTransform: 'uppercase',
-                color: palette.secondaryColor,
-                marginBottom: '8px',
-              }}
-            >
-              CONNECTED PILLARS / SLIDE {String(slide.slide_index).padStart(2, '0')}
-            </div>
-            <h2
-              style={{
-                fontSize: headingSize,
-                fontWeight: 800,
-                color: palette.textColor,
-                margin: 0,
-                lineHeight: 1.15,
-              }}
-            >
-              {slide.heading}
-            </h2>
-          </div>
+          <h2
+            style={{
+              fontFamily: style.headingFont,
+              fontSize: headingSize,
+              fontWeight: style.headingWeight,
+              color: palette.textColor,
+              margin: 0,
+              lineHeight: 1.18,
+            }}
+          >
+            {slide.heading}
+          </h2>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {points.map((point, idx) => {
               const motion = computeStaggeredSpring(frame, fps, idx);
               const accent = idx % 2 === 0 ? palette.primaryColor : palette.secondaryColor;
@@ -533,42 +399,30 @@ export const BulletListLayout: React.FC<LayoutTemplateProps> = ({
                   style={{
                     opacity: motion.opacity,
                     transform: `translateY(${motion.translateY}px)`,
-                    padding: '18px 24px',
-                    backgroundColor: palette.surfaceBg,
-                    border: `1px solid ${palette.surfaceBorder}`,
-                    borderLeft: `6px solid ${accent}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '20px',
+                    padding: style.preset === 'minimal' ? '16px 22px' : '20px 26px',
+                    backgroundColor: idx === 0 ? palette.surfaceAltBg : palette.surfaceBg,
+                    border:
+                      style.preset === 'minimal'
+                        ? 'none'
+                        : `1px solid ${palette.surfaceBorder}`,
+                    borderLeft:
+                      style.accentStripeWidth === '0px'
+                        ? 'none'
+                        : `${style.accentStripeWidth} solid ${accent}`,
                   }}
                 >
-                  <span
+                  <p
                     style={{
-                      width: '38px',
-                      height: '38px',
-                      backgroundColor: palette.accentSoft,
-                      border: `1.5px solid ${accent}`,
-                      color: accent,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '18px',
-                      fontWeight: 800,
-                      flexShrink: 0,
-                    }}
-                  >
-                    0{idx + 1}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: points.length >= 4 ? '25px' : '27px',
-                      fontWeight: 600,
+                      fontFamily: style.bodyFont,
+                      fontSize: points.length >= 4 ? '24px' : '27px',
+                      fontWeight: style.preset === 'minimal' ? 400 : 500,
                       color: palette.textColor,
-                      lineHeight: 1.38,
+                      lineHeight: 1.42,
+                      margin: 0,
                     }}
                   >
                     {point}
-                  </span>
+                  </p>
                 </div>
               );
             })}
@@ -578,7 +432,7 @@ export const BulletListLayout: React.FC<LayoutTemplateProps> = ({
     );
   }
 
-  // Variant C: NotebookLM Bento Mosaic Grid (default rich variant)
+  // Variant C: Expressive Color Bento Mosaic
   const leadPoint = points[0];
   const secondaryPoints = points.slice(1);
 
@@ -586,6 +440,7 @@ export const BulletListLayout: React.FC<LayoutTemplateProps> = ({
     <div
       data-layout="bullet_list"
       data-visual-variant="bento_mosaic"
+      data-theme-preset={style.preset}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -594,53 +449,18 @@ export const BulletListLayout: React.FC<LayoutTemplateProps> = ({
         gap: '26px',
       }}
     >
-      <div
+      <h2
         style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-end',
-          gap: '24px',
+          fontFamily: style.headingFont,
+          fontSize: headingSize,
+          fontWeight: style.headingWeight,
+          color: palette.textColor,
+          margin: 0,
+          lineHeight: 1.18,
         }}
       >
-        <div>
-          <div
-            style={{
-              fontSize: '17px',
-              fontWeight: 800,
-              letterSpacing: '3px',
-              textTransform: 'uppercase',
-              color: palette.primaryColor,
-              marginBottom: '10px',
-            }}
-          >
-            BENTO BRIEFING / SLIDE {String(slide.slide_index).padStart(2, '0')}
-          </div>
-          <h2
-            style={{
-              fontSize: headingSize,
-              fontWeight: 800,
-              color: palette.textColor,
-              margin: 0,
-              lineHeight: 1.15,
-            }}
-          >
-            {slide.heading}
-          </h2>
-        </div>
-        <div
-          style={{
-            padding: '10px 20px',
-            backgroundColor: palette.surfaceBg,
-            border: `1px solid ${palette.surfaceBorder}`,
-            fontSize: '15px',
-            fontWeight: 700,
-            color: palette.secondaryColor,
-            letterSpacing: '1.5px',
-          }}
-        >
-          KEY INSIGHTS ({points.length})
-        </div>
-      </div>
+        {slide.heading}
+      </h2>
 
       <div
         style={{
@@ -650,61 +470,35 @@ export const BulletListLayout: React.FC<LayoutTemplateProps> = ({
             : secondaryPoints.length > 0
             ? '0.95fr 1.25fr'
             : '1fr',
-          gap: isPortrait ? '18px' : '24px',
+          gap: isPortrait ? '18px' : '26px',
           alignItems: 'stretch',
         }}
       >
-        {/* Featured Anchor Card */}
         {leadPoint && (
           <div
             style={{
-              backgroundColor: palette.surfaceAltBg,
-              border: `1.5px solid ${palette.primaryColor}`,
-              borderTop: `8px solid ${palette.primaryColor}`,
-              padding: isPortrait ? '26px 28px' : '34px 32px',
+              backgroundColor:
+                style.preset === 'corporate' ? palette.surfaceAltBg : palette.primaryColor,
+              color:
+                style.preset === 'corporate' ? palette.textColor : palette.badgeTextColor,
+              border:
+                style.preset === 'corporate' ? `2px solid ${palette.primaryColor}` : 'none',
+              padding: isPortrait ? '28px 30px' : '38px 36px',
               display: 'flex',
               flexDirection: 'column',
-              justifyContent: 'space-between',
-              minHeight: isPortrait ? 'auto' : '320px',
+              justifyContent: 'center',
+              minHeight: isPortrait ? 'auto' : '300px',
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <span
-                style={{
-                  fontSize: '42px',
-                  fontWeight: 900,
-                  color: palette.primaryColor,
-                  lineHeight: 1,
-                }}
-              >
-                01
-              </span>
-              <span
-                style={{
-                  padding: '6px 14px',
-                  backgroundColor: palette.primaryColor,
-                  color: palette.badgeTextColor,
-                  fontSize: '14px',
-                  fontWeight: 800,
-                  letterSpacing: '1.5px',
-                }}
-              >
-                PRIMARY FOCUS
-              </span>
-            </div>
             <p
               style={{
-                fontSize: '33px',
-                fontWeight: 700,
-                color: palette.textColor,
-                lineHeight: 1.35,
-                margin: '24px 0 0 0',
+                fontFamily: style.headingFont,
+                fontSize: isPortrait ? '30px' : '36px',
+                fontWeight: style.headingWeight,
+                color:
+                  style.preset === 'corporate' ? palette.textColor : palette.badgeTextColor,
+                lineHeight: 1.32,
+                margin: 0,
               }}
             >
               {leadPoint}
@@ -712,7 +506,6 @@ export const BulletListLayout: React.FC<LayoutTemplateProps> = ({
           </div>
         )}
 
-        {/* Supporting Bento Tiles */}
         {secondaryPoints.length > 0 && (
           <div
             style={{
@@ -727,51 +520,35 @@ export const BulletListLayout: React.FC<LayoutTemplateProps> = ({
           >
             {secondaryPoints.map((point, idx) => {
               const motion = computeStaggeredSpring(frame, fps, idx + 1);
-              const accent = idx % 2 === 0 ? palette.secondaryColor : palette.primaryColor;
               return (
                 <div
                   key={`bento-pt-${idx}`}
                   style={{
                     opacity: motion.opacity,
                     transform: `translateY(${motion.translateY}px)`,
-                    backgroundColor: palette.surfaceBg,
-                    border: `1px solid ${palette.surfaceBorder}`,
-                    borderLeft: `6px solid ${accent}`,
-                    padding: '24px 26px',
+                    backgroundColor: idx % 2 === 0 ? palette.surfaceBg : palette.surfaceAltBg,
+                    border:
+                      style.preset === 'minimal'
+                        ? 'none'
+                        : `1px solid ${palette.surfaceBorder}`,
+                    padding: '26px 28px',
                     display: 'flex',
                     flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    gap: '12px',
+                    justifyContent: 'center',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span
-                      style={{
-                        fontSize: '18px',
-                        fontWeight: 800,
-                        color: accent,
-                      }}
-                    >
-                      0{idx + 2}
-                    </span>
-                    <span
-                      style={{
-                        height: '2px',
-                        flex: 1,
-                        backgroundColor: palette.surfaceBorder,
-                      }}
-                    />
-                  </div>
-                  <span
+                  <p
                     style={{
+                      fontFamily: style.bodyFont,
                       fontSize: secondaryPoints.length >= 3 ? '24px' : '27px',
-                      fontWeight: 600,
+                      fontWeight: style.preset === 'minimal' ? 400 : 500,
                       color: palette.textColor,
-                      lineHeight: 1.38,
+                      lineHeight: 1.42,
+                      margin: 0,
                     }}
                   >
                     {point}
-                  </span>
+                  </p>
                 </div>
               );
             })}
@@ -783,11 +560,8 @@ export const BulletListLayout: React.FC<LayoutTemplateProps> = ({
 };
 
 /**
- * 3. Asymmetric Two-Column Split Layout (`split_card`)
- * Pairs editorial points on the left with a tailored animated SVG infographic stage on the right:
- *  - compare_bars: Animated comparative vertical bars + rising trend spline
- *  - stacked_layers: Levitating layered architecture stack diagram
- *  - milestone_roadmap: Smooth curved milestone path with traveling progress beacon
+ * 3. Two-Column Editorial Split Layout (`split_card`)
+ * Pairs flowing editorial paragraphs cleanly with animated visual diagrams.
  */
 export const SplitCardLayout: React.FC<LayoutTemplateProps> = ({
   slide,
@@ -796,172 +570,103 @@ export const SplitCardLayout: React.FC<LayoutTemplateProps> = ({
   fps,
   palette: providedPalette,
   visualVariant: providedVariant,
+  themeStyle: providedStyle,
   isPortrait = false,
 }) => {
-  const { palette, variant } = getResolvedContext(
+  const { palette, variant, style } = getResolvedContext(
     slide,
     theme,
     providedPalette,
-    providedVariant
+    providedVariant,
+    providedStyle
   );
   const points = (slide.bullet_points || []).slice(0, 5);
-  const headingSize = slide.heading.length > 48 ? '44px' : '50px';
-
-  const visualTitle =
-    variant === 'compare_bars'
-      ? 'IMPACT BENCHMARK & GROWTH'
-      : variant === 'milestone_roadmap'
-      ? 'EXECUTION TRAJECTORY'
-      : 'LAYERED ARCHITECTURE';
+  const headingSize = slide.heading.length > 48 ? '46px' : '52px';
 
   return (
     <div
       data-layout="split_card"
       data-visual-variant={variant}
+      data-theme-preset={style.preset}
       style={{
         display: 'grid',
         gridTemplateColumns: isPortrait ? '1fr' : '1fr 1.05fr',
-        gap: isPortrait ? '28px' : '40px',
+        gap: isPortrait ? '28px' : '44px',
         maxWidth: '1640px',
         width: '100%',
         alignItems: 'stretch',
       }}
     >
-      {/* Left Narrative Panel */}
+      {/* Left Clean Narrative Editorial Column */}
       <div
         style={{
-          backgroundColor: palette.surfaceBg,
-          border: `1.5px solid ${palette.surfaceBorder}`,
-          borderTop: `8px solid ${palette.primaryColor}`,
-          padding: '38px 40px',
+          backgroundColor: style.preset === 'minimal' ? palette.surfaceBg : palette.surfaceBg,
+          border:
+            style.preset === 'minimal' ? 'none' : `1px solid ${palette.surfaceBorder}`,
+          borderTop:
+            style.preset === 'minimal' ? 'none' : `5px solid ${palette.primaryColor}`,
+          padding: style.preset === 'minimal' ? '34px 36px' : '40px 42px',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'space-between',
-          gap: '22px',
+          justifyContent: 'center',
+          gap: '24px',
         }}
       >
-        <div>
-          <span
-            style={{
-              display: 'inline-block',
-              fontSize: '16px',
-              fontWeight: 800,
-              letterSpacing: '2.5px',
-              textTransform: 'uppercase',
-              color: palette.primaryColor,
-              marginBottom: '12px',
-            }}
-          >
-            DEEP DIVE / SLIDE {String(slide.slide_index).padStart(2, '0')}
-          </span>
-          <h2
-            style={{
-              fontSize: headingSize,
-              fontWeight: 800,
-              color: palette.textColor,
-              margin: 0,
-              lineHeight: 1.18,
-            }}
-          >
-            {slide.heading}
-          </h2>
-        </div>
+        <h2
+          style={{
+            fontFamily: style.headingFont,
+            fontSize: headingSize,
+            fontWeight: style.headingWeight,
+            color: palette.textColor,
+            margin: 0,
+            lineHeight: 1.18,
+          }}
+        >
+          {slide.heading}
+        </h2>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {points.map((point, idx) => {
             const motion = computeStaggeredSpring(frame, fps, idx);
-            const accent = idx % 2 === 0 ? palette.primaryColor : palette.secondaryColor;
             return (
-              <div
+              <p
                 key={`split-pt-${idx}`}
                 style={{
                   opacity: motion.opacity,
                   transform: `translateY(${motion.translateY}px)`,
-                  padding: '16px 20px',
-                  backgroundColor: idx === 0 ? palette.surfaceAltBg : 'transparent',
-                  border: `1px solid ${palette.surfaceBorder}`,
-                  borderLeft: `5px solid ${accent}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '16px',
+                  fontFamily: style.bodyFont,
+                  fontSize: points.length >= 4 ? '24px' : '27px',
+                  fontWeight: idx === 0 && style.preset !== 'minimal' ? 600 : 400,
+                  color: idx === 0 ? palette.textColor : palette.mutedTextColor,
+                  lineHeight: 1.45,
+                  margin: 0,
+                  paddingBottom: idx < points.length - 1 ? '14px' : '0px',
+                  borderBottom:
+                    idx < points.length - 1 ? `1px solid ${palette.surfaceBorder}` : 'none',
                 }}
               >
-                <span
-                  style={{
-                    fontSize: '18px',
-                    fontWeight: 800,
-                    color: accent,
-                    minWidth: '30px',
-                  }}
-                >
-                  0{idx + 1}
-                </span>
-                <span
-                  style={{
-                    fontSize: points.length >= 4 ? '23px' : '25px',
-                    fontWeight: 600,
-                    color: palette.textColor,
-                    lineHeight: 1.38,
-                  }}
-                >
-                  {point}
-                </span>
-              </div>
+                {point}
+              </p>
             );
           })}
         </div>
       </div>
 
-      {/* Right Procedural Infographic Panel */}
+      {/* Right Visual Infographic Panel */}
       <div
         style={{
-          backgroundColor: palette.surfaceAltBg,
-          border: `1.5px solid ${palette.surfaceBorder}`,
-          padding: '30px 34px',
+          backgroundColor: style.preset === 'minimal' ? palette.surfaceAltBg : palette.surfaceAltBg,
+          border:
+            style.preset === 'minimal' ? 'none' : `1px solid ${palette.surfaceBorder}`,
+          padding: '32px 36px',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'space-between',
+          justifyContent: 'center',
           alignItems: 'center',
         }}
       >
         <div
           style={{
-            width: '100%',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            borderBottom: `1px solid ${palette.surfaceBorder}`,
-            paddingBottom: '12px',
-          }}
-        >
-          <span
-            style={{
-              fontSize: '15px',
-              fontWeight: 800,
-              letterSpacing: '2px',
-              color: palette.secondaryColor,
-            }}
-          >
-            {visualTitle}
-          </span>
-          <span
-            style={{
-              fontSize: '13px',
-              fontWeight: 700,
-              color: palette.mutedTextColor,
-              letterSpacing: '1.2px',
-            }}
-          >
-            {palette.name.toUpperCase()}
-          </span>
-        </div>
-
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
             transform: isPortrait ? 'scale(0.84)' : 'none',
             margin: isPortrait ? '-28px 0' : '0',
           }}
@@ -999,7 +704,7 @@ export const SplitCardLayout: React.FC<LayoutTemplateProps> = ({
 
 /**
  * 4. Quote Highlight Layout (`quote_highlight`)
- * Switches between an atmospheric radar halo centerpiece and an editorial broadsheet card.
+ * Expressive centerpiece quotation & graceful supporting context without robotic callout stamps.
  */
 export const QuoteHighlightLayout: React.FC<LayoutTemplateProps> = ({
   slide,
@@ -1008,13 +713,15 @@ export const QuoteHighlightLayout: React.FC<LayoutTemplateProps> = ({
   fps,
   palette: providedPalette,
   visualVariant: providedVariant,
+  themeStyle: providedStyle,
   isPortrait = false,
 }) => {
-  const { palette, variant } = getResolvedContext(
+  const { palette, variant, style } = getResolvedContext(
     slide,
     theme,
     providedPalette,
-    providedVariant
+    providedVariant,
+    providedStyle
   );
   const scaleAnim = spring({
     frame,
@@ -1028,6 +735,7 @@ export const QuoteHighlightLayout: React.FC<LayoutTemplateProps> = ({
       <div
         data-layout="quote_highlight"
         data-visual-variant="focus_callout"
+        data-theme-preset={style.preset}
         style={{
           display: 'grid',
           gridTemplateColumns: isPortrait
@@ -1035,38 +743,29 @@ export const QuoteHighlightLayout: React.FC<LayoutTemplateProps> = ({
             : points.length > 0
             ? '1.3fr 0.85fr'
             : '1fr',
-          gap: isPortrait ? '24px' : '36px',
+          gap: isPortrait ? '24px' : '38px',
           maxWidth: '1600px',
           width: '100%',
           alignItems: 'center',
         }}
       >
-        {/* Editorial Broadsheet Statement */}
         <div
           style={{
             transform: `scale(${interpolate(scaleAnim, [0, 1], [0.95, 1])})`,
             backgroundColor: palette.surfaceBg,
-            border: `1.5px solid ${palette.surfaceBorder}`,
-            borderLeft: `14px solid ${palette.primaryColor}`,
-            padding: '52px 54px',
+            border:
+              style.preset === 'minimal' ? 'none' : `1px solid ${palette.surfaceBorder}`,
+            borderLeft:
+              style.preset === 'minimal' ? 'none' : `10px solid ${palette.primaryColor}`,
+            padding: '50px 54px',
           }}
         >
-          <div
-            style={{
-              fontSize: '18px',
-              fontWeight: 800,
-              letterSpacing: '3px',
-              textTransform: 'uppercase',
-              color: palette.primaryColor,
-              marginBottom: '20px',
-            }}
-          >
-            CORE PERSPECTIVE / SLIDE {String(slide.slide_index).padStart(2, '0')}
-          </div>
           <blockquote
             style={{
+              fontFamily: style.headingFont,
               fontSize: slide.heading.length > 70 ? '42px' : '50px',
-              fontWeight: 700,
+              fontWeight: style.headingWeight,
+              fontStyle: style.preset === 'corporate' ? 'italic' : 'normal',
               lineHeight: 1.28,
               color: palette.textColor,
               margin: 0,
@@ -1076,45 +775,36 @@ export const QuoteHighlightLayout: React.FC<LayoutTemplateProps> = ({
           </blockquote>
         </div>
 
-        {/* Supporting Context Annotations */}
         {points.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {points.map((pt, idx) => {
               const motion = computeStaggeredSpring(frame, fps, idx);
-              const accent = idx % 2 === 0 ? palette.secondaryColor : palette.primaryColor;
               return (
                 <div
                   key={`callout-${idx}`}
                   style={{
                     opacity: motion.opacity,
                     transform: `translateY(${motion.translateY}px)`,
-                    padding: '22px 26px',
+                    padding: '24px 28px',
                     backgroundColor: palette.surfaceAltBg,
-                    border: `1px solid ${palette.surfaceBorder}`,
-                    borderTop: `4px solid ${accent}`,
+                    border:
+                      style.preset === 'minimal'
+                        ? 'none'
+                        : `1px solid ${palette.surfaceBorder}`,
                   }}
                 >
-                  <div
+                  <p
                     style={{
-                      fontSize: '15px',
-                      fontWeight: 800,
-                      letterSpacing: '1.5px',
-                      color: accent,
-                      marginBottom: '8px',
-                    }}
-                  >
-                    ANNOTATION 0{idx + 1}
-                  </div>
-                  <div
-                    style={{
+                      fontFamily: style.bodyFont,
                       fontSize: '25px',
-                      fontWeight: 600,
+                      fontWeight: style.preset === 'minimal' ? 400 : 500,
                       color: palette.textColor,
-                      lineHeight: 1.38,
+                      lineHeight: 1.4,
+                      margin: 0,
                     }}
                   >
                     {pt}
-                  </div>
+                  </p>
                 </div>
               );
             })}
@@ -1124,11 +814,11 @@ export const QuoteHighlightLayout: React.FC<LayoutTemplateProps> = ({
     );
   }
 
-  // Variant: Atmospheric Quote Radar
   return (
     <div
       data-layout="quote_highlight"
       data-visual-variant="quote_radar"
+      data-theme-preset={style.preset}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -1150,9 +840,10 @@ export const QuoteHighlightLayout: React.FC<LayoutTemplateProps> = ({
 
       <div
         style={{
-          fontSize: '110px',
+          fontFamily: style.headingFont,
+          fontSize: '104px',
           lineHeight: 0.7,
-          fontWeight: 900,
+          fontWeight: 700,
           color: palette.primaryColor,
           marginBottom: '18px',
           position: 'relative',
@@ -1165,11 +856,13 @@ export const QuoteHighlightLayout: React.FC<LayoutTemplateProps> = ({
       <blockquote
         style={{
           transform: `scale(${interpolate(scaleAnim, [0, 1], [0.95, 1])})`,
+          fontFamily: style.headingFont,
           fontSize: slide.heading.length > 70 ? '46px' : '56px',
-          fontWeight: 700,
+          fontWeight: style.headingWeight,
+          fontStyle: style.preset === 'corporate' ? 'italic' : 'normal',
           lineHeight: 1.28,
           color: palette.textColor,
-          margin: '0 0 34px 0',
+          margin: '0 0 30px 0',
           maxWidth: '1240px',
           position: 'relative',
           zIndex: 1,
@@ -1179,43 +872,28 @@ export const QuoteHighlightLayout: React.FC<LayoutTemplateProps> = ({
       </blockquote>
 
       {points.length > 0 && (
-        <div
+        <p
           style={{
-            display: 'flex',
-            gap: '16px',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
+            fontFamily: style.bodyFont,
+            fontSize: '25px',
+            fontWeight: 500,
+            color: palette.mutedTextColor,
+            margin: 0,
             position: 'relative',
             zIndex: 1,
+            maxWidth: '960px',
           }}
         >
-          {points.map((pt, idx) => {
-            const accent = idx % 2 === 0 ? palette.primaryColor : palette.secondaryColor;
-            return (
-              <span
-                key={`quote-badge-${idx}`}
-                style={{
-                  padding: '12px 26px',
-                  backgroundColor: palette.surfaceBg,
-                  border: `1.5px solid ${accent}`,
-                  color: palette.textColor,
-                  fontSize: '22px',
-                  fontWeight: 600,
-                }}
-              >
-                {pt}
-              </span>
-            );
-          })}
-        </div>
+          {points.join('  ·  ')}
+        </p>
       )}
     </div>
   );
 };
 
 /**
- * 5. Conclusion & Call-to-Action Layout (`conclusion_cta`)
- * Pairs strategic wrap-up cards with an energetic orbital finish emblem.
+ * 5. Conclusion Layout (`conclusion_cta`)
+ * Clean colorful takeaway cards without uppercase generic AI CTA banners.
  */
 export const ConclusionCtaLayout: React.FC<LayoutTemplateProps> = ({
   slide,
@@ -1224,20 +902,16 @@ export const ConclusionCtaLayout: React.FC<LayoutTemplateProps> = ({
   fps,
   palette: providedPalette,
   visualVariant: providedVariant,
+  themeStyle: providedStyle,
   isPortrait = false,
 }) => {
-  const { palette, variant } = getResolvedContext(
+  const { palette, variant, style } = getResolvedContext(
     slide,
     theme,
     providedPalette,
-    providedVariant
+    providedVariant,
+    providedStyle
   );
-
-  const ctaAnim = spring({
-    frame: Math.max(0, frame - 12),
-    fps,
-    config: { damping: 12, stiffness: 110 },
-  });
 
   const points = (slide.bullet_points || []).slice(0, 4);
 
@@ -1245,52 +919,40 @@ export const ConclusionCtaLayout: React.FC<LayoutTemplateProps> = ({
     <div
       data-layout="conclusion_cta"
       data-visual-variant={variant}
+      data-theme-preset={style.preset}
       style={{
         display: 'flex',
         flexDirection: 'column',
         maxWidth: '1640px',
         width: '100%',
-        gap: isPortrait ? '22px' : '26px',
+        gap: isPortrait ? '24px' : '32px',
       }}
     >
-      {/* Top Executive Wrap Header */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: isPortrait ? '1fr' : '1.35fr 0.65fr',
+          gridTemplateColumns: isPortrait ? '1fr' : '1.4fr 0.6fr',
           gap: isPortrait ? '20px' : '32px',
           alignItems: 'center',
-          backgroundColor: palette.surfaceAltBg,
-          border: `1.5px solid ${palette.surfaceBorder}`,
-          borderLeft: `10px solid ${palette.primaryColor}`,
-          padding: isPortrait ? '28px 30px' : '28px 38px',
+          backgroundColor:
+            style.preset === 'minimal' ? 'transparent' : palette.surfaceAltBg,
+          border:
+            style.preset === 'minimal' ? 'none' : `1px solid ${palette.surfaceBorder}`,
+          padding: isPortrait ? '24px 26px' : '30px 40px',
         }}
       >
-        <div>
-          <div
-            style={{
-              fontSize: '17px',
-              fontWeight: 800,
-              letterSpacing: '3px',
-              textTransform: 'uppercase',
-              color: palette.primaryColor,
-              marginBottom: '12px',
-            }}
-          >
-            EXECUTIVE SYNTHESIS & NEXT STEPS
-          </div>
-          <h2
-            style={{
-              fontSize: slide.heading.length > 52 ? '48px' : '56px',
-              fontWeight: 800,
-              color: palette.textColor,
-              margin: 0,
-              lineHeight: 1.15,
-            }}
-          >
-            {slide.heading}
-          </h2>
-        </div>
+        <h2
+          style={{
+            fontFamily: style.headingFont,
+            fontSize: slide.heading.length > 52 ? '48px' : '56px',
+            fontWeight: style.headingWeight,
+            color: palette.textColor,
+            margin: 0,
+            lineHeight: 1.18,
+          }}
+        >
+          {slide.heading}
+        </h2>
 
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <div style={{ transform: 'scale(0.56)', margin: '-110px 0' }}>
@@ -1305,7 +967,6 @@ export const ConclusionCtaLayout: React.FC<LayoutTemplateProps> = ({
         </div>
       </div>
 
-      {/* Action Cards Grid */}
       {points.length > 0 && (
         <div
           style={{
@@ -1313,69 +974,49 @@ export const ConclusionCtaLayout: React.FC<LayoutTemplateProps> = ({
             gridTemplateColumns: isPortrait
               ? '1fr'
               : `repeat(${Math.min(4, Math.max(1, points.length))}, minmax(0, 1fr))`,
-            gap: isPortrait ? '14px' : '20px',
+            gap: isPortrait ? '14px' : '22px',
           }}
         >
           {points.map((pt, idx) => {
             const accent = idx % 2 === 0 ? palette.primaryColor : palette.secondaryColor;
             const motion = computeStaggeredSpring(frame, fps, idx);
+            const useColorFill = style.preset === 'modern_tech' && idx === 0;
             return (
               <div
                 key={`cta-pt-${idx}`}
                 style={{
                   opacity: motion.opacity,
                   transform: `translateY(${motion.translateY}px)`,
-                  padding: '24px 26px',
-                  backgroundColor: palette.surfaceBg,
-                  border: `1.5px solid ${palette.surfaceBorder}`,
-                  borderTop: `6px solid ${accent}`,
+                  padding: '28px 28px',
+                  backgroundColor: useColorFill ? accent : palette.surfaceBg,
+                  color: useColorFill ? palette.badgeTextColor : palette.textColor,
+                  border:
+                    style.preset === 'minimal'
+                      ? 'none'
+                      : `1px solid ${palette.surfaceBorder}`,
+                  borderTop:
+                    style.preset === 'minimal' ? 'none' : `4px solid ${accent}`,
                   display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px',
+                  alignItems: 'center',
                 }}
               >
-                <span
+                <p
                   style={{
-                    fontSize: '16px',
-                    fontWeight: 800,
-                    letterSpacing: '1.5px',
-                    color: accent,
-                  }}
-                >
-                  ACTION 0{idx + 1}
-                </span>
-                <span
-                  style={{
+                    fontFamily: style.bodyFont,
                     fontSize: '25px',
-                    fontWeight: 600,
-                    color: palette.textColor,
-                    lineHeight: 1.38,
+                    fontWeight: style.preset === 'minimal' ? 400 : 600,
+                    color: useColorFill ? palette.badgeTextColor : palette.textColor,
+                    lineHeight: 1.42,
+                    margin: 0,
                   }}
                 >
                   {pt}
-                </span>
+                </p>
               </div>
             );
           })}
         </div>
       )}
-
-      {/* Closing CTA Banner */}
-      <div
-        style={{
-          alignSelf: 'flex-start',
-          transform: `scale(${interpolate(ctaAnim, [0, 1], [0.92, 1])})`,
-          padding: '16px 36px',
-          background: `linear-gradient(90deg, ${palette.primaryColor} 0%, ${palette.secondaryColor} 100%)`,
-          color: palette.badgeTextColor,
-          fontSize: '22px',
-          fontWeight: 800,
-          letterSpacing: '1.2px',
-          textTransform: 'uppercase',
-        }}
-      >
-        SUMMARY COMPLETE / READY FOR IMPLEMENTATION
-      </div>
     </div>
   );
 };

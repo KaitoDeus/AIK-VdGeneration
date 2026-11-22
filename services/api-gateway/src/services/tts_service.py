@@ -62,22 +62,25 @@ DEFAULT_ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # Rachel (Multilingual v2)
 
 THEME_PRESETS: Dict[str, RemotionThemeProps] = {
     "modern_tech": RemotionThemeProps(
-        backgroundColor="#0f172a",
-        primaryColor="#38bdf8",
-        textColor="#f8fafc",
-        fontFamily="Inter, sans-serif",
+        preset="modern_tech",
+        backgroundColor="#132B63",
+        primaryColor="#38BDF8",
+        textColor="#FFFFFF",
+        fontFamily='"Plus Jakarta Sans", "Inter", "Segoe UI", system-ui, sans-serif',
     ),
     "corporate": RemotionThemeProps(
-        backgroundColor="#1e293b",
-        primaryColor="#60a5fa",
-        textColor="#ffffff",
-        fontFamily="Inter, sans-serif",
+        preset="corporate",
+        backgroundColor="#102A43",
+        primaryColor="#D97706",
+        textColor="#FAF7F2",
+        fontFamily='Georgia, "Times New Roman", "Noto Serif", serif',
     ),
     "minimal": RemotionThemeProps(
-        backgroundColor="#18181b",
-        primaryColor="#a855f7",
-        textColor="#fafafa",
-        fontFamily="Inter, sans-serif",
+        preset="minimal",
+        backgroundColor="#FFF0EB",
+        primaryColor="#EA580C",
+        textColor="#1F2937",
+        fontFamily='"Helvetica Neue", "Segoe UI", Arial, sans-serif',
     ),
 }
 

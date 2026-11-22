@@ -10,7 +10,10 @@ export type SlideLayout =
   | 'quote_highlight'
   | 'conclusion_cta';
 
+export type ThemePreset = 'modern_tech' | 'corporate' | 'minimal';
+
 export interface ThemeConfig {
+  preset?: ThemePreset;
   backgroundColor?: string;
   primaryColor?: string;
   textColor?: string;

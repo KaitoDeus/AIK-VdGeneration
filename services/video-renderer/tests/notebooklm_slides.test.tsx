@@ -167,4 +167,73 @@ describe('NotebookLM Per-Slide Palette Alternation & Visual Variants', () => {
     expect(rendered[5]).toContain('data-palette-id="sage_botanical"');
     expect(rendered[5]).toContain('data-visual-variant="focus_callout"');
   });
+
+  it('differentiates modern_tech, corporate, and minimal themes visually & removes robotic labels', () => {
+    const sampleSlide: SlideData = {
+      slide_index: 1,
+      layout: 'title_intro',
+      heading: 'Strategic Growth Architecture',
+      bullet_points: ['Clarity over clutter', 'Human-centered typography'],
+      voiceover_duration_seconds: 5,
+    };
+
+    const techHtml = renderToStaticMarkup(
+      <SlideCard
+        slide={sampleSlide}
+        totalSlides={4}
+        theme={{
+          preset: 'modern_tech',
+          backgroundColor: '#132B63',
+          primaryColor: '#38BDF8',
+          textColor: '#FFFFFF',
+          fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
+        }}
+      />
+    );
+    const corpHtml = renderToStaticMarkup(
+      <SlideCard
+        slide={sampleSlide}
+        totalSlides={4}
+        theme={{
+          preset: 'corporate',
+          backgroundColor: '#102A43',
+          primaryColor: '#E6A852',
+          textColor: '#F8FAFC',
+          fontFamily: 'Georgia, "Times New Roman", "Noto Serif", serif',
+        }}
+      />
+    );
+    const minimalHtml = renderToStaticMarkup(
+      <SlideCard
+        slide={sampleSlide}
+        totalSlides={4}
+        theme={{
+          preset: 'minimal',
+          backgroundColor: '#FFF0EB',
+          primaryColor: '#EA580C',
+          textColor: '#292524',
+          fontFamily: '"Helvetica Neue", "Segoe UI", Arial, sans-serif',
+        }}
+      />
+    );
+
+    expect(techHtml).toContain('data-theme-preset="modern_tech"');
+    expect(techHtml).toContain('data-palette-id="sapphire_studio"');
+    expect(techHtml).toContain('font-weight:800');
+
+    expect(corpHtml).toContain('data-theme-preset="corporate"');
+    expect(corpHtml).toContain('data-palette-id="corp_admiralty_navy"');
+    expect(corpHtml).toContain('Georgia');
+    expect(corpHtml).toContain('font-weight:700');
+
+    expect(minimalHtml).toContain('data-theme-preset="minimal"');
+    expect(minimalHtml).toContain('data-palette-id="minimal_peach_silk"');
+    expect(minimalHtml).toContain('font-weight:500');
+
+    for (const html of [techHtml, corpHtml, minimalHtml]) {
+      expect(html).not.toContain('KEYNOTE BRIEFING');
+      expect(html).not.toContain('ACTION 01');
+      expect(html).not.toContain('SUMMARY COMPLETE');
+    }
+  });
 });
