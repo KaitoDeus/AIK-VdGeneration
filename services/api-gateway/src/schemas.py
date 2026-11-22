@@ -156,13 +156,32 @@ class RemotionBGMProps(BaseModel):
 
 
 class BGMSettings(BaseModel):
-    """User request preferences for royalty-free background music & ducking (M3.2)."""
+    """User request preferences for background music upload/selection & ducking (M3.2)."""
 
     enabled: bool = Field(default=False)
     mood: BGMMood = Field(default="tech")
     track_id: Optional[str] = Field(default=None)
+    custom_audio_id: Optional[str] = Field(
+        default=None,
+        description="Uploaded custom background music ID returned by POST /api/v1/bgm/upload.",
+    )
     volume: float = Field(default=0.22, ge=0.0, le=1.0)
     ducking_enabled: bool = Field(default=True)
+    duck_attenuation_db: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=36.0,
+        description="Optional speech ducking attenuation override in dB (defaults to 18.0).",
+    )
+
+
+class BGMUploadResponse(BaseModel):
+    """Metadata returned after uploading and normalizing a user-provided BGM audio file."""
+
+    custom_audio_id: str
+    filename: str
+    duration_seconds: float
+    preview_url: str
 
 
 class BGMTrackOption(BaseModel):
@@ -187,7 +206,7 @@ class WordTimestamp(BaseModel):
 
 
 class SubtitleSettings(BaseModel):
-    """User preferences for automatic animated karaoke captions (M3.3)."""
+    """User preferences for automatic animated subtitles (M3.3)."""
 
     enabled: bool = Field(default=False)
     style: CaptionStyle = Field(default="karaoke_pill")

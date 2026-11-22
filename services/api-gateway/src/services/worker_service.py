@@ -208,7 +208,7 @@ class TTSWorker(BaseStageWorker):
                 job_id=job.job_id,
                 step="synthesizing_audio",
                 progress_percentage=78,
-                message="Compiling BGM audio ducking & karaoke subtitle timestamps... (78%)",
+                message="Compiling background music ducking & subtitle timestamps... (78%)",
             )
             subtitle_cfg = task.request.subtitle_settings
             if (

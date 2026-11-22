@@ -204,6 +204,19 @@ async function attachMockApiGateway(page: Page) {
       });
     }
 
+    if (url.endsWith('/api/v1/bgm/upload') && method === 'POST') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          custom_audio_id: 'bgm_e2e_01',
+          filename: 'user-bg.wav',
+          duration_seconds: 12.0,
+          preview_url: '/api/v1/bgm/uploads/bgm_e2e_01/preview',
+        }),
+      });
+    }
+
     if (url.includes('/api/v1/bgm/tracks')) {
       return route.fulfill({
         status: 200,
@@ -415,9 +428,15 @@ test.describe('AIK Web Studio Real Browser Verification (StudioBlank)', () => {
     await attachMockApiGateway(page);
     await page.goto('/');
 
-    // Select quick template, enable BGM & Whisper captions, and draft script
+    // Select quick template, upload custom BGM & enable Subtitles (no Karaoke label), and draft script
+    await expect(page.getByText(/karaoke/i)).toHaveCount(0);
     await page.getByRole('button', { name: 'TECH EXPLAINER' }).click();
-    await page.getByTestId('bgm-mood-tech').click();
+    await page.getByTestId('bgm-file-input').setInputFiles({
+      name: 'user-bg.wav',
+      mimeType: 'audio/wav',
+      buffer: Buffer.from('RIFF\x24\x00\x00\x00WAVEfmt '),
+    });
+    await expect(page.getByTestId('bgm-uploaded-file-chip')).toContainText('user-bg.wav');
     await page.getByTestId('subtitles-enable-toggle').click();
     await page.getByRole('button', { name: 'Draft Script First' }).click();
 

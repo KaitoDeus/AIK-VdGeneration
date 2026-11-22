@@ -257,6 +257,15 @@ export function installMockStudioServer(options?: {
       });
     }
 
+    if (url.endsWith('/api/v1/bgm/upload') && method === 'POST') {
+      return jsonResponse({
+        custom_audio_id: 'bgm_mocktrack01',
+        filename: 'my-bgm.mp3',
+        duration_seconds: 18.5,
+        preview_url: '/api/v1/bgm/uploads/bgm_mocktrack01/preview',
+      });
+    }
+
     if (url.includes('/api/v1/bgm/tracks')) {
       return jsonResponse([
         {

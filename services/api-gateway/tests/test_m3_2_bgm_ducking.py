@@ -184,3 +184,101 @@ class TestM32BGMEndpoints:
         finally:
             shutil.rmtree(TEMP_JOBS_DIR / job_id, ignore_errors=True)
             JOBS_STORE.pop(job_id, None)
+
+
+class TestCustomUploadedBGM:
+    """Verifies user custom music upload, normalization, preview streaming, and mixing into jobs."""
+
+    def _make_sample_wav_bytes(self, duration_sec: float = 0.6) -> bytes:
+        import io
+        import math
+        import struct
+
+        sample_rate = 44100
+        frames = bytearray()
+        total = int(sample_rate * duration_sec)
+        for i in range(total):
+            val = int(0.18 * math.sin(2.0 * math.pi * 440.0 * (i / sample_rate)) * 32767)
+            frames.extend(struct.pack("<hh", val, val))
+        buf = io.BytesIO()
+        with wave.open(buf, "wb") as wf:
+            wf.setnchannels(2)
+            wf.setsampwidth(2)
+            wf.setframerate(sample_rate)
+            wf.writeframes(bytes(frames))
+        return buf.getvalue()
+
+    def test_upload_custom_bgm_preview_and_compile_into_job(self):
+        wav_bytes = self._make_sample_wav_bytes(0.8)
+        upload_resp = client.post(
+            "/api/v1/bgm/upload",
+            files={"file": ("my-custom-song.wav", wav_bytes, "audio/wav")},
+        )
+        assert upload_resp.status_code == 200
+        uploaded = upload_resp.json()
+        custom_audio_id = uploaded["custom_audio_id"]
+        assert custom_audio_id.startswith("bgm_")
+        assert uploaded["filename"] == "my-custom-song.wav"
+        assert uploaded["duration_seconds"] >= 0.7
+
+        uploads_dir = TEMP_JOBS_DIR / "_bgm_uploads"
+        job_id = None
+        try:
+            # Uploaded file streams cleanly for preview
+            preview_resp = client.get(f"/api/v1/bgm/uploads/{custom_audio_id}/preview")
+            assert preview_resp.status_code == 200
+            assert preview_resp.content[:4] == b"RIFF"
+
+            # Enqueue compile job referencing uploaded custom_audio_id
+            compile_resp = client.post(
+                "/api/v1/jobs/compile",
+                json={
+                    "script": _sample_script().model_dump(),
+                    "aspect_ratio": "16:9",
+                    "voice_settings": {
+                        "provider": "edge_tts",
+                        "voice_id": "en-US-GuyNeural",
+                        "speed": 1.0,
+                    },
+                    "render_video": False,
+                    "include_stock_visuals": False,
+                    "bgm_settings": {
+                        "enabled": True,
+                        "custom_audio_id": custom_audio_id,
+                        "volume": 0.45,
+                        "ducking_enabled": True,
+                        "duck_attenuation_db": 10.0,
+                    },
+                },
+            )
+            assert compile_resp.status_code == 202
+            job_id = compile_resp.json()["job_id"]
+
+            job_resp = client.get(f"/api/v1/jobs/{job_id}")
+            assert job_resp.status_code == 200
+            bgm = job_resp.json()["remotion_props"]["bgm"]
+            assert bgm["enabled"] is True
+            assert bgm["track_id"] == custom_audio_id
+            assert bgm["volume"] == 0.45
+            assert bgm["duck_attenuation_db"] == 10.0
+            assert bgm["audio_url"] == f"/music/{job_id}_{custom_audio_id}.wav"
+            assert Path(bgm["audio_path"]).exists()
+        finally:
+            if job_id:
+                shutil.rmtree(TEMP_JOBS_DIR / job_id, ignore_errors=True)
+                JOBS_STORE.pop(job_id, None)
+            for p in uploads_dir.glob(f"{custom_audio_id}*"):
+                p.unlink(missing_ok=True)
+
+    def test_upload_custom_bgm_rejects_invalid_extension_and_corrupt_audio(self):
+        bad_ext = client.post(
+            "/api/v1/bgm/upload",
+            files={"file": ("script.txt", b"hello", "text/plain")},
+        )
+        assert bad_ext.status_code == 400
+
+        bad_bytes = client.post(
+            "/api/v1/bgm/upload",
+            files={"file": ("fake.mp3", b"not-valid-audio-data", "audio/mpeg")},
+        )
+        assert bad_bytes.status_code == 400

@@ -342,20 +342,33 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     });
   });
 
-  it('enables mood-based BGM with -18dB speech ducking, mounts preview audio, and submits bgm_settings', async () => {
+  it('uploads custom background music without preset mood suggestions, previews it, and submits custom_audio_id', async () => {
     const user = userEvent.setup();
     render(<StudioWorkspacePage />);
 
-    await user.click(screen.getByRole('button', { name: 'TECH EXPLAINER' }));
-    await user.click(screen.getByTestId('bgm-mood-inspiring'));
+    // Preset mood suggestions and stock dropdown must be absent
+    expect(screen.queryByTestId('bgm-mood-tech')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('bgm-mood-inspiring')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('BGM Track Selection')).not.toBeInTheDocument();
 
+    // User uploads their own audio track
+    const fileInput = screen.getByTestId('bgm-file-input') as HTMLInputElement;
+    const customFile = new File(['RIFF\x00\x00\x00\x00WAVE'], 'my-bgm.mp3', {
+      type: 'audio/mpeg',
+    });
+    await user.upload(fileInput, customFile);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('bgm-uploaded-file-chip')).toHaveTextContent('my-bgm.mp3 · 18.5s');
+    });
     expect(screen.getByTestId('bgm-ducking-toggle')).toBeInTheDocument();
 
     await user.click(screen.getByTestId('bgm-preview-btn'));
     const bgmPlayer = screen.getByTestId('bgm-audition-player') as HTMLAudioElement;
     expect(bgmPlayer).toBeInTheDocument();
-    expect(bgmPlayer.getAttribute('src')).toContain('/api/v1/bgm/tracks/inspiring-horizon/preview');
+    expect(bgmPlayer.getAttribute('src')).toContain('/api/v1/bgm/uploads/bgm_mocktrack01/preview');
 
+    await user.click(screen.getByRole('button', { name: 'TECH EXPLAINER' }));
     await user.click(screen.getByRole('button', { name: 'Generate Presentation' }));
     await waitFor(() => {
       const genCall = server.fetchMock.mock.calls.find(
@@ -365,19 +378,27 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
       const body = JSON.parse(String(genCall?.[1]?.body));
       expect(body.bgm_settings).toEqual({
         enabled: true,
-        mood: 'inspiring',
+        custom_audio_id: 'bgm_mocktrack01',
+        mood: 'tech',
         track_id: null,
+        volume: 0.45,
         ducking_enabled: true,
+        duck_attenuation_db: 10,
       });
     });
   });
 
-  it('enables Whisper karaoke subtitles, selects bold_highlight style, and shows .SRT export link', async () => {
+  it('enables Whisper subtitles without Karaoke labels, selects bold_highlight style, and shows .SRT export link', async () => {
     const user = userEvent.setup();
     render(<StudioWorkspacePage />);
 
+    // Subtitles control uses Subtitles/Phu de labels cleanly without Karaoke
+    expect(screen.getByText('Auto Subtitles (Whisper)')).toBeInTheDocument();
+    expect(screen.queryByText(/karaoke/i)).not.toBeInTheDocument();
+
     // Enable subtitles & pick bold_highlight style
     await user.click(screen.getByTestId('subtitles-enable-toggle'));
+    expect(screen.getByTestId('subtitle-style-karaoke_pill')).toHaveTextContent('HIGHLIGHT PILL');
     await user.click(screen.getByTestId('subtitle-style-bold_highlight'));
     await user.click(screen.getByRole('button', { name: 'TECH EXPLAINER' }));
     await user.click(screen.getByRole('button', { name: 'Generate Presentation' }));
@@ -454,10 +475,12 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
       expect(body.target_slides).toBe(4);
     });
 
-    // Live vertical 9:16 preview renders with Shorts karaoke safe-zone badge
+    // Live vertical 9:16 preview renders with Shorts subtitle safe-zone badge
     const canvas = await screen.findByTestId('live-slide-canvas');
     expect(canvas.className).toContain('aspect-[9/16]');
-    expect(screen.getByTestId('vertical-shorts-caption-preview')).toBeInTheDocument();
+    expect(screen.getByTestId('vertical-shorts-caption-preview')).toHaveTextContent(
+      '9:16 SHORTS · SUBTITLES SAFE ZONE'
+    );
 
     // Enqueue Short Video pipeline -> sends speed 1.1 and 4-word subtitle bursts
     await user.click(screen.getByRole('button', { name: 'Generate Short Video 9:16' }));

@@ -11,6 +11,7 @@ import {
   SubtitleSettings,
   SupportedLanguage,
   TTSProviderType,
+  UploadedBGMInfo,
   VideoDeliveryResponse,
   VideoFormatType,
   VideoJobResponse,
@@ -174,6 +175,30 @@ export async function searchStockAssets(params: {
 
 export function getBgmPreviewUrl(trackId: string): string {
   return `${getApiBaseUrl()}/api/v1/bgm/tracks/${encodeURIComponent(trackId)}/preview`;
+}
+
+export function getCustomBgmPreviewUrl(customAudioId: string): string {
+  return `${getApiBaseUrl()}/api/v1/bgm/uploads/${encodeURIComponent(customAudioId)}/preview`;
+}
+
+export async function uploadBgmAudio(file: File): Promise<UploadedBGMInfo> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await fetch(`${getApiBaseUrl()}/api/v1/bgm/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) {
+    let detail = `BGM upload failed (${response.status})`;
+    try {
+      const data = await response.json();
+      if (data?.detail) detail = String(data.detail);
+    } catch {
+      // ignore non-json error responses
+    }
+    throw new Error(detail);
+  }
+  return response.json();
 }
 
 export async function fetchBgmTracks(mood?: BGMMood): Promise<BGMTrackOption[]> {

@@ -647,7 +647,7 @@ class LLMScriptGenerator:
                         bullet_points=[
                             "Mở đầu bằng câu hỏi gây tò mò",
                             "Chữ lớn, tương phản mạnh theo slide",
-                            "Phụ đề karaoke giữ nhịp người xem",
+                            "Phụ đề tự động giữ nhịp người xem",
                         ],
                         voiceover_script=(
                             "Chỉ cần giữ ba nguyên tắc: câu hook ba giây đầu, thẻ màu tương phản cao và phụ đề nhảy nhịp rõ ràng."

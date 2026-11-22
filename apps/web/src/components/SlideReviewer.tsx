@@ -537,7 +537,9 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                   className="relative z-10 mt-2 border border-white/20 bg-[#0F172A]/90 px-3 py-1.5 text-center font-mono text-[10px] font-bold uppercase tracking-[0.06em]"
                   style={{ color: currentPalette.primaryColor }}
                 >
-                  9:16 SHORTS · KARAOKE SAFE ZONE
+                  {locale === 'vi'
+                    ? '9:16 SHORTS · VÙNG AN TOÀN PHỤ ĐỀ'
+                    : '9:16 SHORTS · SUBTITLES SAFE ZONE'}
                 </div>
               )}
 

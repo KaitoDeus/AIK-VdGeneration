@@ -58,12 +58,12 @@ export interface StudioDictionary {
     bgmEnableLabel: string;
     bgmDuckingLabel: string;
     bgmPreviewBtn: string;
-    bgmMoods: {
-      inspiring: string;
-      tech: string;
-      corporate: string;
-      relaxed: string;
-    };
+    bgmUploadBtn: string;
+    bgmUploadingBtn: string;
+    bgmUploadHint: string;
+    bgmRemoveBtn: string;
+    bgmMissingFileError: string;
+    bgmUploadError: string;
     subtitlesEnableLabel: string;
     subtitleStyles: {
       karaoke_pill: string;
@@ -177,7 +177,7 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       modeLabel: 'PRODUCTION FORMAT:',
       modePresentationBtn: 'Landscape (16:9)',
       modeShortVideoBtn: 'Portrait (9:16)',
-      shortActiveSummary: '9:16 VERTICAL (1080x1920) · 4-SCENE HOOK · KARAOKE SUBTITLES ON · FAST PACE',
+      shortActiveSummary: '9:16 VERTICAL (1080x1920) · 4-SCENE HOOK · SUBTITLES ON · FAST PACE',
       voiceSpeedLabel: 'Pacing',
       generateShortBtn: 'Generate Short Video 9:16',
       promptLabel: 'Presentation Topic or Raw Narrative',
@@ -204,19 +204,21 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       auditionButton: 'AUDITION VOICE SAMPLE',
       auditionLoading: 'SYNTHESIZING SAMPLE...',
       auditionError: 'Unable to preview voice audio.',
-      soundDesignLabel: 'Sound Design & BGM Ducking',
-      bgmEnableLabel: 'Enable Royalty-Free BGM',
-      bgmDuckingLabel: 'Auto Ducking (-18dB Speech)',
-      bgmPreviewBtn: 'Preview Track',
-      bgmMoods: {
-        inspiring: 'INSPIRING',
-        tech: 'TECH',
-        corporate: 'CORPORATE',
-        relaxed: 'RELAXED',
-      },
-      subtitlesEnableLabel: 'Auto Karaoke Subtitles (Whisper)',
+      soundDesignLabel: 'Background Music',
+      bgmEnableLabel: 'Add Background Music',
+      bgmDuckingLabel: 'Auto Ducking (-10dB Speech)',
+      bgmPreviewBtn: 'Preview Music',
+      bgmUploadBtn: 'Upload Music (.MP3 / .WAV)',
+      bgmUploadingBtn: 'Processing Audio...',
+      bgmUploadHint:
+        'Upload your own audio file (MP3, WAV, M4A, OGG) to mix behind narration.',
+      bgmRemoveBtn: 'Remove',
+      bgmMissingFileError:
+        'Please upload a background music file first or uncheck Add Background Music.',
+      bgmUploadError: 'Failed to upload background music file.',
+      subtitlesEnableLabel: 'Auto Subtitles (Whisper)',
       subtitleStyles: {
-        karaoke_pill: 'KARAOKE PILL',
+        karaoke_pill: 'HIGHLIGHT PILL',
         minimal_line: 'MINIMAL LINE',
         bold_highlight: 'BOLD HIGHLIGHT',
       },
@@ -336,7 +338,7 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       modeLabel: 'ĐỊNH DẠNG SẢN XUẤT:',
       modePresentationBtn: 'Chiều ngang (16:9)',
       modeShortVideoBtn: 'Chiều dọc (9:16)',
-      shortActiveSummary: 'KHUNG DỌC 9:16 (1080x1920) · 4 CẢNH HOOK · PHỤ ĐỀ KARAOKE ĐẬM · NHỊP NHANH',
+      shortActiveSummary: 'KHUNG DỌC 9:16 (1080x1920) · 4 CẢNH HOOK · PHỤ ĐỀ ĐẬM · NHỊP NHANH',
       voiceSpeedLabel: 'Tốc Độ',
       generateShortBtn: 'Tạo Video Short 9:16',
       promptLabel: 'Chủ Đề Thuyết Trình Hoặc Nội Dung Thô',
@@ -363,21 +365,23 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       auditionButton: 'NGHE THỬ GIỌNG ĐỌC',
       auditionLoading: 'ĐANG TỔNG HỢP MẪU...',
       auditionError: 'Không thể phát thử giọng đọc.',
-      soundDesignLabel: 'Thiết Kế Âm Thanh & BGM Ducking',
-      bgmEnableLabel: 'Bật Nhạc Nền Không Bản Quyền',
-      bgmDuckingLabel: 'Tự Động Hạ Nhạc (-18dB Khi Đọc)',
-      bgmPreviewBtn: 'Nghe Thử Nhạc Nền',
-      bgmMoods: {
-        inspiring: 'TRUYỀN CẢM HỨNG',
-        tech: 'CÔNG NGHỆ',
-        corporate: 'DOANH NGHIỆP',
-        relaxed: 'THƯ GIÃN',
-      },
-      subtitlesEnableLabel: 'Tạo Phụ Đề Karaoke Tự Động (Whisper)',
+      soundDesignLabel: 'Lồng Nhạc Nền',
+      bgmEnableLabel: 'Bật Lồng Nhạc Nền',
+      bgmDuckingLabel: 'Tự Động Giảm Nhạc Khi Đọc (-10dB)',
+      bgmPreviewBtn: 'Nghe Thử Nhạc',
+      bgmUploadBtn: 'Tải Nhạc Lên (.MP3 / .WAV)',
+      bgmUploadingBtn: 'Đang Xử Lý Nhạc...',
+      bgmUploadHint:
+        'Tự tải tệp nhạc nền của bạn (MP3, WAV, M4A, OGG) để hệ thống tự động lồng vào video.',
+      bgmRemoveBtn: 'Xóa Nhạc',
+      bgmMissingFileError:
+        'Vui lòng tải lên tệp nhạc nền trước hoặc bỏ chọn Bật Lồng Nhạc Nền.',
+      bgmUploadError: 'Không thể tải lên tệp nhạc nền.',
+      subtitlesEnableLabel: 'Tạo Phụ Đề Tự Động (Whisper)',
       subtitleStyles: {
-        karaoke_pill: 'KARAOKE PILL',
+        karaoke_pill: 'NỔI BẬT (PILL)',
         minimal_line: 'TỐI GIẢN LINE',
-        bold_highlight: 'NỔI BẬT ĐẬM',
+        bold_highlight: 'CHỮ ĐẬM NỔI BẬT',
       },
       renderImmediateCheckbox: 'Kết xuất ngay video MP4 1080p bằng Remotion',
       draftScriptBtn: 'Soạn Kịch Bản Trước',

@@ -15,9 +15,11 @@ from dotenv import load_dotenv
 from fastapi import (
     BackgroundTasks,
     FastAPI,
+    File,
     HTTPException,
     Query,
     Request,
+    UploadFile,
     WebSocket,
     WebSocketDisconnect,
 )
@@ -31,6 +33,7 @@ try:
         AudioSynthesizeRequest,
         BGMMood,
         BGMTrackOption,
+        BGMUploadResponse,
         JobStatusResponse,
         LambdaStatusResponse,
         PresentationScript,
@@ -49,7 +52,7 @@ try:
         VoiceSettings,
     )
     from .services.asset_service import StockAssetService
-    from .services.bgm_service import BGMService
+    from .services.bgm_service import BGMService, BGMUploadTooLargeError
     from .services.lambda_render_service import RemotionLambdaRenderService
     from .services.llm_service import LLMScriptGenerator
     from .services.queue_service import (
@@ -69,6 +72,7 @@ except ImportError:
         AudioSynthesizeRequest,
         BGMMood,
         BGMTrackOption,
+        BGMUploadResponse,
         JobStatusResponse,
         LambdaStatusResponse,
         PresentationScript,
@@ -87,7 +91,7 @@ except ImportError:
         VoiceSettings,
     )
     from services.asset_service import StockAssetService  # type: ignore
-    from services.bgm_service import BGMService  # type: ignore
+    from services.bgm_service import BGMService, BGMUploadTooLargeError  # type: ignore
     from services.lambda_render_service import RemotionLambdaRenderService  # type: ignore
     from services.llm_service import LLMScriptGenerator  # type: ignore
     from services.queue_service import (  # type: ignore
@@ -430,6 +434,36 @@ async def preview_voice(request: VoicePreviewRequest):
         return FileResponse(path=file_path, media_type="audio/mpeg", filename=file_path.name)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/api/v1/bgm/upload", response_model=BGMUploadResponse)
+async def upload_custom_bgm(file: UploadFile = File(...)):
+    """
+    Uploads and normalizes a user-provided music track (.mp3, .wav, .m4a, .aac, .ogg, .flac)
+    for mixing into rendered presentation/short videos.
+    """
+    raw_bytes = await file.read()
+    try:
+        return bgm_service.save_uploaded_bgm(
+            raw_bytes=raw_bytes,
+            original_filename=file.filename or "track.mp3",
+        )
+    except BGMUploadTooLargeError as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/bgm/uploads/{custom_audio_id}/preview")
+async def preview_uploaded_bgm(custom_audio_id: str):
+    """Streams normalized custom user-uploaded background audio for Web Studio audition."""
+    try:
+        audio_file = bgm_service.resolve_uploaded_audio_file(custom_audio_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return FileResponse(path=audio_file, media_type="audio/wav", filename=audio_file.name)
 
 
 @app.get("/api/v1/bgm/tracks", response_model=List[BGMTrackOption])

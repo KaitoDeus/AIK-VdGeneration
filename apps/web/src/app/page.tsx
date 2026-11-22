@@ -10,7 +10,6 @@ import {
   buildWebSocketUrl,
   compileEditedScript,
   expandScript,
-  fetchBgmTracks,
   fetchHealth,
   fetchJobs,
   fetchJobStatus,
@@ -19,11 +18,11 @@ import {
   generateScript,
   generateVideoJob,
   previewVoiceAudio,
+  uploadBgmAudio,
 } from '@/lib/api';
 import { STUDIO_DICTIONARY, UiLocale } from '@/lib/i18n';
 import { DEFAULT_VOICES } from '@/lib/templates';
 import {
-  BGMTrackOption,
   HealthResponse,
   JobLifecycleStatus,
   JobStatusResponse,
@@ -62,7 +61,9 @@ export default function StudioWorkspacePage() {
     voiceId: 'en-US-GuyNeural',
     renderVideo: true,
     bgmEnabled: false,
-    bgmMood: 'tech',
+    customAudioId: null,
+    customAudioName: null,
+    customAudioDuration: null,
     bgmDuckingEnabled: true,
     subtitlesEnabled: false,
     subtitleStyle: 'karaoke_pill',
@@ -72,7 +73,6 @@ export default function StudioWorkspacePage() {
   const [queueStats, setQueueStats] = useState<QueueStatsResponse | null>(null);
   const [apiOnline, setApiOnline] = useState<boolean>(false);
   const [voices, setVoices] = useState<VoiceOption[]>(DEFAULT_VOICES);
-  const [bgmTracks, setBgmTracks] = useState<BGMTrackOption[]>([]);
 
   const [activeSection, setActiveSection] = useState<'studio' | 'archive'>('studio');
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -81,6 +81,7 @@ export default function StudioWorkspacePage() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isExpanding, setIsExpanding] = useState<boolean>(false);
   const [isAuditioning, setIsAuditioning] = useState<boolean>(false);
+  const [isUploadingBgm, setIsUploadingBgm] = useState<boolean>(false);
   const [auditionAudioUrl, setAuditionAudioUrl] = useState<string | null>(null);
 
   const [activeJob, setActiveJob] = useState<JobStatusResponse | null>(null);
@@ -128,18 +129,16 @@ export default function StudioWorkspacePage() {
 
   const loadTelemetry = useCallback(async () => {
     try {
-      const [h, stats, voiceCatalog, recentJobs, tracks] = await Promise.all([
+      const [h, stats, voiceCatalog, recentJobs] = await Promise.all([
         fetchHealth(),
         fetchQueueStats(),
         fetchVoices(),
         fetchJobs(20),
-        fetchBgmTracks().catch(() => [] as BGMTrackOption[]),
       ]);
       setHealth(h);
       setQueueStats(stats);
       if (voiceCatalog.length > 0) setVoices(voiceCatalog);
       setJobsArchive(recentJobs);
-      setBgmTracks(tracks);
       setApiOnline(true);
     } catch {
       setApiOnline(false);
@@ -300,10 +299,32 @@ export default function StudioWorkspacePage() {
       voiceSpeed: template.voiceSpeed ?? (nextFormat === 'short' ? 1.1 : 1.0),
       subtitlesEnabled: template.enableSubtitles ?? prev.subtitlesEnabled,
       subtitleStyle: template.enableSubtitles ? 'bold_highlight' : prev.subtitleStyle,
-      bgmEnabled: template.enableBgm ?? prev.bgmEnabled,
+      bgmEnabled: prev.customAudioId ? (template.enableBgm ?? prev.bgmEnabled) : false,
       voiceProvider: 'edge_tts',
       voiceId: template.language === 'vi' ? 'vi-VN-HoaiMyNeural' : 'en-US-GuyNeural',
     }));
+  };
+
+  const handleUploadBgm = async (file: File) => {
+    setIsUploadingBgm(true);
+    setValidationError(null);
+    setStatusMessage(null);
+    try {
+      const uploaded = await uploadBgmAudio(file);
+      setFormState((prev) => ({
+        ...prev,
+        bgmEnabled: true,
+        customAudioId: uploaded.custom_audio_id,
+        customAudioName: uploaded.filename,
+        customAudioDuration: uploaded.duration_seconds,
+      }));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : t.form.bgmUploadError;
+      setValidationError(msg);
+      throw err;
+    } finally {
+      setIsUploadingBgm(false);
+    }
   };
 
   const handleAuditionVoice = async () => {
@@ -333,6 +354,32 @@ export default function StudioWorkspacePage() {
     setValidationError(null);
     return true;
   };
+
+  const validateBgmOrAlert = (): boolean => {
+    if (formState.bgmEnabled && !formState.customAudioId) {
+      setValidationError(t.form.bgmMissingFileError);
+      return false;
+    }
+    return true;
+  };
+
+  const buildBgmPayload = () =>
+    formState.bgmEnabled && formState.customAudioId
+      ? {
+          enabled: true,
+          custom_audio_id: formState.customAudioId,
+          mood: 'tech' as const,
+          track_id: null,
+          volume: formState.bgmDuckingEnabled === false ? 0.25 : 0.45,
+          ducking_enabled: formState.bgmDuckingEnabled !== false,
+          duck_attenuation_db: 10.0,
+        }
+      : {
+          enabled: false,
+          mood: 'tech' as const,
+          track_id: null,
+          ducking_enabled: formState.bgmDuckingEnabled !== false,
+        };
 
   const resolveEffectiveFormat = () =>
     formState.videoFormat || (formState.aspectRatio === '9:16' ? 'short' : 'presentation');
@@ -372,7 +419,7 @@ export default function StudioWorkspacePage() {
   };
 
   const handleGeneratePipeline = async () => {
-    if (!validatePrompt()) return;
+    if (!validatePrompt() || !validateBgmOrAlert()) return;
     setIsSubmitting(true);
     setStatusMessage(null);
     setLiveEvents([]);
@@ -397,12 +444,7 @@ export default function StudioWorkspacePage() {
         },
         render_video: formState.renderVideo,
         include_stock_visuals: true,
-        bgm_settings: {
-          enabled: Boolean(formState.bgmEnabled),
-          mood: formState.bgmMood || 'tech',
-          track_id: formState.bgmTrackId ?? null,
-          ducking_enabled: formState.bgmDuckingEnabled !== false,
-        },
+        bgm_settings: buildBgmPayload(),
         subtitle_settings: {
           enabled: Boolean(formState.subtitlesEnabled),
           style: formState.subtitleStyle || 'karaoke_pill',
@@ -427,7 +469,7 @@ export default function StudioWorkspacePage() {
   };
 
   const handleCompileEditedSlides = async (renderVideo: boolean) => {
-    if (!draftScript) return;
+    if (!draftScript || !validateBgmOrAlert()) return;
     setIsSubmitting(true);
     setStatusMessage(null);
     setLiveEvents([]);
@@ -443,12 +485,7 @@ export default function StudioWorkspacePage() {
         },
         render_video: renderVideo,
         include_stock_visuals: true,
-        bgm_settings: {
-          enabled: Boolean(formState.bgmEnabled),
-          mood: formState.bgmMood || 'tech',
-          track_id: formState.bgmTrackId ?? null,
-          ducking_enabled: formState.bgmDuckingEnabled !== false,
-        },
+        bgm_settings: buildBgmPayload(),
         subtitle_settings: {
           enabled: Boolean(formState.subtitlesEnabled),
           style: formState.subtitleStyle || 'karaoke_pill',
@@ -529,14 +566,15 @@ export default function StudioWorkspacePage() {
             locale={locale}
             formState={formState}
             voices={voices}
-            bgmTracks={bgmTracks}
             isSubmitting={isSubmitting}
             isAuditioning={isAuditioning}
+            isUploadingBgm={isUploadingBgm}
             auditionAudioUrl={auditionAudioUrl}
             validationError={validationError}
             onChange={(patch) => setFormState((prev) => ({ ...prev, ...patch }))}
             onApplyTemplate={handleApplyTemplate}
             onSwitchLanguage={handleLocaleChange}
+            onUploadBgm={handleUploadBgm}
             onAuditionVoice={handleAuditionVoice}
             onDraftScript={handleDraftScript}
             onGeneratePipeline={handleGeneratePipeline}

@@ -1,13 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
-import { getBgmPreviewUrl } from '@/lib/api';
+import React, { useRef, useState } from 'react';
+import { getCustomBgmPreviewUrl, uploadBgmAudio } from '@/lib/api';
 import { STUDIO_DICTIONARY, UiLocale } from '@/lib/i18n';
 import { PROMPT_TEMPLATES, THEME_OPTIONS } from '@/lib/templates';
 import {
   AspectRatio,
-  BGMMood,
-  BGMTrackOption,
   CaptionStyle,
   PromptTemplate,
   SupportedLanguage,
@@ -30,8 +28,9 @@ export interface StudioFormState {
   voiceId: string;
   renderVideo: boolean;
   bgmEnabled?: boolean;
-  bgmMood?: BGMMood;
-  bgmTrackId?: string;
+  customAudioId?: string | null;
+  customAudioName?: string | null;
+  customAudioDuration?: number | null;
   bgmDuckingEnabled?: boolean;
   subtitlesEnabled?: boolean;
   subtitleStyle?: CaptionStyle;
@@ -41,14 +40,15 @@ interface PromptStudioFormProps {
   locale: UiLocale;
   formState: StudioFormState;
   voices: VoiceOption[];
-  bgmTracks?: BGMTrackOption[];
   isSubmitting: boolean;
   isAuditioning: boolean;
+  isUploadingBgm?: boolean;
   auditionAudioUrl: string | null;
   validationError: string | null;
   onChange: (patch: Partial<StudioFormState>) => void;
   onApplyTemplate: (template: PromptTemplate) => void;
   onSwitchLanguage?: (lang: SupportedLanguage) => void;
+  onUploadBgm?: (file: File) => Promise<void> | void;
   onAuditionVoice: () => void;
   onDraftScript: () => void;
   onGeneratePipeline: () => void;
@@ -58,20 +58,25 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
   locale,
   formState,
   voices,
-  bgmTracks = [],
   isSubmitting,
   isAuditioning,
+  isUploadingBgm = false,
   auditionAudioUrl,
   validationError,
   onChange,
   onApplyTemplate,
   onSwitchLanguage,
+  onUploadBgm,
   onAuditionVoice,
   onDraftScript,
   onGeneratePipeline,
 }) => {
   const t = STUDIO_DICTIONARY[locale].form;
-  const [previewTrackId, setPreviewTrackId] = useState<string | null>(null);
+  const [showCustomBgmPreview, setShowCustomBgmPreview] = useState<boolean>(false);
+  const [localBgmUploading, setLocalBgmUploading] = useState<boolean>(false);
+  const [bgmUploadError, setBgmUploadError] = useState<string | null>(null);
+  const bgmFileInputRef = useRef<HTMLInputElement | null>(null);
+
   const isShortMode = formState.videoFormat === 'short' || formState.aspectRatio === '9:16';
   const activeVoiceSpeed = formState.voiceSpeed ?? 1.0;
   const hasVietnameseDiacritics =
@@ -81,12 +86,39 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
   const showLanguageMismatchBanner =
     formState.language === 'en' && hasVietnameseDiacritics;
   const filteredVoices = voices.filter((v) => v.language === formState.language);
-  const activeMood: BGMMood = formState.bgmMood || 'tech';
-  const moodTracks = bgmTracks.filter((tr) => tr.mood === activeMood);
-  const selectedTrackId =
-    formState.bgmTrackId && moodTracks.some((tr) => tr.track_id === formState.bgmTrackId)
-      ? formState.bgmTrackId
-      : moodTracks[0]?.track_id || `${activeMood}-${activeMood === 'inspiring' ? 'horizon' : activeMood === 'corporate' ? 'summit' : activeMood === 'relaxed' ? 'drift' : 'circuit'}`;
+  const uploadingAudio = isUploadingBgm || localBgmUploading;
+
+  const handleBgmFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setBgmUploadError(null);
+    setShowCustomBgmPreview(false);
+    if (onUploadBgm) {
+      try {
+        await onUploadBgm(file);
+      } catch (err) {
+        setBgmUploadError(err instanceof Error ? err.message : t.bgmUploadError);
+      }
+      return;
+    }
+
+    setLocalBgmUploading(true);
+    try {
+      const uploaded = await uploadBgmAudio(file);
+      onChange({
+        bgmEnabled: true,
+        customAudioId: uploaded.custom_audio_id,
+        customAudioName: uploaded.filename,
+        customAudioDuration: uploaded.duration_seconds,
+      });
+    } catch (err) {
+      setBgmUploadError(err instanceof Error ? err.message : t.bgmUploadError);
+    } finally {
+      setLocalBgmUploading(false);
+    }
+  };
 
   return (
     <section
@@ -136,8 +168,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
                 targetSlides: 4,
                 subtitlesEnabled: true,
                 subtitleStyle: 'bold_highlight',
-                bgmEnabled: true,
-                bgmMood: formState.bgmMood || 'tech',
+                bgmEnabled: Boolean(formState.customAudioId),
                 bgmDuckingEnabled: true,
                 voiceSpeed: 1.1,
               })
@@ -374,7 +405,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
         </div>
       </div>
 
-      {/* Sound Design & BGM Ducking Bar (M3.2) */}
+      {/* Custom User Background Music Upload & Subtitles Bar */}
       <div className="border-b border-[#E5E5E5] bg-[#FAFAFA] px-8 py-5">
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
           <div className="flex flex-wrap items-center gap-4">
@@ -402,7 +433,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
               <span>{t.bgmEnableLabel}</span>
             </button>
 
-            {formState.bgmEnabled && (
+            {formState.bgmEnabled && formState.customAudioId && (
               <button
                 type="button"
                 role="checkbox"
@@ -421,68 +452,94 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {(['inspiring', 'tech', 'corporate', 'relaxed'] as BGMMood[]).map((moodKey) => {
-              const isSelected = activeMood === moodKey && formState.bgmEnabled;
-              return (
-                <button
-                  key={moodKey}
-                  type="button"
-                  data-testid={`bgm-mood-${moodKey}`}
-                  onClick={() =>
-                    onChange({ bgmEnabled: true, bgmMood: moodKey, bgmTrackId: undefined })
-                  }
-                  className={`h-7 border px-3 text-[11px] uppercase tracking-[0.05em] transition-colors duration-150 ${
-                    isSelected
-                      ? 'border-[#0A0A0A] bg-[#0A0A0A] text-[#FAFAFA]'
-                      : 'border-[#D4D4D8] bg-[#FFFFFF] text-[#71717A] hover:border-[#0A0A0A] hover:text-[#0A0A0A]'
-                  }`}
-                >
-                  {t.bgmMoods[moodKey]}
-                </button>
-              );
-            })}
-
-            {moodTracks.length > 0 && (
-              <select
-                aria-label="BGM Track Selection"
-                value={selectedTrackId}
-                onChange={(e) =>
-                  onChange({ bgmEnabled: true, bgmTrackId: e.target.value })
-                }
-                className="h-7 border border-[#D4D4D8] bg-[#FFFFFF] px-2 font-mono text-[11px] text-[#0A0A0A]"
-              >
-                {moodTracks.map((tr) => (
-                  <option key={tr.track_id} value={tr.track_id}>
-                    {tr.title} ({tr.bpm} BPM)
-                  </option>
-                ))}
-              </select>
-            )}
-
+            <input
+              ref={bgmFileInputRef}
+              type="file"
+              accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac"
+              data-testid="bgm-file-input"
+              aria-label={t.bgmUploadBtn}
+              onChange={handleBgmFileSelected}
+              className="sr-only"
+            />
             <button
               type="button"
-              data-testid="bgm-preview-btn"
-              onClick={() => setPreviewTrackId(selectedTrackId)}
-              className="h-7 border border-[#0A0A0A] px-3 text-[11px] uppercase tracking-[0.05em] text-[#0A0A0A] transition-colors duration-150 hover:bg-[#0A0A0A] hover:text-[#FAFAFA]"
+              data-testid="bgm-upload-btn"
+              disabled={uploadingAudio || isSubmitting}
+              onClick={() => bgmFileInputRef.current?.click()}
+              className="h-7 border border-[#0A0A0A] bg-[#FFFFFF] px-3 font-mono text-[11px] font-medium uppercase tracking-[0.05em] text-[#0A0A0A] transition-colors duration-150 hover:bg-[#0A0A0A] hover:text-[#FAFAFA] disabled:cursor-not-allowed disabled:opacity-30"
             >
-              {t.bgmPreviewBtn}
+              {uploadingAudio ? t.bgmUploadingBtn : t.bgmUploadBtn}
             </button>
+
+            {formState.customAudioId && (
+              <>
+                <span
+                  data-testid="bgm-uploaded-file-chip"
+                  className="border border-[#D4D4D8] bg-[#FFFFFF] px-2.5 py-1 font-mono text-[11px] text-[#0A0A0A]"
+                >
+                  {formState.customAudioName || formState.customAudioId}
+                  {typeof formState.customAudioDuration === 'number'
+                    ? ` · ${formState.customAudioDuration.toFixed(1)}s`
+                    : ''}
+                </span>
+                <button
+                  type="button"
+                  data-testid="bgm-preview-btn"
+                  onClick={() => setShowCustomBgmPreview((prev) => !prev)}
+                  className="h-7 border border-[#0A0A0A] px-3 font-mono text-[11px] uppercase tracking-[0.05em] text-[#0A0A0A] transition-colors duration-150 hover:bg-[#0A0A0A] hover:text-[#FAFAFA]"
+                >
+                  {t.bgmPreviewBtn}
+                </button>
+                <button
+                  type="button"
+                  data-testid="bgm-remove-btn"
+                  onClick={() => {
+                    setShowCustomBgmPreview(false);
+                    setBgmUploadError(null);
+                    onChange({
+                      bgmEnabled: false,
+                      customAudioId: null,
+                      customAudioName: null,
+                      customAudioDuration: null,
+                    });
+                  }}
+                  className="h-7 border border-[#D4D4D8] px-2.5 font-mono text-[11px] uppercase tracking-[0.05em] text-[#DC2626] transition-colors duration-150 hover:border-[#DC2626]"
+                >
+                  {t.bgmRemoveBtn}
+                </button>
+              </>
+            )}
           </div>
         </div>
 
-        {previewTrackId && (
+        {!formState.customAudioId && formState.bgmEnabled && (
+          <p
+            data-testid="bgm-upload-hint"
+            className="mt-2 font-mono text-[11px] text-[#71717A]"
+          >
+            {t.bgmUploadHint}
+          </p>
+        )}
+
+        {bgmUploadError && (
+          <p role="alert" className="mt-2 font-mono text-[12px] text-[#DC2626]">
+            {bgmUploadError}
+          </p>
+        )}
+
+        {showCustomBgmPreview && formState.customAudioId && (
           <div className="mt-3">
             <audio
               data-testid="bgm-audition-player"
               controls
-              src={getBgmPreviewUrl(previewTrackId)}
+              src={getCustomBgmPreviewUrl(formState.customAudioId)}
               className="h-8 w-full max-w-md"
-              aria-label="BGM audition preview player"
+              aria-label="Uploaded background music preview player"
             />
           </div>
         )}
 
-        {/* Whisper Karaoke Subtitles Row (M3.3) */}
+        {/* Whisper Subtitles Row (M3.3) */}
         <div className="mt-4 flex flex-col justify-between gap-3 border-t border-[#E5E5E5] pt-4 sm:flex-row sm:items-center">
           <button
             type="button"

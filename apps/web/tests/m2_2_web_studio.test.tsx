@@ -232,6 +232,9 @@ describe('M2.2 Web Studio Bilingual UI Components SSR Rendering', () => {
     expect(htmlEn).toContain('AUDITION VOICE SAMPLE');
     expect(htmlEn).toContain('Generate Presentation');
     expect(htmlEn).toContain('Draft Script First');
+    expect(htmlEn).toContain('Upload Music (.MP3 / .WAV)');
+    expect(htmlEn).toContain('Auto Subtitles (Whisper)');
+    expect(htmlEn).not.toMatch(/karaoke/i);
     expect(htmlEn).not.toContain('01 / PROMPT &amp; PARAMETERS');
     expect(htmlEn).not.toContain('<h1');
     expect(htmlEn.indexOf('data-testid="quick-prompt-templates"')).toBeGreaterThan(
@@ -259,6 +262,9 @@ describe('M2.2 Web Studio Bilingual UI Components SSR Rendering', () => {
     expect(htmlVi).toContain('Chiều ngang (16:9)');
     expect(htmlVi).toContain('Chiều dọc (9:16)');
     expect(htmlVi).toContain('Chủ Đề Thuyết Trình Hoặc Nội Dung Thô');
+    expect(htmlVi).toContain('Tải Nhạc Lên (.MP3 / .WAV)');
+    expect(htmlVi).toContain('Tạo Phụ Đề Tự Động (Whisper)');
+    expect(htmlVi).not.toMatch(/karaoke/i);
     expect(htmlVi).toContain('NGHE THỬ GIỌNG ĐỌC');
     expect(htmlVi).toContain('Tạo Video Thuyết Trình');
     expect(htmlVi).toContain('Soạn Kịch Bản Trước');

@@ -44,10 +44,19 @@ export interface RemotionSubtitleProps {
 
 export interface BGMSettings {
   enabled: boolean;
-  mood: BGMMood;
+  mood?: BGMMood;
   track_id?: string | null;
+  custom_audio_id?: string | null;
   volume?: number;
   ducking_enabled: boolean;
+  duck_attenuation_db?: number;
+}
+
+export interface UploadedBGMInfo {
+  custom_audio_id: string;
+  filename: string;
+  duration_seconds: number;
+  preview_url: string;
 }
 
 export interface BGMTrackOption {
