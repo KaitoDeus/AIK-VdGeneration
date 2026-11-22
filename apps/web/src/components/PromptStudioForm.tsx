@@ -91,47 +91,9 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
   return (
     <section
       id="studio"
-      aria-labelledby="studio-heading"
+      aria-label={t.sectionTitle}
       className="border border-[#E5E5E5] bg-[#FFFFFF]"
     >
-      {/* Panel Header */}
-      <div className="flex flex-col justify-between gap-4 border-b border-[#E5E5E5] px-8 py-6 md:flex-row md:items-center">
-        <div>
-          <span className="font-mono text-[12px] uppercase tracking-[0.08em] text-[#71717A]">
-            {t.sectionEyebrow}
-          </span>
-          <h1 id="studio-heading" className="mt-1 text-[20px] font-semibold leading-[1.3] text-[#0A0A0A]">
-            {t.sectionTitle}
-          </h1>
-        </div>
-
-        {/* Quick Prompt Template Filter Chips */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-2 text-[12px] uppercase tracking-[0.05em] text-[#71717A]">
-            {t.templatesLabel}
-          </span>
-          {PROMPT_TEMPLATES.map((tpl) => {
-            const isSelected = formState.prompt.trim() === tpl.prompt.trim();
-            const label =
-              t.templateNames[tpl.id as keyof typeof t.templateNames] || tpl.label;
-            return (
-              <button
-                key={tpl.id}
-                type="button"
-                onClick={() => onApplyTemplate(tpl)}
-                className={`h-7 border px-3 text-[12px] uppercase tracking-[0.05em] transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0A0A0A] ${
-                  isSelected
-                    ? 'border-[#0A0A0A] bg-[#0A0A0A] text-[#FAFAFA]'
-                    : 'border-[#D4D4D8] bg-transparent text-[#71717A] hover:border-[#A1A1AA] hover:bg-[#F4F4F5] hover:text-[#0A0A0A]'
-                }`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       {/* Production Format Switcher: Standard 16:9 Presentation vs Vertical 9:16 Short Video */}
       <div
         data-testid="video-format-switcher"
@@ -253,6 +215,35 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
             </button>
           </div>
         )}
+
+        {/* Quick Prompt Template Suggestion Chips */}
+        <div
+          data-testid="quick-prompt-templates"
+          className="mt-4 flex flex-wrap items-center gap-2"
+        >
+          <span className="mr-1 font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-[#71717A]">
+            {t.templatesLabel}
+          </span>
+          {PROMPT_TEMPLATES.map((tpl) => {
+            const isSelected = formState.prompt.trim() === tpl.prompt.trim();
+            const label =
+              t.templateNames[tpl.id as keyof typeof t.templateNames] || tpl.label;
+            return (
+              <button
+                key={tpl.id}
+                type="button"
+                onClick={() => onApplyTemplate(tpl)}
+                className={`h-7 border px-3 text-[11px] uppercase tracking-[0.05em] transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0A0A0A] ${
+                  isSelected
+                    ? 'border-[#0A0A0A] bg-[#0A0A0A] text-[#FAFAFA]'
+                    : 'border-[#D4D4D8] bg-transparent text-[#71717A] hover:border-[#A1A1AA] hover:bg-[#F4F4F5] hover:text-[#0A0A0A]'
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Strict 3-Column Geometric Parameter Grid (Language controlled globally in top-right header) */}

@@ -230,6 +230,11 @@ describe('M2.2 Web Studio Bilingual UI Components SSR Rendering', () => {
     expect(htmlEn).toContain('AUDITION VOICE SAMPLE');
     expect(htmlEn).toContain('Generate Presentation');
     expect(htmlEn).toContain('Draft Script First');
+    expect(htmlEn).not.toContain('01 / PROMPT &amp; PARAMETERS');
+    expect(htmlEn).not.toContain('<h1');
+    expect(htmlEn.indexOf('data-testid="quick-prompt-templates"')).toBeGreaterThan(
+      htmlEn.indexOf('<textarea')
+    );
 
     const htmlVi = renderToStaticMarkup(
       <PromptStudioForm
@@ -247,7 +252,9 @@ describe('M2.2 Web Studio Bilingual UI Components SSR Rendering', () => {
         onGeneratePipeline={vi.fn()}
       />
     );
-    expect(htmlVi).toContain('Thiết Lập Kịch Bản &amp; Giọng Đọc');
+    expect(htmlVi).not.toContain('01 / PROMPT &amp; THAM SỐ CẤU HÌNH');
+    expect(htmlVi).not.toContain('<h1');
+    expect(htmlVi).toContain('Chủ Đề Thuyết Trình Hoặc Nội Dung Thô');
     expect(htmlVi).toContain('NGHE THỬ GIỌNG ĐỌC');
     expect(htmlVi).toContain('Tạo Video Thuyết Trình');
     expect(htmlVi).toContain('Soạn Kịch Bản Trước');

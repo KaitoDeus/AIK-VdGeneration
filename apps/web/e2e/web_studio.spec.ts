@@ -370,12 +370,21 @@ test.describe('AIK Web Studio Real Browser Verification (StudioBlank)', () => {
     await expect(vieBtn.locator('svg[data-flag="vn"]')).toBeVisible();
     await expect(enBtn.locator('svg[data-flag="gb"]')).toBeVisible();
     await expect(enBtn).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-      'Script & Voice Configuration'
-    );
+    await expect(page.getByText('Script & Voice Configuration')).toHaveCount(0);
+    await expect(page.getByText('01 / PROMPT & PARAMETERS')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Generate Presentation' })).toBeVisible();
     await expect(voiceSelect).toHaveValue('en-US-GuyNeural');
     await expect(page.getByRole('button', { name: 'VIETNAMESE' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'ENGLISH' })).toHaveCount(0);
+
+    // Quick prompt suggestions sit below the topic textarea
+    const promptBoxBounds = await page.locator('#prompt-input').boundingBox();
+    const templatesBounds = await page.getByTestId('quick-prompt-templates').boundingBox();
+    expect(promptBoxBounds).not.toBeNull();
+    expect(templatesBounds).not.toBeNull();
+    expect(templatesBounds!.y).toBeGreaterThanOrEqual(
+      promptBoxBounds!.y + promptBoxBounds!.height
+    );
 
     // Verify physical placement in top-right quadrant of the viewport
     const viewport = page.viewportSize()!;
@@ -386,21 +395,17 @@ test.describe('AIK Web Studio Real Browser Verification (StudioBlank)', () => {
 
     // Click VIE -> translates full UI, auto-switches narrator voice to VI, & persists on reload
     await vieBtn.click();
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-      'Thiết Lập Kịch Bản & Giọng Đọc'
-    );
+    await expect(page.getByRole('button', { name: 'Tạo Video Thuyết Trình' })).toBeVisible();
+    await expect(page.getByLabel('Chủ Đề Thuyết Trình Hoặc Nội Dung Thô')).toBeVisible();
     await expect(voiceSelect).toHaveValue('vi-VN-HoaiMyNeural');
     await page.reload();
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-      'Thiết Lập Kịch Bản & Giọng Đọc'
-    );
+    await expect(page.getByRole('button', { name: 'Tạo Video Thuyết Trình' })).toBeVisible();
     await expect(voiceSelect).toHaveValue('vi-VN-HoaiMyNeural');
 
     // Click EN -> switches back cleanly to English UI and English narrator voice
     await enBtn.click();
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-      'Script & Voice Configuration'
-    );
+    await expect(page.getByRole('button', { name: 'Generate Presentation' })).toBeVisible();
+    await expect(page.getByLabel('Presentation Topic or Raw Narrative')).toBeVisible();
     await expect(voiceSelect).toHaveValue('en-US-GuyNeural');
   });
 

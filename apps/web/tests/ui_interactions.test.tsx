@@ -51,7 +51,10 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     expect(vieBtn).toHaveAttribute('aria-pressed', 'false');
     expect(vieBtn.querySelector('svg[data-flag="vn"]')).toBeInTheDocument();
     expect(enBtn.querySelector('svg[data-flag="gb"]')).toBeInTheDocument();
-    expect(screen.getByText('Script & Voice Configuration')).toBeInTheDocument();
+    expect(screen.queryByText('Script & Voice Configuration')).not.toBeInTheDocument();
+    expect(screen.queryByText('01 / PROMPT & PARAMETERS')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Presentation Topic or Raw Narrative')).toBeInTheDocument();
+    expect(screen.getByTestId('quick-prompt-templates')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Generate Presentation' })).toBeInTheDocument();
 
     // Redundant inline Language buttons in the parameter grid must not exist
@@ -68,7 +71,8 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     await user.click(vieBtn);
     expect(vieBtn).toHaveAttribute('aria-pressed', 'true');
     expect(window.localStorage.getItem('aik-studio-locale')).toBe('vi');
-    expect(screen.getByText('Thiết Lập Kịch Bản & Giọng Đọc')).toBeInTheDocument();
+    expect(screen.queryByText('Thiết Lập Kịch Bản & Giọng Đọc')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Chủ Đề Thuyết Trình Hoặc Nội Dung Thô')).toBeInTheDocument();
     expect(screen.queryByText('Biến Prompt thành Video Slide Đồng Bộ.')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Tạo Video Thuyết Trình' })).toBeInTheDocument();
     expect(voiceSelect.value).toBe('vi-VN-HoaiMyNeural');
@@ -79,7 +83,7 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     await user.click(enBtn);
     expect(enBtn).toHaveAttribute('aria-pressed', 'true');
     expect(window.localStorage.getItem('aik-studio-locale')).toBe('en');
-    expect(screen.getByText('Script & Voice Configuration')).toBeInTheDocument();
+    expect(screen.getByLabelText('Presentation Topic or Raw Narrative')).toBeInTheDocument();
     expect(screen.queryByText('Prompt to Synchronized Slide Video.')).not.toBeInTheDocument();
     expect(screen.getByTestId('api-status-chip')).toHaveTextContent('API ONLINE');
     expect(screen.getByRole('button', { name: 'Generate Presentation' })).toBeInTheDocument();
