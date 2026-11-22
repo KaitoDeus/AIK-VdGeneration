@@ -229,7 +229,7 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       compileError: 'Compilation failed.',
     },
     progress: {
-      sectionEyebrow: '02 / LIVE EXECUTION TELEMETRY',
+      sectionEyebrow: 'LIVE EXECUTION TELEMETRY',
       title: 'Pipeline Status',
       wsStreaming: 'STREAMING',
       wsClosed: 'CLOSED',
@@ -267,7 +267,7 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       framesUnit: 'FRAMES',
     },
     reviewer: {
-      sectionEyebrow: '03 / INTERACTIVE SLIDE REVIEWER & CANVAS',
+      sectionEyebrow: 'INTERACTIVE SLIDE REVIEWER & CANVAS',
       synthAudioBtn: 'Synthesize Audio Only',
       compileRenderBtn: 'Compile & Render 1080p MP4',
       compilingBtn: 'COMPILING...',
@@ -297,7 +297,7 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       defaultSlideVoiceover: 'Add your voiceover narration for this slide here.',
     },
     archive: {
-      sectionEyebrow: '04 / JOBS ARCHIVE',
+      sectionEyebrow: 'JOBS ARCHIVE',
       title: 'Recent Render History',
       refreshBtn: 'Refresh Archive',
       emptyState: 'No queued or completed presentation jobs recorded in the active session yet.',
@@ -388,7 +388,7 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       compileError: 'Biên dịch video thất bại.',
     },
     progress: {
-      sectionEyebrow: '02 / GIÁM SÁT TIẾN ĐỘ THỜI GIAN THỰC',
+      sectionEyebrow: 'GIÁM SÁT TIẾN ĐỘ THỜI GIAN THỰC',
       title: 'Trạng Thái Pipeline',
       wsStreaming: 'ĐANG STREAM',
       wsClosed: 'ĐÃ ĐÓNG',
@@ -426,7 +426,7 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       framesUnit: 'KHUNG HÌNH',
     },
     reviewer: {
-      sectionEyebrow: '03 / TRÌNH DUYỆT & CHỈNH SỬA SLIDE TRỰC QUAN',
+      sectionEyebrow: 'TRÌNH DUYỆT & CHỈNH SỬA SLIDE TRỰC QUAN',
       synthAudioBtn: 'Chỉ Tạo Giọng Đọc',
       compileRenderBtn: 'Biên Dịch & Xuất MP4 1080p',
       compilingBtn: 'ĐANG BIÊN DỊCH...',
@@ -456,7 +456,7 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       defaultSlideVoiceover: 'Nhập lời thoại thuyết minh cho slide này tại đây.',
     },
     archive: {
-      sectionEyebrow: '04 / LƯU TRỮ TÁC VỤ',
+      sectionEyebrow: 'LƯU TRỮ TÁC VỤ',
       title: 'Lịch Sử Kết Xuất Gần Đây',
       refreshBtn: 'Làm Mới Danh Sách',
       emptyState: 'Chưa có tác vụ tạo video nào được ghi nhận trong phiên làm việc hiện tại.',

@@ -295,6 +295,7 @@ describe('M2.2 Web Studio Bilingual UI Components SSR Rendering', () => {
       />
     );
     expect(htmlVi).toContain('KẾT XUẤT VIDEO HOÀN TẤT');
+    expect(htmlVi).not.toContain('02 /');
     expect(htmlVi).toContain('Tải Xuống MP4 1080p');
     expect(htmlVi).toContain('Xuất JSON Remotion Props');
     expect(htmlVi).toContain('http://localhost:8000/api/v1/jobs/job_abc123/video');
@@ -314,6 +315,7 @@ describe('M2.2 Web Studio Bilingual UI Components SSR Rendering', () => {
       />
     );
     expect(reviewerVi).toContain('TRÌNH DUYỆT &amp; CHỈNH SỬA SLIDE TRỰC QUAN');
+    expect(reviewerVi).not.toContain('03 /');
     expect(reviewerVi).toContain('Biên Dịch &amp; Xuất MP4 1080p');
     expect(reviewerVi).toContain('slide_1_abc12345.mp3');
 
@@ -338,6 +340,7 @@ describe('M2.2 Web Studio Bilingual UI Components SSR Rendering', () => {
     );
     expect(archiveVi).toContain('bg-[#0A0A0A]');
     expect(archiveVi).toContain('Lịch Sử Kết Xuất Gần Đây');
+    expect(archiveVi).not.toContain('04 /');
     expect(archiveVi).toContain('HOÀN TẤT');
   });
 
