@@ -7,6 +7,7 @@ import { PromptStudioForm, StudioFormState } from '@/components/PromptStudioForm
 import { SlideReviewer } from '@/components/SlideReviewer';
 import { StudioHeader } from '@/components/StudioHeader';
 import {
+  analyzeTikTokChannel,
   buildWebSocketUrl,
   compileEditedScript,
   expandScript,
@@ -23,6 +24,7 @@ import {
 import { STUDIO_DICTIONARY, UiLocale } from '@/lib/i18n';
 import { DEFAULT_VOICES, PROMPT_TEMPLATES, resolveTemplatePrompt } from '@/lib/templates';
 import {
+  ChannelContextProfile,
   HealthResponse,
   JobLifecycleStatus,
   JobStatusResponse,
@@ -89,9 +91,11 @@ export default function StudioWorkspacePage() {
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isExpanding, setIsExpanding] = useState<boolean>(false);
+  const [isAnalyzingChannel, setIsAnalyzingChannel] = useState<boolean>(false);
   const [isAuditioning, setIsAuditioning] = useState<boolean>(false);
   const [isUploadingBgm, setIsUploadingBgm] = useState<boolean>(false);
   const [auditionAudioUrl, setAuditionAudioUrl] = useState<string | null>(null);
+  const [channelContext, setChannelContext] = useState<ChannelContextProfile | null>(null);
 
   const [activeJob, setActiveJob] = useState<JobStatusResponse | null>(null);
   const [liveEvents, setLiveEvents] = useState<WebSocketProgressEvent[]>([]);
@@ -401,6 +405,26 @@ export default function StudioWorkspacePage() {
     return Math.min(30, Math.max(5, Math.round(formState.targetDuration / 9)));
   };
 
+  const handleAnalyzeChannel = async (profileUrl: string, manualNotes?: string) => {
+    setIsAnalyzingChannel(true);
+    setStatusMessage(null);
+    try {
+      const profile = await analyzeTikTokChannel({
+        profile_url: profileUrl,
+        language: locale,
+        manual_notes: manualNotes,
+      });
+      setChannelContext(profile);
+      setFormState((prev) => ({
+        ...prev,
+        prompt: prev.prompt.trim().length === 0 ? profile.suggested_prompt : prev.prompt,
+        theme: profile.recommended_theme,
+      }));
+    } finally {
+      setIsAnalyzingChannel(false);
+    }
+  };
+
   const handleDraftScript = async () => {
     if (!validatePrompt()) return;
     setIsSubmitting(true);
@@ -414,6 +438,7 @@ export default function StudioWorkspacePage() {
         target_duration_seconds: formState.targetDuration,
         theme: formState.theme,
         target_slides: resolveEffectiveTargetSlides(),
+        channel_context: channelContext || undefined,
       });
       setDraftScript(script);
       setActiveJob(null);
@@ -457,6 +482,7 @@ export default function StudioWorkspacePage() {
           style: formState.subtitleStyle || 'karaoke_pill',
           ...(effectiveFormat === 'short' ? { max_words_per_line: 4 } : {}),
         },
+        channel_context: channelContext || undefined,
       });
 
       setActiveJob({
@@ -526,6 +552,7 @@ export default function StudioWorkspacePage() {
         script: draftScript,
         additional_slides: additionalSlides,
         topic_hint: formState.prompt.trim() || undefined,
+        channel_context: channelContext || undefined,
       });
       setDraftScript(expanded);
     } catch (err) {
@@ -573,6 +600,8 @@ export default function StudioWorkspacePage() {
             locale={locale}
             formState={formState}
             voices={voices}
+            channelContext={channelContext}
+            isAnalyzingChannel={isAnalyzingChannel}
             isSubmitting={isSubmitting}
             isAuditioning={isAuditioning}
             isUploadingBgm={isUploadingBgm}
@@ -581,6 +610,8 @@ export default function StudioWorkspacePage() {
             onChange={(patch) => setFormState((prev) => ({ ...prev, ...patch }))}
             onApplyTemplate={handleApplyTemplate}
             onSwitchLanguage={handleLocaleChange}
+            onAnalyzeChannel={handleAnalyzeChannel}
+            onClearChannelContext={() => setChannelContext(null)}
             onUploadBgm={handleUploadBgm}
             onAuditionVoice={handleAuditionVoice}
             onDraftScript={handleDraftScript}

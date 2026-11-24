@@ -570,4 +570,48 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
       'Microservices hướng sự kiện'
     );
   });
+
+  it('extracts TikTok channel context, reveals fallback notes on verification gate, and forwards channel_context to generation', async () => {
+    const user = userEvent.setup();
+    render(<StudioWorkspacePage />);
+
+    const urlInput = screen.getByTestId('tiktok-profile-url-input');
+    const analyzeBtn = screen.getByTestId('analyze-tiktok-btn');
+
+    // 1. Gated/blocked profile reveals manual notes input cleanly without bypassing CAPTCHA
+    await user.type(urlInput, 'https://www.tiktok.com/@blocked.creator');
+    await user.click(analyzeBtn);
+
+    expect(await screen.findByTestId('tiktok-channel-error')).toHaveTextContent(
+      'TikTok gated direct automated profile access'
+    );
+    const notesInput = screen.getByTestId('tiktok-manual-notes-input');
+    await user.type(notesInput, 'AI workflows and creator tools #AI');
+    await user.click(analyzeBtn);
+
+    // 2. Renders Channel Context summary card and auto-populates empty prompt
+    const card = await screen.findByTestId('tiktok-channel-context-card');
+    expect(card).toHaveTextContent('Dat Tech & AI');
+    expect(card).toHaveTextContent('@dattech.ai');
+    expect(card).toHaveTextContent('Technology & AI Workflows');
+
+    const promptInput = screen.getByLabelText('Presentation Topic or Raw Narrative') as HTMLTextAreaElement;
+    expect(promptInput.value).toContain('@dattech.ai');
+
+    // 3. Drafting script includes channel_context in request body
+    await user.click(screen.getByRole('button', { name: 'Draft Script First' }));
+    await waitFor(() => {
+      const draftCall = server.fetchMock.mock.calls.find(
+        ([url, init]) => String(url).endsWith('/api/v1/scripts/generate') && init?.method === 'POST'
+      );
+      expect(draftCall).toBeDefined();
+      const body = JSON.parse(String(draftCall?.[1]?.body));
+      expect(body.channel_context.handle).toBe('@dattech.ai');
+      expect(body.channel_context.niche_category).toBe('Technology & AI Workflows');
+    });
+
+    // 4. Clearing channel context removes card cleanly
+    await user.click(screen.getByTestId('clear-channel-context-btn'));
+    expect(screen.queryByTestId('tiktok-channel-context-card')).not.toBeInTheDocument();
+  });
 });

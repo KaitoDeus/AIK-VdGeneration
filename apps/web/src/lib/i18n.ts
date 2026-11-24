@@ -77,6 +77,21 @@ export interface StudioDictionary {
     enqueueError: string;
     scriptError: string;
     compileError: string;
+    channelContextLabel: string;
+    channelUrlPlaceholder: string;
+    analyzeChannelBtn: string;
+    analyzingChannelBtn: string;
+    channelToggleNotesBtn: string;
+    channelNotesPlaceholder: string;
+    channelUsePromptBtn: string;
+    channelClearBtn: string;
+    channelNicheLabel: string;
+    channelAudienceLabel: string;
+    channelToneLabel: string;
+    channelPillarsLabel: string;
+    channelFollowersUnit: string;
+    channelActiveNote: string;
+    channelAnalyzeError: string;
   };
   progress: {
     sectionEyebrow: string;
@@ -229,6 +244,22 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       enqueueError: 'Failed to enqueue job.',
       scriptError: 'Script generation failed.',
       compileError: 'Compilation failed.',
+      channelContextLabel: 'TikTok Channel Context',
+      channelUrlPlaceholder: 'https://www.tiktok.com/@username or @username',
+      analyzeChannelBtn: 'Read Channel Context',
+      analyzingChannelBtn: 'Reading Profile...',
+      channelToggleNotesBtn: '+ Add Bio / Notes',
+      channelNotesPlaceholder:
+        'Optional: paste creator bio or sample video topics if TikTok limits automated profile fetching.',
+      channelUsePromptBtn: 'Use Suggested Topic',
+      channelClearBtn: 'Clear',
+      channelNicheLabel: 'Niche',
+      channelAudienceLabel: 'Audience',
+      channelToneLabel: 'Tone & Style',
+      channelPillarsLabel: 'Content Pillars',
+      channelFollowersUnit: 'followers',
+      channelActiveNote: 'Channel context attached — scripts will match this channel style.',
+      channelAnalyzeError: 'Unable to read TikTok channel profile.',
     },
     progress: {
       sectionEyebrow: 'LIVE EXECUTION TELEMETRY',
@@ -390,6 +421,22 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       enqueueError: 'Không thể đẩy tác vụ vào hàng đợi.',
       scriptError: 'Tạo kịch bản thất bại.',
       compileError: 'Biên dịch video thất bại.',
+      channelContextLabel: 'Ngữ Cảnh Kênh TikTok (Channel Context)',
+      channelUrlPlaceholder: 'https://www.tiktok.com/@tenkenh hoặc @tenkenh',
+      analyzeChannelBtn: 'Đọc Context Kênh',
+      analyzingChannelBtn: 'Đang Phân Tích Kênh...',
+      channelToggleNotesBtn: '+ Thêm Mô Tả / Ghi Chú',
+      channelNotesPlaceholder:
+        'Tùy chọn: dán bio kênh hoặc danh sách chủ đề video mẫu nếu TikTok giới hạn truy cập tự động.',
+      channelUsePromptBtn: 'Dùng Chủ Đề Gợi Ý',
+      channelClearBtn: 'Xóa',
+      channelNicheLabel: 'Ngách nội dung',
+      channelAudienceLabel: 'Khán giả mục tiêu',
+      channelToneLabel: 'Phong cách & Giọng điệu',
+      channelPillarsLabel: 'Trụ cột nội dung',
+      channelFollowersUnit: 'người theo dõi',
+      channelActiveNote: 'Đã gắn context kênh — kịch bản tạo ra sẽ bám sát phong cách tài khoản này.',
+      channelAnalyzeError: 'Không thể đọc ngữ cảnh từ liên kết TikTok này.',
     },
     progress: {
       sectionEyebrow: 'GIÁM SÁT TIẾN ĐỘ THỜI GIAN THỰC',

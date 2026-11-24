@@ -267,6 +267,76 @@ class RemotionCompositionProps(BaseModel):
     subtitles: RemotionSubtitleProps = Field(default_factory=RemotionSubtitleProps)
 
 
+class TikTokChannelAnalysisInsight(BaseModel):
+    """LLM structured insights distilled from a public TikTok channel profile."""
+
+    niche_category: str = Field(..., min_length=2)
+    content_pillars: List[str] = Field(..., min_length=1, max_length=6)
+    target_audience: str = Field(..., min_length=2)
+    tone_and_style: str = Field(..., min_length=2)
+    detected_language: SupportedLanguage = Field(default="vi")
+    recommended_theme: Literal["modern_tech", "corporate", "minimal"] = Field(
+        default="modern_tech"
+    )
+    recommended_format: VideoFormatType = Field(default="short")
+    keywords: List[str] = Field(default_factory=list, max_length=10)
+    context_summary: str = Field(..., min_length=10)
+    suggested_prompt: str = Field(..., min_length=10)
+
+
+class TikTokChannelAnalyzeRequest(BaseModel):
+    """Request payload to read and summarize creator context from a TikTok profile link."""
+
+    profile_url: str = Field(
+        ...,
+        min_length=2,
+        description="TikTok profile URL (e.g. https://www.tiktok.com/@username or @username).",
+    )
+    language: Optional[SupportedLanguage] = Field(
+        default=None,
+        description="Preferred language ('vi' or 'en') for channel summary & suggested prompt.",
+    )
+    manual_notes: Optional[str] = Field(
+        default=None,
+        max_length=2000,
+        description="Optional creator bio or recent video notes when profile access is gated.",
+    )
+    model: Optional[str] = Field(
+        default=None,
+        description="Optional override for the Gemini model ID.",
+    )
+
+
+class ChannelContextProfile(BaseModel):
+    """Extracted creator persona, topical pillars, tone, and recommendations for script generation."""
+
+    handle: str
+    profile_url: str
+    display_name: str
+    bio: str = ""
+    avatar_url: Optional[str] = None
+    follower_count: Optional[int] = None
+    following_count: Optional[int] = None
+    likes_count: Optional[int] = None
+    video_count: Optional[int] = None
+    verified: bool = False
+    recent_video_titles: List[str] = Field(default_factory=list)
+    hashtags: List[str] = Field(default_factory=list)
+    niche_category: str
+    content_pillars: List[str] = Field(default_factory=list)
+    target_audience: str
+    tone_and_style: str
+    detected_language: SupportedLanguage = "vi"
+    recommended_theme: Literal["modern_tech", "corporate", "minimal"] = "modern_tech"
+    recommended_format: VideoFormatType = "short"
+    keywords: List[str] = Field(default_factory=list)
+    context_summary: str
+    suggested_prompt: str
+    extraction_source: Literal["tiktok_ssr", "tiktok_og_meta", "manual_notes"] = "tiktok_ssr"
+    blocked_by_captcha: bool = False
+    fetch_warning: Optional[str] = None
+
+
 class ScriptGenerateRequest(BaseModel):
     """Request payload for standalone LLM script generation (Milestone M1.2)."""
 
@@ -303,6 +373,10 @@ class ScriptGenerateRequest(BaseModel):
         default="modern_tech",
         description="Visual theme hint for the script.",
     )
+    channel_context: Optional[ChannelContextProfile] = Field(
+        default=None,
+        description="Optional creator channel context extracted from a TikTok profile.",
+    )
     model: Optional[str] = Field(
         default=None,
         description="Optional override for the Gemini model ID (e.g., 'gemini-3.8-flash').",
@@ -322,6 +396,10 @@ class ScriptExpandRequest(BaseModel):
     topic_hint: Optional[str] = Field(
         default=None,
         description="Optional subtopic guidance for the newly generated slides.",
+    )
+    channel_context: Optional[ChannelContextProfile] = Field(
+        default=None,
+        description="Optional creator channel context to preserve voice and topics.",
     )
     model: Optional[str] = Field(
         default=None,
@@ -458,6 +536,10 @@ class VideoGenerateRequest(BaseModel):
     subtitle_settings: SubtitleSettings = Field(
         default_factory=SubtitleSettings,
         description="Optional automatic animated karaoke captions powered by OpenAI Whisper.",
+    )
+    channel_context: Optional[ChannelContextProfile] = Field(
+        default=None,
+        description="Optional creator channel context extracted from a TikTok profile.",
     )
 
 

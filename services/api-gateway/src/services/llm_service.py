@@ -16,6 +16,7 @@ from google import genai
 from pydantic import BaseModel, ValidationError
 
 from ..schemas import (
+    ChannelContextProfile,
     MAX_PRESENTATION_SLIDES,
     PresentationScript,
     SlideExpansionBatch,
@@ -271,6 +272,24 @@ class LLMScriptGenerator:
         self.timeout_seconds = timeout_seconds or int(os.getenv("LLM_TIMEOUT_SECONDS", "30"))
         self.max_retries = max_retries or int(os.getenv("LLM_MAX_RETRIES", "3"))
 
+    @staticmethod
+    def _format_channel_context_block(channel_context: Optional[ChannelContextProfile]) -> str:
+        if channel_context is None:
+            return ""
+        pillars = ", ".join(channel_context.content_pillars[:5]) or "General"
+        keywords = ", ".join(channel_context.keywords[:6]) or "N/A"
+        recent = " | ".join(channel_context.recent_video_titles[:3]) or "N/A"
+        return (
+            "\nCreator Channel Context (align tone, vocabulary, hooks & audience framing cleanly):\n"
+            f"- Creator Account: {channel_context.display_name} ({channel_context.handle})\n"
+            f"- Niche / Domain: {channel_context.niche_category}\n"
+            f"- Target Audience: {channel_context.target_audience}\n"
+            f"- Tone & Storytelling Style: {channel_context.tone_and_style}\n"
+            f"- Core Content Pillars: {pillars}\n"
+            f"- Topical Keywords: {keywords}\n"
+            f"- Recent Topic References: {recent}\n"
+        )
+
     def _build_user_prompt(
         self,
         prompt: str,
@@ -280,6 +299,7 @@ class LLMScriptGenerator:
         target_slides: Optional[int] = None,
         aspect_ratio: str = "16:9",
         video_format: Optional[str] = None,
+        channel_context: Optional[ChannelContextProfile] = None,
     ) -> str:
         is_short = (video_format == "short") or (aspect_ratio == "9:16")
         estimated_slides = (
@@ -305,6 +325,7 @@ class LLMScriptGenerator:
             if is_short
             else ""
         )
+        channel_guidance = self._format_channel_context_block(channel_context)
         return (
             f"Topic / Source Prompt: {prompt}\n"
             f"Target Language: {language} ({lang_name}) — {strict_note}\n"
@@ -312,7 +333,7 @@ class LLMScriptGenerator:
             f"(generate approximately {estimated_slides} slides)\n"
             f"Aspect Ratio: {aspect_ratio}\n"
             f"Visual Theme: {theme}\n"
-            f"{short_guidance}\n"
+            f"{short_guidance}{channel_guidance}\n"
             "Generate the complete structured slide presentation script now."
         )
 
@@ -350,6 +371,7 @@ class LLMScriptGenerator:
         user_input: str,
         response_schema_model: Type[TModel],
         model_override: Optional[str] = None,
+        system_instruction: Optional[str] = None,
     ) -> Tuple[TModel, str]:
         """Invokes Gemini Interactions API with retries, fallback model switch, and schema parsing."""
         primary_model = model_override or self.default_model
@@ -376,7 +398,7 @@ class LLMScriptGenerator:
                     interaction = client.interactions.create(
                         model=current_model,
                         input=user_input,
-                        system_instruction=SYSTEM_INSTRUCTION,
+                        system_instruction=system_instruction or SYSTEM_INSTRUCTION,
                         generation_config={"temperature": 0.4},
                         response_format={
                             "type": "text",
@@ -435,6 +457,7 @@ class LLMScriptGenerator:
         target_slides: Optional[int] = None,
         aspect_ratio: str = "16:9",
         video_format: Optional[str] = None,
+        channel_context: Optional[ChannelContextProfile] = None,
     ) -> Tuple[PresentationScript, str]:
         """
         Generates and validates a PresentationScript from a user prompt using
@@ -457,6 +480,7 @@ class LLMScriptGenerator:
                     theme,
                     target_slides=target_slides,
                     is_short=is_short,
+                    channel_context=channel_context,
                 ),
                 f"{primary_model} (mock-fallback)",
             )
@@ -469,6 +493,7 @@ class LLMScriptGenerator:
             target_slides=target_slides,
             aspect_ratio=aspect_ratio,
             video_format=video_format,
+            channel_context=channel_context,
         )
         parsed_script, model_used = self._invoke_gemini_structured_json(
             user_input=user_input,
@@ -483,6 +508,7 @@ class LLMScriptGenerator:
         additional_slides: int = 10,
         topic_hint: Optional[str] = None,
         model_override: Optional[str] = None,
+        channel_context: Optional[ChannelContextProfile] = None,
     ) -> Tuple[PresentationScript, str]:
         """
         Automatically generates continuation slides (up to MAX_PRESENTATION_SLIDES total)
@@ -516,11 +542,12 @@ class LLMScriptGenerator:
         )
         lang_name = "Vietnamese" if script.language == "vi" else "English"
         hint_line = f"\nFocus / Expansion Guidance: {topic_hint.strip()}" if topic_hint and topic_hint.strip() else ""
+        channel_block = self._format_channel_context_block(channel_context)
         expand_prompt = (
             f"Presentation Title: {script.title}\n"
             f"Target Language: {script.language} ({lang_name}) — strictly keep ALL headings, bullet_points, "
             f"and voiceover_script exclusively in {lang_name}.\n"
-            f"Existing Deck Outline:\n{outline}{hint_line}\n\n"
+            f"Existing Deck Outline:\n{outline}{hint_line}{channel_block}\n\n"
             f"Generate exactly {count_to_generate} NEW, non-repetitive continuation body slides "
             f"(using varied layouts from ['bullet_list', 'split_card', 'quote_highlight']) that deepen, "
             f"illustrate with concrete examples, compare tradeoffs, and extend the presentation cleanly."
@@ -610,9 +637,20 @@ class LLMScriptGenerator:
         theme: str,
         target_slides: Optional[int] = None,
         is_short: bool = False,
+        channel_context: Optional[ChannelContextProfile] = None,
     ) -> PresentationScript:
         """Deterministic language-accurate dev fallback when GEMINI_API_KEY is not set."""
         clean_topic = LLMScriptGenerator._clean_topic_title(prompt, max_chars=52 if is_short else 58)
+        channel_intro_vi = (
+            f"Theo phong cách kênh {channel_context.display_name} ({channel_context.niche_category}), "
+            if channel_context
+            else ""
+        )
+        channel_intro_en = (
+            f"Aligned with {channel_context.display_name} ({channel_context.niche_category}), "
+            if channel_context
+            else ""
+        )
 
         if is_short and language == "vi":
             base_script = PresentationScript(
@@ -624,9 +662,11 @@ class LLMScriptGenerator:
                         slide_index=1,
                         layout="title_intro",
                         heading=f"Hiểu Nhanh: {clean_topic}",
-                        bullet_points=["Gói gọn trong 30 giây"],
+                        bullet_points=[
+                            channel_context.niche_category if channel_context else "Gói gọn trong 30 giây"
+                        ],
                         voiceover_script=(
-                            f"Đừng lướt qua nếu bạn muốn nắm trọn điểm mấu chốt về {clean_topic} chỉ trong nửa phút."
+                            f"{channel_intro_vi}Đừng lướt qua nếu bạn muốn nắm trọn điểm mấu chốt về {clean_topic} chỉ trong nửa phút."
                         ),
                         visual_keywords="vertical mobile studio neon abstract",
                     ),
@@ -676,9 +716,11 @@ class LLMScriptGenerator:
                         slide_index=1,
                         layout="title_intro",
                         heading=f"Fast Hook: {clean_topic}",
-                        bullet_points=["30-second vertical breakdown"],
+                        bullet_points=[
+                            channel_context.niche_category if channel_context else "30-second vertical breakdown"
+                        ],
                         voiceover_script=(
-                            f"Stop scrolling! Here is the fastest breakdown of {clean_topic} you need today."
+                            f"{channel_intro_en}Here is the fastest breakdown of {clean_topic} you need today."
                         ),
                         visual_keywords="vertical mobile studio abstract",
                     ),
@@ -733,7 +775,7 @@ class LLMScriptGenerator:
                             "Giá trị ứng dụng trong quy trình thực tế",
                         ],
                         voiceover_script=(
-                            f"Chào mừng bạn đến với bài thuyết trình về chủ đề {clean_topic}. "
+                            f"{channel_intro_vi}Chào mừng bạn đến với bài thuyết trình về chủ đề {clean_topic}. "
                             "Trong ít phút tới, chúng ta sẽ cùng khám phá những nguyên lý nền tảng và các điểm ứng dụng quan trọng nhất."
                         ),
                         visual_keywords="technology abstract digital network",
@@ -784,7 +826,7 @@ class LLMScriptGenerator:
                             "Why it matters in modern workflows",
                         ],
                         voiceover_script=(
-                            f"Welcome to this presentation on {clean_topic}. "
+                            f"{channel_intro_en}Welcome to this presentation on {clean_topic}. "
                             "In the next minute, we will break down the essential concepts and practical takeaways."
                         ),
                         visual_keywords="technology abstract digital network",

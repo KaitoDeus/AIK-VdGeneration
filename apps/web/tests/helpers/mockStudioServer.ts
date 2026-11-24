@@ -257,6 +257,57 @@ export function installMockStudioServer(options?: {
       });
     }
 
+    if (url.endsWith('/api/v1/channels/tiktok/analyze') && method === 'POST') {
+      const reqBody = init?.body ? JSON.parse(String(init.body)) : {};
+      const profileUrl = String(reqBody.profile_url || '');
+      const notes = String(reqBody.manual_notes || '').trim();
+      const lang = reqBody.language === 'vi' ? 'vi' : 'en';
+
+      if (profileUrl.includes('blocked') && !notes) {
+        return jsonResponse(
+          {
+            detail:
+              'TikTok gated direct automated profile access behind verification. Please paste channel bio/notes.',
+          },
+          422
+        );
+      }
+
+      return jsonResponse({
+        handle: '@dattech.ai',
+        profile_url: 'https://www.tiktok.com/@dattech.ai',
+        display_name: 'Dat Tech & AI',
+        bio: notes || 'Practical AI workflows & slide automation #AI #Productivity',
+        avatar_url: null,
+        follower_count: 145000,
+        following_count: 120,
+        likes_count: 2400000,
+        video_count: 180,
+        verified: true,
+        recent_video_titles: ['3 AI workflows for slide creation'],
+        hashtags: ['#AI', '#Productivity'],
+        niche_category: lang === 'vi' ? 'Công nghệ & AI' : 'Technology & AI Workflows',
+        content_pillars: ['AI Automation', 'Short Video Hooks'],
+        target_audience: lang === 'vi' ? 'Lập trình viên và nhà sáng tạo' : 'Developers and creators',
+        tone_and_style: lang === 'vi' ? 'Nhịp nhanh, thực chiến' : 'Fast-paced hands-on demos',
+        detected_language: lang,
+        recommended_theme: 'modern_tech',
+        recommended_format: 'short',
+        keywords: ['AI', 'Workflows', 'Automation'],
+        context_summary:
+          lang === 'vi'
+            ? 'Kênh Dat Tech & AI chia sẻ quy trình tự động hóa AI thực tế.'
+            : 'Dat Tech & AI breaks down practical AI automation workflows.',
+        suggested_prompt:
+          lang === 'vi'
+            ? '3 quy trình AI giúp tự động dựng video chuyên nghiệp cho @dattech.ai'
+            : '3 AI workflows that turn notes into synchronized short videos for @dattech.ai',
+        extraction_source: notes ? 'manual_notes' : 'tiktok_ssr',
+        blocked_by_captcha: Boolean(notes && profileUrl.includes('blocked')),
+        fetch_warning: null,
+      });
+    }
+
     if (url.endsWith('/api/v1/bgm/upload') && method === 'POST') {
       return jsonResponse({
         custom_audio_id: 'bgm_mocktrack01',

@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { getCustomBgmPreviewUrl, uploadBgmAudio } from '@/lib/api';
+import { analyzeTikTokChannel, getCustomBgmPreviewUrl, uploadBgmAudio } from '@/lib/api';
 import { STUDIO_DICTIONARY, UiLocale } from '@/lib/i18n';
 import { PROMPT_TEMPLATES, THEME_OPTIONS } from '@/lib/templates';
 import {
   AspectRatio,
   CaptionStyle,
+  ChannelContextProfile,
   PromptTemplate,
   SupportedLanguage,
   TTSProviderType,
@@ -40,6 +41,8 @@ interface PromptStudioFormProps {
   locale: UiLocale;
   formState: StudioFormState;
   voices: VoiceOption[];
+  channelContext?: ChannelContextProfile | null;
+  isAnalyzingChannel?: boolean;
   isSubmitting: boolean;
   isAuditioning: boolean;
   isUploadingBgm?: boolean;
@@ -48,6 +51,8 @@ interface PromptStudioFormProps {
   onChange: (patch: Partial<StudioFormState>) => void;
   onApplyTemplate: (template: PromptTemplate) => void;
   onSwitchLanguage?: (lang: SupportedLanguage) => void;
+  onAnalyzeChannel?: (profileUrl: string, manualNotes?: string) => Promise<void> | void;
+  onClearChannelContext?: () => void;
   onUploadBgm?: (file: File) => Promise<void> | void;
   onAuditionVoice: () => void;
   onDraftScript: () => void;
@@ -58,6 +63,8 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
   locale,
   formState,
   voices,
+  channelContext = null,
+  isAnalyzingChannel = false,
   isSubmitting,
   isAuditioning,
   isUploadingBgm = false,
@@ -66,6 +73,8 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
   onChange,
   onApplyTemplate,
   onSwitchLanguage,
+  onAnalyzeChannel,
+  onClearChannelContext,
   onUploadBgm,
   onAuditionVoice,
   onDraftScript,
@@ -75,6 +84,14 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
   const [showCustomBgmPreview, setShowCustomBgmPreview] = useState<boolean>(false);
   const [localBgmUploading, setLocalBgmUploading] = useState<boolean>(false);
   const [bgmUploadError, setBgmUploadError] = useState<string | null>(null);
+  const [tiktokUrlInput, setTiktokUrlInput] = useState<string>(channelContext?.profile_url || '');
+  const [channelNotesInput, setChannelNotesInput] = useState<string>('');
+  const [showChannelNotes, setShowChannelNotes] = useState<boolean>(false);
+  const [localAnalyzingChannel, setLocalAnalyzingChannel] = useState<boolean>(false);
+  const [localChannelContext, setLocalChannelContext] = useState<ChannelContextProfile | null>(
+    null
+  );
+  const [channelError, setChannelError] = useState<string | null>(null);
   const bgmFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const isShortMode = formState.videoFormat === 'short' || formState.aspectRatio === '9:16';
@@ -87,6 +104,48 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
     formState.language === 'en' && hasVietnameseDiacritics;
   const filteredVoices = voices.filter((v) => v.language === formState.language);
   const uploadingAudio = isUploadingBgm || localBgmUploading;
+  const activeChannelContext = channelContext ?? localChannelContext;
+  const analyzingChannel = isAnalyzingChannel || localAnalyzingChannel;
+
+  const handleAnalyzeTikTokClick = async () => {
+    const url = tiktokUrlInput.trim();
+    if (!url) {
+      setChannelError(t.channelAnalyzeError);
+      return;
+    }
+    setChannelError(null);
+    const notes = channelNotesInput.trim() || undefined;
+    if (onAnalyzeChannel) {
+      try {
+        await onAnalyzeChannel(url, notes);
+      } catch (err) {
+        setChannelError(err instanceof Error ? err.message : t.channelAnalyzeError);
+        setShowChannelNotes(true);
+      }
+      return;
+    }
+
+    setLocalAnalyzingChannel(true);
+    try {
+      const profile = await analyzeTikTokChannel({
+        profile_url: url,
+        language: formState.language,
+        manual_notes: notes,
+      });
+      setLocalChannelContext(profile);
+      if (!formState.prompt.trim()) {
+        onChange({
+          prompt: profile.suggested_prompt,
+          theme: profile.recommended_theme,
+        });
+      }
+    } catch (err) {
+      setChannelError(err instanceof Error ? err.message : t.channelAnalyzeError);
+      setShowChannelNotes(true);
+    } finally {
+      setLocalAnalyzingChannel(false);
+    }
+  };
 
   const handleBgmFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -268,6 +327,172 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
               </button>
             );
           })}
+        </div>
+
+        {/* TikTok Channel Context Extractor */}
+        <div
+          data-testid="tiktok-channel-reader"
+          className="mt-6 border border-[#E5E5E5] bg-[#FAFAFA] p-4"
+        >
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <label
+              htmlFor="tiktok-profile-url-input"
+              className="font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-[#0A0A0A]"
+            >
+              {t.channelContextLabel}
+            </label>
+            <button
+              type="button"
+              data-testid="toggle-channel-notes-btn"
+              onClick={() => setShowChannelNotes((prev) => !prev)}
+              className="font-mono text-[11px] uppercase tracking-[0.05em] text-[#71717A] underline-offset-4 hover:text-[#0A0A0A] hover:underline"
+            >
+              {t.channelToggleNotesBtn}
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              id="tiktok-profile-url-input"
+              data-testid="tiktok-profile-url-input"
+              type="text"
+              value={tiktokUrlInput}
+              onChange={(e) => setTiktokUrlInput(e.target.value)}
+              placeholder={t.channelUrlPlaceholder}
+              className="h-9 flex-1 border border-[#D4D4D8] bg-[#FFFFFF] px-3 text-[13px] text-[#0A0A0A] placeholder:text-[#A1A1AA] focus:border-2 focus:border-[#0A0A0A] focus:outline-none"
+            />
+            <button
+              type="button"
+              data-testid="analyze-tiktok-btn"
+              disabled={analyzingChannel || isSubmitting}
+              onClick={handleAnalyzeTikTokClick}
+              className="h-9 shrink-0 border border-[#0A0A0A] bg-[#0A0A0A] px-4 font-mono text-[11px] font-semibold uppercase tracking-[0.05em] text-[#FAFAFA] transition-colors duration-150 hover:bg-[#FFFFFF] hover:text-[#0A0A0A] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {analyzingChannel ? t.analyzingChannelBtn : t.analyzeChannelBtn}
+            </button>
+          </div>
+
+          {showChannelNotes && (
+            <textarea
+              data-testid="tiktok-manual-notes-input"
+              rows={2}
+              value={channelNotesInput}
+              onChange={(e) => setChannelNotesInput(e.target.value)}
+              placeholder={t.channelNotesPlaceholder}
+              className="mt-2 w-full border border-[#D4D4D8] bg-[#FFFFFF] p-2.5 text-[12px] text-[#0A0A0A] placeholder:text-[#A1A1AA] focus:border-[#0A0A0A] focus:outline-none"
+            />
+          )}
+
+          {channelError && (
+            <p
+              role="alert"
+              data-testid="tiktok-channel-error"
+              className="mt-2 font-mono text-[12px] text-[#DC2626]"
+            >
+              {channelError}
+            </p>
+          )}
+
+          {activeChannelContext && (
+            <div
+              data-testid="tiktok-channel-context-card"
+              className="mt-3 border border-[#0A0A0A] bg-[#FFFFFF] p-4"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-2 border-b border-[#E5E5E5] pb-2.5">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[14px] font-bold text-[#0A0A0A]">
+                      {activeChannelContext.display_name}
+                    </span>
+                    <span className="font-mono text-[12px] text-[#71717A]">
+                      {activeChannelContext.handle}
+                    </span>
+                    {typeof activeChannelContext.follower_count === 'number' && (
+                      <span className="border border-[#D4D4D8] px-1.5 py-0.5 font-mono text-[10px] text-[#0A0A0A]">
+                        {activeChannelContext.follower_count.toLocaleString()}{' '}
+                        {t.channelFollowersUnit}
+                      </span>
+                    )}
+                    <span className="bg-[#0A0A0A] px-1.5 py-0.5 font-mono text-[10px] uppercase text-[#FAFAFA]">
+                      {activeChannelContext.extraction_source}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[12px] leading-relaxed text-[#52525B]">
+                    {activeChannelContext.context_summary}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    data-testid="apply-channel-prompt-btn"
+                    onClick={() =>
+                      onChange({
+                        prompt: activeChannelContext.suggested_prompt,
+                        theme: activeChannelContext.recommended_theme,
+                      })
+                    }
+                    className="h-7 border border-[#0A0A0A] bg-[#FFFFFF] px-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.05em] text-[#0A0A0A] transition-colors duration-150 hover:bg-[#0A0A0A] hover:text-[#FAFAFA]"
+                  >
+                    {t.channelUsePromptBtn}
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="clear-channel-context-btn"
+                    onClick={() => {
+                      setLocalChannelContext(null);
+                      setChannelError(null);
+                      onClearChannelContext?.();
+                    }}
+                    className="h-7 border border-[#D4D4D8] px-2.5 font-mono text-[10px] uppercase tracking-[0.05em] text-[#DC2626] transition-colors duration-150 hover:border-[#DC2626]"
+                  >
+                    {t.channelClearBtn}
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-3 grid grid-cols-1 gap-2 text-[12px] md:grid-cols-3">
+                <div>
+                  <span className="block font-mono text-[10px] uppercase text-[#71717A]">
+                    {t.channelNicheLabel}
+                  </span>
+                  <span className="font-medium text-[#0A0A0A]">
+                    {activeChannelContext.niche_category}
+                  </span>
+                </div>
+                <div>
+                  <span className="block font-mono text-[10px] uppercase text-[#71717A]">
+                    {t.channelAudienceLabel}
+                  </span>
+                  <span className="text-[#0A0A0A]">{activeChannelContext.target_audience}</span>
+                </div>
+                <div>
+                  <span className="block font-mono text-[10px] uppercase text-[#71717A]">
+                    {t.channelToneLabel}
+                  </span>
+                  <span className="text-[#0A0A0A]">{activeChannelContext.tone_and_style}</span>
+                </div>
+              </div>
+
+              {activeChannelContext.content_pillars.length > 0 && (
+                <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-[#E5E5E5] pt-2.5">
+                  <span className="mr-1 font-mono text-[10px] uppercase text-[#71717A]">
+                    {t.channelPillarsLabel}:
+                  </span>
+                  {activeChannelContext.content_pillars.map((pillar, i) => (
+                    <span
+                      key={i}
+                      className="border border-[#D4D4D8] bg-[#FAFAFA] px-2 py-0.5 text-[11px] text-[#0A0A0A]"
+                    >
+                      {pillar}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <p className="mt-2 font-mono text-[10px] text-[#16A34A]">{t.channelActiveNote}</p>
+            </div>
+          )}
         </div>
       </div>
 

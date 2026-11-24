@@ -34,6 +34,7 @@ try:
         BGMMood,
         BGMTrackOption,
         BGMUploadResponse,
+        ChannelContextProfile,
         JobStatusResponse,
         LambdaStatusResponse,
         PresentationScript,
@@ -44,6 +45,7 @@ try:
         ScriptExpandRequest,
         ScriptGenerateRequest,
         StyleSettings,
+        TikTokChannelAnalyzeRequest,
         VideoDeliveryResponse,
         VideoGenerateRequest,
         VideoJobResponse,
@@ -53,6 +55,11 @@ try:
     )
     from .services.asset_service import StockAssetService
     from .services.bgm_service import BGMService, BGMUploadTooLargeError
+    from .services.channel_context_service import (
+        TikTokChannelContextService,
+        TikTokProfileBlockedError,
+        TikTokProfileError,
+    )
     from .services.lambda_render_service import RemotionLambdaRenderService
     from .services.llm_service import LLMScriptGenerator
     from .services.queue_service import (
@@ -73,6 +80,7 @@ except ImportError:
         BGMMood,
         BGMTrackOption,
         BGMUploadResponse,
+        ChannelContextProfile,
         JobStatusResponse,
         LambdaStatusResponse,
         PresentationScript,
@@ -83,6 +91,7 @@ except ImportError:
         ScriptExpandRequest,
         ScriptGenerateRequest,
         StyleSettings,
+        TikTokChannelAnalyzeRequest,
         VideoDeliveryResponse,
         VideoGenerateRequest,
         VideoJobResponse,
@@ -92,6 +101,11 @@ except ImportError:
     )
     from services.asset_service import StockAssetService  # type: ignore
     from services.bgm_service import BGMService, BGMUploadTooLargeError  # type: ignore
+    from services.channel_context_service import (  # type: ignore
+        TikTokChannelContextService,
+        TikTokProfileBlockedError,
+        TikTokProfileError,
+    )
     from services.lambda_render_service import RemotionLambdaRenderService  # type: ignore
     from services.llm_service import LLMScriptGenerator  # type: ignore
     from services.queue_service import (  # type: ignore
@@ -135,6 +149,7 @@ JOBS_STORE: Dict[str, JobStatusResponse] = {}
 TEMP_JOBS_DIR = Path(__file__).resolve().parent.parent / ".temp" / "jobs"
 
 llm_generator = LLMScriptGenerator()
+channel_context_service = TikTokChannelContextService(llm_generator=llm_generator)
 tts_pipeline = TTSAudioPipeline(output_base_dir=TEMP_JOBS_DIR)
 render_service = RemotionRenderService()
 asset_service = StockAssetService(output_base_dir=TEMP_JOBS_DIR)
@@ -213,6 +228,28 @@ async def get_queue_stats():
     return queue_backend.get_stats()
 
 
+@app.post("/api/v1/channels/tiktok/analyze", response_model=ChannelContextProfile)
+async def analyze_tiktok_channel_endpoint(request: TikTokChannelAnalyzeRequest):
+    """
+    Reads public channel metadata (handle, display name, bio, follower stats, hashtags,
+    recent captions) from a TikTok profile URL and synthesizes reusable channel context
+    (niche, target audience, tone, content pillars, and topic prompt suggestion).
+    """
+    try:
+        return channel_context_service.analyze_profile(
+            profile_url=request.profile_url,
+            language=request.language,
+            manual_notes=request.manual_notes,
+            model_override=request.model,
+        )
+    except TikTokProfileError as val_exc:
+        raise HTTPException(status_code=400, detail=str(val_exc)) from val_exc
+    except TikTokProfileBlockedError as blocked_exc:
+        raise HTTPException(status_code=422, detail=str(blocked_exc)) from blocked_exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 @app.post("/api/v1/scripts/generate", response_model=PresentationScript)
 async def generate_script_endpoint(request: ScriptGenerateRequest):
     """
@@ -229,6 +266,7 @@ async def generate_script_endpoint(request: ScriptGenerateRequest):
             target_slides=request.target_slides,
             aspect_ratio=request.aspect_ratio,
             video_format=request.video_format,
+            channel_context=request.channel_context,
         )
         return script
     except Exception as exc:
@@ -247,6 +285,7 @@ async def expand_script_endpoint(request: ScriptExpandRequest):
             additional_slides=request.additional_slides,
             topic_hint=request.topic_hint,
             model_override=request.model,
+            channel_context=request.channel_context,
         )
         return expanded
     except ValueError as val_exc:

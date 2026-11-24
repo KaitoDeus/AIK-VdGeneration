@@ -48,12 +48,13 @@ flowchart TD
   - Validates requests against strict Pydantic v2 models aligned with [docs/API_SPEC.md](API_SPEC.md).
   - Enqueues modular tasks (`llm` -> `tts` -> `render`) onto Redis or `LocalMemoryQueueBackend` with automatic 3-attempt retries and Dead-Letter Queue (`aik:queue:dlq`).
   - Streams progress history and real-time events via `/ws/jobs/{job_id}`.
-  - Provides interactive Studio endpoints: voice audition, BGM mood catalog & audio streaming, Unsplash/Pexels stock search, job artifact streaming (`/audio`, `/assets`, `/subtitles.srt`, `/video`), and S3/R2 SigV4 signed download URL generation (`/video/url`).
+  - Provides interactive Studio endpoints: TikTok channel profile context analysis (`POST /api/v1/channels/tiktok/analyze`), voice audition, BGM mood catalog & audio streaming, Unsplash/Pexels stock search, job artifact streaming (`/audio`, `/assets`, `/subtitles.srt`, `/video`), and S3/R2 SigV4 signed download URL generation (`/video/url`).
 
-### 3.2. Script Generation Worker (`LLMScriptGenerator`)
+### 3.2. Script Generation Worker (`LLMScriptGenerator`) & TikTok Channel Context Service (`TikTokChannelContextService`)
 - **Responsibilities:**
   - Uses `google-genai >= 3.2.0` (`client.interactions.create`) targeting `gemini-3.8-flash` (with automatic `gemini-4-hydrogen` fallback) and native JSON Schema Structured Outputs (`response_format`).
-  - Decomposes prompts into 3-8 structured slides constrained to 5 layout templates with clean `visual_keywords` for backdrop enrichment.
+  - `TikTokChannelContextService` validates TikTok profile URLs against SSRF, parses public SSR JSON / OpenGraph metadata (reporting verification gates transparently without bypassing CAPTCHAs and accepting optional manual creator notes), and conditions `LLMScriptGenerator` with extracted creator persona, niche, target audience, tone, and content pillars.
+  - Decomposes prompts into 3-30 structured slides constrained to 5 layout templates with clean `visual_keywords` for backdrop enrichment.
 
 ### 3.3. Media Enrichment Pipeline (`TTSAudioPipeline`, `StockAssetService`, `BGMService`, `WhisperSubtitleService`)
 - **Audio-First Duration Sync:** Synthesizes slide MP3s via Edge-TTS or ElevenLabs, validates file size (`> 10KB`) and audio headers, measures exact duration via `mutagen`, and sets `calculated_frames = Math.max(90, Math.ceil((0.2 + durationSec + 0.5) * 30))`.

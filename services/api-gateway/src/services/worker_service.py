@@ -86,6 +86,7 @@ class LLMWorker(BaseStageWorker):
             target_slides=task.request.target_slides,
             aspect_ratio=task.request.aspect_ratio,
             video_format=task.request.video_format,
+            channel_context=task.request.channel_context,
         )
 
         job_dir.mkdir(parents=True, exist_ok=True)

@@ -4,6 +4,7 @@ import {
   BGMMood,
   BGMSettings,
   BGMTrackOption,
+  ChannelContextProfile,
   HealthResponse,
   JobStatusResponse,
   PresentationScript,
@@ -136,6 +137,17 @@ export async function previewVoiceAudio(params: {
   return response.blob();
 }
 
+export async function analyzeTikTokChannel(params: {
+  profile_url: string;
+  language?: SupportedLanguage;
+  manual_notes?: string;
+}): Promise<ChannelContextProfile> {
+  return requestJson<ChannelContextProfile>('/api/v1/channels/tiktok/analyze', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
 export async function generateScript(params: {
   prompt: string;
   language: SupportedLanguage;
@@ -144,6 +156,7 @@ export async function generateScript(params: {
   target_duration_seconds: number;
   theme: VisualTheme;
   target_slides?: number;
+  channel_context?: ChannelContextProfile;
 }): Promise<PresentationScript> {
   return requestJson<PresentationScript>('/api/v1/scripts/generate', {
     method: 'POST',
@@ -155,6 +168,7 @@ export async function expandScript(params: {
   script: PresentationScript;
   additional_slides?: number;
   topic_hint?: string;
+  channel_context?: ChannelContextProfile;
 }): Promise<PresentationScript> {
   return requestJson<PresentationScript>('/api/v1/scripts/expand', {
     method: 'POST',
@@ -227,6 +241,7 @@ export async function generateVideoJob(params: {
   include_stock_visuals?: boolean;
   bgm_settings?: BGMSettings;
   subtitle_settings?: SubtitleSettings;
+  channel_context?: ChannelContextProfile;
 }): Promise<VideoJobResponse> {
   return requestJson<VideoJobResponse>('/api/v1/videos/generate', {
     method: 'POST',

@@ -50,6 +50,9 @@ Streams stereo loop audio (`audio/wav` or `audio/mpeg`) for instant track auditi
 ### `POST /api/v1/assets/search`
 Searches Unsplash / Pexels stock photography by slide keywords (`query`, `aspect_ratio`, `limit`). Never fails on missing keys; returns `"fallback_to_gradient": true` cleanly when unavailable.
 
+### `POST /api/v1/channels/tiktok/analyze`
+Reads public metadata from a TikTok creator profile URL (`profile_url`, optional `language`, optional `manual_notes`) using SSR rehydration JSON / OpenGraph meta parsing and Gemini Structured Outputs (`TikTokChannelAnalysisInsight` with bilingual deterministic fallback), returning a `ChannelContextProfile` (`handle`, `display_name`, `bio`, stats, `niche_category`, `content_pillars`, `target_audience`, `tone_and_style`, `recommended_theme`, `suggested_prompt`). Enforces strict SSRF domain allowlisting (`tiktok.com`, `www.tiktok.com`, `m.tiktok.com`), never bypasses anti-bot/CAPTCHA gates (returns HTTP `422` when gated without `manual_notes`), and accepts optional `channel_context` in `POST /api/v1/scripts/generate`, `POST /api/v1/scripts/expand`, and `POST /api/v1/videos/generate`.
+
 ---
 
 ## 3. Pipeline & Studio Endpoints

@@ -256,3 +256,31 @@ export interface PromptTemplate {
   enableBgm?: boolean;
   voiceSpeed?: number;
 }
+
+export interface ChannelContextProfile {
+  handle: string;
+  profile_url: string;
+  display_name: string;
+  bio: string;
+  avatar_url?: string | null;
+  follower_count?: number | null;
+  following_count?: number | null;
+  likes_count?: number | null;
+  video_count?: number | null;
+  verified: boolean;
+  recent_video_titles: string[];
+  hashtags: string[];
+  niche_category: string;
+  content_pillars: string[];
+  target_audience: string;
+  tone_and_style: string;
+  detected_language: SupportedLanguage;
+  recommended_theme: VisualTheme;
+  recommended_format: VideoFormatType;
+  keywords: string[];
+  context_summary: string;
+  suggested_prompt: string;
+  extraction_source: 'tiktok_ssr' | 'tiktok_og_meta' | 'manual_notes';
+  blocked_by_captcha: boolean;
+  fetch_warning?: string | null;
+}
