@@ -372,6 +372,7 @@ class LLMScriptGenerator:
         response_schema_model: Type[TModel],
         model_override: Optional[str] = None,
         system_instruction: Optional[str] = None,
+        use_google_search: bool = False,
     ) -> Tuple[TModel, str]:
         """Invokes Gemini Interactions API with retries, fallback model switch, and schema parsing."""
         primary_model = model_override or self.default_model
@@ -395,17 +396,20 @@ class LLMScriptGenerator:
                         attempt,
                         self.max_retries,
                     )
-                    interaction = client.interactions.create(
-                        model=current_model,
-                        input=user_input,
-                        system_instruction=system_instruction or SYSTEM_INSTRUCTION,
-                        generation_config={"temperature": 0.4},
-                        response_format={
+                    create_kwargs = {
+                        "model": current_model,
+                        "input": user_input,
+                        "system_instruction": system_instruction or SYSTEM_INSTRUCTION,
+                        "generation_config": {"temperature": 0.4},
+                        "response_format": {
                             "type": "text",
                             "mime_type": "application/json",
                             "schema": response_schema_model.model_json_schema(),
                         },
-                    )
+                    }
+                    if use_google_search:
+                        create_kwargs["tools"] = [{"type": "google_search"}]
+                    interaction = client.interactions.create(**create_kwargs)
 
                     if interaction.output_text:
                         parsed = response_schema_model.model_validate_json(interaction.output_text)

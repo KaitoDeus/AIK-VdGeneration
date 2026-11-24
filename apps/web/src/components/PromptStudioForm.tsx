@@ -372,7 +372,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
             </button>
           </div>
 
-          {showChannelNotes && (
+          {(showChannelNotes || Boolean(activeChannelContext?.blocked_by_captcha)) && (
             <textarea
               data-testid="tiktok-manual-notes-input"
               rows={2}
@@ -488,6 +488,15 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
                     </span>
                   ))}
                 </div>
+              )}
+
+              {activeChannelContext.fetch_warning && (
+                <p
+                  data-testid="tiktok-fetch-warning"
+                  className="mt-2 border border-[#CA8A04] bg-[#FAFAFA] px-2.5 py-1.5 font-mono text-[11px] text-[#92400E]"
+                >
+                  {activeChannelContext.fetch_warning}
+                </p>
               )}
 
               <p className="mt-2 font-mono text-[10px] text-[#16A34A]">{t.channelActiveNote}</p>

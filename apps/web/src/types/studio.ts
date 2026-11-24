@@ -280,7 +280,7 @@ export interface ChannelContextProfile {
   keywords: string[];
   context_summary: string;
   suggested_prompt: string;
-  extraction_source: 'tiktok_ssr' | 'tiktok_og_meta' | 'manual_notes';
+  extraction_source: 'tiktok_ssr' | 'tiktok_og_meta' | 'tiktok_oembed' | 'manual_notes';
   blocked_by_captcha: boolean;
   fetch_warning?: string | null;
 }

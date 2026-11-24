@@ -40,6 +40,8 @@ CAPTCHA_MARKERS = (
     "verifycenter",
     "secsdk-captcha",
     "drag the puzzle",
+    "slardarwaf",
+    "slardar_us_waf",
 )
 
 CHANNEL_ANALYST_SYSTEM_INSTRUCTION = (
@@ -364,7 +366,10 @@ def _classify_niche_and_style(
     lower = combined_text.lower()
     is_vi = output_lang == "vi"
 
-    if any(k in lower for k in ("ai", "tech", "code", "dev", "software", "công nghệ", "lập trình", "tool", "automation")):
+    if re.search(
+        r"(?<![a-z0-9])(ai|tech|code|dev|software|tool|automation|công nghệ|lập trình)(?![a-z0-9])",
+        lower,
+    ):
         return (
             "Công nghệ & Ứng dụng AI" if is_vi else "Technology, AI & Productivity Tools",
             "Người đi làm trẻ, lập trình viên và người muốn tối ưu hiệu suất bằng công nghệ"
@@ -376,7 +381,10 @@ def _classify_niche_and_style(
             "modern_tech",
             "short",
         )
-    if any(k in lower for k in ("marketing", "business", "b2b", "sales", "kinh doanh", "thương hiệu", "khởi nghiệp", "tài chính", "startup")):
+    if re.search(
+        r"(?<![a-z0-9])(marketing|business|b2b|sales|startup|kinh doanh|thương hiệu|khởi nghiệp|tài chính)(?![a-z0-9])",
+        lower,
+    ):
         return (
             "Kinh doanh, Marketing & Thương hiệu" if is_vi else "Business Strategy, B2B Growth & Marketing",
             "Chủ doanh nghiệp, marketer và người xây dựng thương hiệu cá nhân"
@@ -388,7 +396,10 @@ def _classify_niche_and_style(
             "corporate",
             "short",
         )
-    if any(k in lower for k in ("học", "education", "study", "english", "review", "kiến thức", "sách", "tối giản", "design", "thiết kế")):
+    if re.search(
+        r"(?<![a-z0-9])(education|study|english|review|design|học|kiến thức|sách|tối giản|thiết kế)(?![a-z0-9])",
+        lower,
+    ):
         return (
             "Giáo dục & Chia sẻ Kiến thức" if is_vi else "Education, Learning & Visual Insights",
             "Học sinh, sinh viên và người học kỹ năng mới mỗi ngày"
@@ -435,6 +446,29 @@ class TikTokChannelContextService:
         with httpx.Client(timeout=self.timeout_seconds, follow_redirects=True) as client:
             resp = client.get(profile_url, headers=DEFAULT_REQUEST_HEADERS)
             return resp.status_code, resp.text
+
+    def _fetch_oembed_profile(self, profile_url: str) -> Optional[Dict[str, Any]]:
+        """
+        Queries TikTok's official documented oEmbed API (`https://www.tiktok.com/oembed`)
+        to retrieve verified creator display name and profile URL when direct SSR HTML is gated.
+        """
+        oembed_endpoint = "https://www.tiktok.com/oembed"
+        try:
+            if self.http_client_factory is not None:
+                client = self.http_client_factory()
+                with client:
+                    resp = client.get(oembed_endpoint, params={"url": profile_url}, follow_redirects=True)
+            else:
+                with httpx.Client(timeout=self.timeout_seconds, follow_redirects=True) as client:
+                    resp = client.get(oembed_endpoint, params={"url": profile_url})
+            if resp.status_code != 200:
+                return None
+            payload = resp.json()
+            if isinstance(payload, dict) and payload.get("author_name"):
+                return payload
+        except (httpx.HTTPError, ValueError, TypeError):
+            return None
+        return None
 
     def _fallback_analysis(
         self,
@@ -556,12 +590,18 @@ class TikTokChannelContextService:
             f"Language Rule: {lang_instruction}\n"
             "Return strict JSON matching the TikTokChannelAnalysisInsight schema."
         )
+        need_search_grounding = bool(
+            not raw_meta.get("bio")
+            and not raw_meta.get("recent_video_titles")
+            and not manual_notes
+        )
         try:
             insight, _ = self.llm_generator._invoke_gemini_structured_json(
                 user_input=llm_prompt,
                 response_schema_model=TikTokChannelAnalysisInsight,
                 model_override=model_override,
                 system_instruction=CHANNEL_ANALYST_SYSTEM_INSTRUCTION,
+                use_google_search=need_search_grounding,
             )
             return insight
         except Exception as exc:
@@ -606,14 +646,33 @@ class TikTokChannelContextService:
             if status_code >= 400 or _contains_captcha_gate(html_text):
                 blocked_by_captcha = True
                 fetch_warning = (
-                    "TikTok gated direct automated profile access behind verification (HTTP/anti-bot check)."
+                    "TikTok gated direct HTML scraping behind verification (SlardarWAF / anti-bot check)."
                 )
             else:
                 parsed = _parse_ssr_and_meta(html_text, handle)
                 raw_meta.update(parsed)
         except httpx.HTTPError as exc:
             blocked_by_captcha = True
-            fetch_warning = f"Unable to fetch public TikTok profile directly ({exc})."
+            fetch_warning = f"Unable to fetch public TikTok HTML directly ({exc})."
+
+        # Query official documented TikTok oEmbed API when HTML metadata is incomplete or WAF-gated
+        if raw_meta["extraction_source"] is None or raw_meta["display_name"] == handle.lstrip("@"):
+            oembed_payload = self._fetch_oembed_profile(canonical_url)
+            if oembed_payload:
+                raw_meta["display_name"] = _nfc(str(oembed_payload["author_name"]))
+                if raw_meta["extraction_source"] is None:
+                    raw_meta["extraction_source"] = "tiktok_oembed"
+                    if cleaned_notes:
+                        raw_meta["extraction_source"] = "manual_notes"
+                        raw_meta["bio"] = cleaned_notes[:400]
+                        raw_meta["hashtags"] = _extract_hashtags([cleaned_notes])
+                        fetch_warning = None
+                    elif blocked_by_captcha or fetch_warning:
+                        fetch_warning = (
+                            f"Verified creator {raw_meta['display_name']} ({handle}) via TikTok official oEmbed. "
+                            "Detailed bio & recent videos are gated by TikTok anti-bot protection — "
+                            "add optional bio/video topics below to refine script personalization."
+                        )
 
         if raw_meta["extraction_source"] is None:
             if cleaned_notes:
@@ -628,6 +687,9 @@ class TikTokChannelContextService:
                 raise TikTokProfileBlockedError(
                     f"{msg} Please paste the channel bio or sample video topics into Channel Notes to analyze without bypassing protection."
                 )
+        elif cleaned_notes and not raw_meta["bio"]:
+            raw_meta["bio"] = cleaned_notes[:400]
+            raw_meta["hashtags"] = _extract_hashtags([cleaned_notes] + raw_meta["hashtags"])
 
         insights = self._synthesize_insights(
             handle=handle,

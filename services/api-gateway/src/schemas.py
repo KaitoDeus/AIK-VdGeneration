@@ -332,7 +332,7 @@ class ChannelContextProfile(BaseModel):
     keywords: List[str] = Field(default_factory=list)
     context_summary: str
     suggested_prompt: str
-    extraction_source: Literal["tiktok_ssr", "tiktok_og_meta", "manual_notes"] = "tiktok_ssr"
+    extraction_source: Literal["tiktok_ssr", "tiktok_og_meta", "tiktok_oembed", "manual_notes"] = "tiktok_ssr"
     blocked_by_captcha: bool = False
     fetch_warning: Optional[str] = None
 

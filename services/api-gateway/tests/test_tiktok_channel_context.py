@@ -188,6 +188,77 @@ class TestTikTokProfileExtractionAndSynthesis:
         assert profile.recommended_theme == "minimal"
         assert profile.detected_language == "vi"
 
+    def test_slardar_waf_falls_back_to_official_tiktok_oembed_creator_api(self, monkeypatch):
+        waf_html = (
+            '<!DOCTYPE html><html><head><script id="slardar-config" type="application/json">'
+            '{"slardarClient":"SlardarWAF","bid":"slardar_us_waf"}</script></head></html>'
+        )
+        oembed_json = {
+            "version": "1.0",
+            "type": "rich",
+            "title": "KaitoDeus's Creator Profile",
+            "author_url": "https://www.tiktok.com/@kaitodeus",
+            "author_name": "KaitoDeus",
+            "embed_type": "profile",
+        }
+
+        def _routed_http_factory() -> httpx.Client:
+            def _handler(request: httpx.Request) -> httpx.Response:
+                if "tiktok.com/oembed" in str(request.url):
+                    return httpx.Response(status_code=200, json=oembed_json)
+                return httpx.Response(status_code=200, text=waf_html)
+
+            return httpx.Client(transport=httpx.MockTransport(_handler))
+
+        llm = LLMScriptGenerator(api_key="")
+        service = TikTokChannelContextService(
+            llm_generator=llm,
+            http_client_factory=_routed_http_factory,
+        )
+        profile = service.analyze_profile("https://www.tiktok.com/@kaitodeus", language="vi")
+
+        assert profile.handle == "@kaitodeus"
+        assert profile.display_name == "KaitoDeus"
+        assert profile.extraction_source == "tiktok_oembed"
+        assert profile.blocked_by_captcha is True
+        assert profile.fetch_warning is not None
+        assert "KaitoDeus" in profile.fetch_warning
+        assert "@kaitodeus" in profile.context_summary
+
+        # Also verify Gemini Interactions Google Search grounding enables when bio is empty
+        monkeypatch.setenv("GEMINI_API_KEY", "test-live-key")
+        llm_live = LLMScriptGenerator(api_key="test-live-key")
+        mock_interaction = MagicMock()
+        mock_interaction.output_text = json.dumps(
+            {
+                "niche_category": "Gaming & Creative Storytelling",
+                "content_pillars": ["Highlights & lore breakdowns", "Fast visual edits"],
+                "target_audience": "Gen-Z gamers and anime fans",
+                "tone_and_style": "High-energy, punchy edits with quick commentary",
+                "detected_language": "vi",
+                "recommended_theme": "modern_tech",
+                "recommended_format": "short",
+                "keywords": ["KaitoDeus", "gaming", "shorts"],
+                "context_summary": "Kênh KaitoDeus chia sẻ nội dung giải trí và phân tích nhanh.",
+                "suggested_prompt": "Tạo video Short 30s phong cách KaitoDeus với câu hook mở đầu cực nhanh.",
+            }
+        )
+        mock_client = MagicMock()
+        mock_client.interactions.create.return_value = mock_interaction
+        monkeypatch.setattr("src.services.llm_service.genai.Client", lambda **kwargs: mock_client)
+
+        grounded_service = TikTokChannelContextService(
+            llm_generator=llm_live,
+            http_client_factory=_routed_http_factory,
+        )
+        grounded_profile = grounded_service.analyze_profile(
+            "https://www.tiktok.com/@kaitodeus",
+            language="vi",
+        )
+        assert grounded_profile.niche_category == "Gaming & Creative Storytelling"
+        call_kwargs = mock_client.interactions.create.call_args.kwargs
+        assert call_kwargs["tools"] == [{"type": "google_search"}]
+
     def test_gemini_structured_output_enriches_channel_context(self, monkeypatch):
         ssr_html = """
         <html><body>
