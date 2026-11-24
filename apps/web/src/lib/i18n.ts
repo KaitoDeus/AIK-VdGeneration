@@ -82,6 +82,8 @@ export interface StudioDictionary {
     analyzeChannelBtn: string;
     analyzingChannelBtn: string;
     channelToggleNotesBtn: string;
+    channelVideoLinksLabel: string;
+    channelVideoLinksPlaceholder: string;
     channelNotesPlaceholder: string;
     channelUsePromptBtn: string;
     channelClearBtn: string;
@@ -248,7 +250,10 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       channelUrlPlaceholder: 'https://www.tiktok.com/@username or @username',
       analyzeChannelBtn: 'Read Channel Context',
       analyzingChannelBtn: 'Reading Profile...',
-      channelToggleNotesBtn: '+ Add Bio / Notes',
+      channelToggleNotesBtn: '+ Add Video Links / Bio',
+      channelVideoLinksLabel: 'Creator Sample Video Links (1 per line — official TikTok oEmbed)',
+      channelVideoLinksPlaceholder:
+        'https://www.tiktok.com/@username/video/1234567890123456789 (optional: paste 1-5 video links from this channel)',
       channelNotesPlaceholder:
         'Optional: paste creator bio or sample video topics if TikTok limits automated profile fetching.',
       channelUsePromptBtn: 'Use Suggested Topic',
@@ -425,7 +430,10 @@ export const STUDIO_DICTIONARY: Record<UiLocale, StudioDictionary> = {
       channelUrlPlaceholder: 'https://www.tiktok.com/@tenkenh hoặc @tenkenh',
       analyzeChannelBtn: 'Đọc Context Kênh',
       analyzingChannelBtn: 'Đang Phân Tích Kênh...',
-      channelToggleNotesBtn: '+ Thêm Mô Tả / Ghi Chú',
+      channelToggleNotesBtn: '+ Thêm Link Video / Mô Tả',
+      channelVideoLinksLabel: 'Link Video Mẫu Của Kênh (mỗi dòng 1 link — đọc qua TikTok oEmbed)',
+      channelVideoLinksPlaceholder:
+        'https://www.tiktok.com/@tenkenh/video/1234567890123456789 (tùy chọn: dán 1-5 link video của kênh)',
       channelNotesPlaceholder:
         'Tùy chọn: dán bio kênh hoặc danh sách chủ đề video mẫu nếu TikTok giới hạn truy cập tự động.',
       channelUsePromptBtn: 'Dùng Chủ Đề Gợi Ý',

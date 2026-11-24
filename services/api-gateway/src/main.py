@@ -239,6 +239,7 @@ async def analyze_tiktok_channel_endpoint(request: TikTokChannelAnalyzeRequest):
         return channel_context_service.analyze_profile(
             profile_url=request.profile_url,
             language=request.language,
+            sample_video_urls=request.sample_video_urls,
             manual_notes=request.manual_notes,
             model_override=request.model,
         )

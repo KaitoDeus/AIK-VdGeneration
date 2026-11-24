@@ -140,6 +140,7 @@ export async function previewVoiceAudio(params: {
 export async function analyzeTikTokChannel(params: {
   profile_url: string;
   language?: SupportedLanguage;
+  sample_video_urls?: string[];
   manual_notes?: string;
 }): Promise<ChannelContextProfile> {
   return requestJson<ChannelContextProfile>('/api/v1/channels/tiktok/analyze', {

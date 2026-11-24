@@ -585,6 +585,7 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     expect(await screen.findByTestId('tiktok-channel-error')).toHaveTextContent(
       'TikTok gated direct automated profile access'
     );
+    expect(screen.getByTestId('tiktok-video-urls-input')).toBeInTheDocument();
     const notesInput = screen.getByTestId('tiktok-manual-notes-input');
     await user.type(notesInput, 'AI workflows and creator tools #AI');
     await user.click(analyzeBtn);
@@ -613,5 +614,38 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     // 4. Clearing channel context removes card cleanly
     await user.click(screen.getByTestId('clear-channel-context-btn'));
     expect(screen.queryByTestId('tiktok-channel-context-card')).not.toBeInTheDocument();
+  });
+
+  it('submits creator sample_video_urls when TikTok profile bio is gated behind SlardarWAF', async () => {
+    const user = userEvent.setup();
+    render(<StudioWorkspacePage />);
+
+    const urlInput = screen.getByTestId('tiktok-profile-url-input');
+    const analyzeBtn = screen.getByTestId('analyze-tiktok-btn');
+
+    await user.type(urlInput, 'https://www.tiktok.com/@blocked.creator');
+    await user.click(analyzeBtn);
+
+    const videoUrlsInput = await screen.findByTestId('tiktok-video-urls-input');
+    await user.type(
+      videoUrlsInput,
+      'https://www.tiktok.com/@blocked.creator/video/7390000000000000001\nhttps://vt.tiktok.com/ZS2AbCdEf/'
+    );
+    await user.click(analyzeBtn);
+
+    const card = await screen.findByTestId('tiktok-channel-context-card');
+    expect(card).toHaveTextContent('tiktok_video_oembed');
+
+    await waitFor(() => {
+      const analyzeCalls = server.fetchMock.mock.calls.filter(([url]) =>
+        String(url).endsWith('/api/v1/channels/tiktok/analyze')
+      );
+      expect(analyzeCalls).toHaveLength(2);
+      const secondBody = JSON.parse(String(analyzeCalls[1]?.[1]?.body));
+      expect(secondBody.sample_video_urls).toEqual([
+        'https://www.tiktok.com/@blocked.creator/video/7390000000000000001',
+        'https://vt.tiktok.com/ZS2AbCdEf/',
+      ]);
+    });
   });
 });

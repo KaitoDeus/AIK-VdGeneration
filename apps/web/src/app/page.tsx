@@ -405,13 +405,18 @@ export default function StudioWorkspacePage() {
     return Math.min(30, Math.max(5, Math.round(formState.targetDuration / 9)));
   };
 
-  const handleAnalyzeChannel = async (profileUrl: string, manualNotes?: string) => {
+  const handleAnalyzeChannel = async (
+    profileUrl: string,
+    manualNotes?: string,
+    sampleVideoUrls?: string[],
+  ) => {
     setIsAnalyzingChannel(true);
     setStatusMessage(null);
     try {
       const profile = await analyzeTikTokChannel({
         profile_url: profileUrl,
         language: locale,
+        sample_video_urls: sampleVideoUrls,
         manual_notes: manualNotes,
       });
       setChannelContext(profile);

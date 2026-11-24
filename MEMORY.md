@@ -75,9 +75,9 @@
 - **ADR-021: Vietnamese-Native Font Stacks (`Cambria`/`Sitka`/`Noto Serif` & `Inter`/`Segoe UI`/`Noto Sans`), NFC Normalization & No-Store HTML Headers**
   - *Context:* `Georgia` (`GEORGIA.TTF`) and `Helvetica Neue` lack full precomposed Vietnamese Extended Latin diacritics (`ế`, `ầ`, `ố`, `ừ`), causing fallback font splits inside headings (e.g., `Kiê´n`, `Phâ`n`, `Cô´t`) in the Web Studio `corporate` canvas and potential Remotion mismatch; additionally Next.js static prerendering cached `/` with `s-maxage=31536000` across container rebuilds.
   - *Decision:* Verified precomposed Vietnamese glyphs (`U+1EBF`, `U+1EA7`, `U+1ED1`, `U+1EEB`) in Windows system fonts (`Sitka Heading`, `Cambria`, `Times New Roman`, `Segoe UI Variable Text`, `Bahnschrift`) alongside `Inter` (`subsets: ['latin', 'vietnamese']`) in Next.js and Linux Docker fonts (`Noto Serif Display`, `Noto Serif`, `Noto Sans Display`, `Noto Sans`); replaced `Georgia` and `Helvetica Neue` across `templates.ts`, `slidePalettes.ts`, and `tts_service.py`; normalized slide copy to Unicode `NFC` in `schemas.py` and `SlideReviewer.tsx`; and configured `Cache-Control: no-store, must-revalidate` for `/` in `apps/web/next.config.ts`.
-- **ADR-022: TikTok Profile Channel Context Extractor (`POST /api/v1/channels/tiktok/analyze`) & Script Personalization**
-  - *Context:* Creators want generated video scripts and visual style to reflect the niche, audience, tone, and recurring topics of a specific TikTok account directly from its profile URL, while TikTok's web frontend often gates automated HTML requests behind `SlardarWAF`.
-  - *Decision:* Built `TikTokChannelContextService` (`services/api-gateway/src/services/channel_context_service.py`) validating profile URLs strictly against `tiktok.com` / `www.tiktok.com` / `m.tiktok.com` (preventing SSRF), parsing public `__UNIVERSAL_DATA_FOR_REHYDRATION__` / `SIGI_STATE` SSR payloads and OpenGraph tags, querying TikTok's official documented oEmbed API (`https://www.tiktok.com/oembed`) when direct HTML encounters `SlardarWAF`/anti-bot verification, raising `HTTP 422` cleanly without bypassing CAPTCHA when neither public data nor oEmbed metadata is available (`manual_notes` fallback always supported), and synthesizing `ChannelContextProfile` insights via Gemini Structured Outputs (`TikTokChannelAnalysisInsight` with optional `google_search` grounding when bio is sparse and deterministic bilingual fallback); wired `channel_context` across `ScriptGenerateRequest`, `ScriptExpandRequest`, `VideoGenerateRequest`, `LLMScriptGenerator`, `LLMWorker`, and `PromptStudioForm.tsx`.
+- **ADR-022: TikTok Profile Channel Context Extractor (`POST /api/v1/channels/tiktok/analyze`), Multi-Source Fallback & Anti-Hallucination Guard**
+  - *Context:* Creators want generated video scripts and visual style to reflect the niche, audience, tone, and recurring topics of a specific TikTok account directly from its profile URL, while TikTok's web frontend frequently gates automated HTML requests behind `SlardarWAF` and profile-level `oembed` only exposes `author_name` without bio or video history.
+  - *Decision:* Built `TikTokChannelContextService` (`services/api-gateway/src/services/channel_context_service.py`) validating profile URLs strictly against `tiktok.com` / `www.tiktok.com` / `m.tiktok.com` and creator `sample_video_urls` against allowed TikTok hosts (preventing SSRF), parsing public `__UNIVERSAL_DATA_FOR_REHYDRATION__` / `SIGI_STATE` SSR payloads and OpenGraph tags, supporting optional licensed data sources (`APIFY_API_TOKEN` / `APIFY_TIKTOK_ACTOR_ID`, `TIKTOK_ACCESS_TOKEN`), querying TikTok's official documented oEmbed API (`https://www.tiktok.com/oembed`) for profile identity and creator `sample_video_urls` (real video captions & `#hashtags`), enforcing an **Anti-Hallucination Gate** that raises `HTTP 422` (`TikTokProfileBlockedError`) whenever `SlardarWAF` blocks bio/video access and neither `sample_video_urls`, `manual_notes`, licensed APIs, nor grounded Gemini Google Search evidence (`UNVERIFIED_CHANNEL_DATA` guard) yield substantive content, and wiring `channel_context` across `ScriptGenerateRequest`, `ScriptExpandRequest`, `VideoGenerateRequest`, `LLMScriptGenerator`, `LLMWorker`, and `PromptStudioForm.tsx`.
 
 ---
 
@@ -89,6 +89,11 @@ GEMINI_API_KEY=
 GEMINI_MODEL=gemini-3.8-flash
 GEMINI_FALLBACK_MODEL=gemini-4-hydrogen
 OPENAI_API_KEY=
+
+# Optional TikTok Licensed Extractors (fallback when SlardarWAF gates HTML)
+APIFY_API_TOKEN=
+APIFY_TIKTOK_ACTOR_ID=clockworks~tiktok-profile-scraper
+TIKTOK_ACCESS_TOKEN=
 
 # TTS Providers
 ELEVENLABS_API_KEY=

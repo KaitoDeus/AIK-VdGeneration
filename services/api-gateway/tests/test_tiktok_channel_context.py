@@ -215,18 +215,40 @@ class TestTikTokProfileExtractionAndSynthesis:
             llm_generator=llm,
             http_client_factory=_routed_http_factory,
         )
-        profile = service.analyze_profile("https://www.tiktok.com/@kaitodeus", language="vi")
+        # Never fabricates generic channel context from display_name alone when SlardarWAF hides bio/videos
+        with pytest.raises(TikTokProfileBlockedError) as blocked_exc:
+            service.analyze_profile("https://www.tiktok.com/@kaitodeus", language="vi")
+        assert "KaitoDeus" in str(blocked_exc.value)
+        assert "insufficient real data" in str(blocked_exc.value)
 
-        assert profile.handle == "@kaitodeus"
-        assert profile.display_name == "KaitoDeus"
-        assert profile.extraction_source == "tiktok_oembed"
-        assert profile.blocked_by_captcha is True
-        assert profile.fetch_warning is not None
-        assert "KaitoDeus" in profile.fetch_warning
-        assert "@kaitodeus" in profile.context_summary
-
-        # Also verify Gemini Interactions Google Search grounding enables when bio is empty
+        # Also verifies Gemini search returning UNVERIFIED_CHANNEL_DATA refuses to hallucinate
         monkeypatch.setenv("GEMINI_API_KEY", "test-live-key")
+        llm_unverified = LLMScriptGenerator(api_key="test-live-key")
+        unverified_interaction = MagicMock()
+        unverified_interaction.output_text = json.dumps(
+            {
+                "niche_category": "UNVERIFIED_CHANNEL_DATA",
+                "content_pillars": [],
+                "target_audience": "Unknown",
+                "tone_and_style": "Unknown",
+                "detected_language": "vi",
+                "recommended_theme": "modern_tech",
+                "recommended_format": "short",
+                "keywords": ["KaitoDeus"],
+                "context_summary": "Insufficient data.",
+                "suggested_prompt": "Need real creator topics.",
+            }
+        )
+        mock_unverified_client = MagicMock()
+        mock_unverified_client.interactions.create.return_value = unverified_interaction
+        monkeypatch.setattr("src.services.llm_service.genai.Client", lambda **kwargs: mock_unverified_client)
+        with pytest.raises(TikTokProfileBlockedError):
+            TikTokChannelContextService(
+                llm_generator=llm_unverified,
+                http_client_factory=_routed_http_factory,
+            ).analyze_profile("https://www.tiktok.com/@kaitodeus", language="vi")
+
+        # When Gemini Interactions Google Search grounding returns real verified creator info, succeeds cleanly
         llm_live = LLMScriptGenerator(api_key="test-live-key")
         mock_interaction = MagicMock()
         mock_interaction.output_text = json.dumps(
@@ -381,3 +403,156 @@ class TestTikTokEndpointsAndScriptConditioning:
             json={"profile_url": "https://evil.com/@bad"},
         )
         assert invalid_resp.status_code == 400
+
+    def test_extracts_real_captions_and_hashtags_from_sample_video_oembed_urls(self):
+        waf_html = (
+            '<!DOCTYPE html><html><head><script id="slardar-config" type="application/json">'
+            '{"slardarClient":"SlardarWAF"}</script></head></html>'
+        )
+
+        def _routed_http_factory() -> httpx.Client:
+            def _handler(request: httpx.Request) -> httpx.Response:
+                req_str = str(request.url)
+                if "tiktok.com/oembed" in req_str:
+                    if "7390000000000000001" in req_str:
+                        return httpx.Response(
+                            status_code=200,
+                            json={
+                                "author_name": "KaitoDeus",
+                                "title": "Cách build PC Gaming tối ưu nhiệt độ #gaming #pcbuild",
+                            },
+                        )
+                    if "ZS2AbCdEf" in req_str:
+                        return httpx.Response(
+                            status_code=200,
+                            json={
+                                "author_name": "KaitoDeus",
+                                "title": "Review bàn phím cơ silent cho góc setup minimal #setup #tech",
+                            },
+                        )
+                    return httpx.Response(
+                        status_code=200,
+                        json={"author_name": "KaitoDeus", "title": "KaitoDeus's Creator Profile"},
+                    )
+                return httpx.Response(status_code=200, text=waf_html)
+
+            return httpx.Client(transport=httpx.MockTransport(_handler))
+
+        service = TikTokChannelContextService(
+            llm_generator=LLMScriptGenerator(api_key=""),
+            http_client_factory=_routed_http_factory,
+        )
+        profile = service.analyze_profile(
+            "https://www.tiktok.com/@kaitodeus",
+            language="vi",
+            sample_video_urls=[
+                "https://www.tiktok.com/@kaitodeus/video/7390000000000000001?is_from_webapp=1",
+                "https://vt.tiktok.com/ZS2AbCdEf/",
+            ],
+        )
+        assert profile.display_name == "KaitoDeus"
+        assert profile.extraction_source == "tiktok_video_oembed"
+        assert len(profile.recent_video_titles) == 2
+        assert "#gaming" in profile.hashtags
+        assert "#pcbuild" in profile.hashtags
+        assert any("build PC Gaming" in t for t in profile.recent_video_titles)
+
+    @pytest.mark.parametrize(
+        "bad_video_url",
+        [
+            "https://evil.example.com/@kaitodeus/video/123456",
+            "https://www.tiktok.com/@kaitodeus",
+            "https://user:pass@www.tiktok.com/@kaitodeus/video/123456",
+            "ftp://www.tiktok.com/@kaitodeus/video/123456",
+        ],
+    )
+    def test_rejects_ssrf_and_invalid_sample_video_urls(self, bad_video_url: str):
+        service = TikTokChannelContextService(llm_generator=LLMScriptGenerator(api_key=""))
+        with pytest.raises(TikTokProfileError):
+            service.analyze_profile(
+                "https://www.tiktok.com/@kaitodeus",
+                sample_video_urls=[bad_video_url],
+            )
+
+    def test_apify_licensed_api_fallback_extracts_profile_and_videos(self, monkeypatch):
+        waf_html = '<html><script>{"slardarClient":"SlardarWAF"}</script></html>'
+        monkeypatch.setenv("APIFY_API_TOKEN", "apify-secret-token")
+
+        def _routed_http_factory() -> httpx.Client:
+            def _handler(request: httpx.Request) -> httpx.Response:
+                if "api.apify.com" in str(request.url):
+                    return httpx.Response(
+                        status_code=200,
+                        json=[
+                            {
+                                "text": "Tự động hóa pipeline render video bằng Python #AI #Python",
+                                "authorMeta": {
+                                    "nickName": "KaitoDeus",
+                                    "signature": "Chia sẻ kiến thức AI & Lập trình thực chiến",
+                                    "fans": 48200,
+                                    "following": 45,
+                                    "heart": 910000,
+                                    "video": 120,
+                                    "verified": False,
+                                },
+                                "hashtags": [{"name": "AI"}, {"name": "Automation"}],
+                            }
+                        ],
+                    )
+                return httpx.Response(status_code=200, text=waf_html)
+
+            return httpx.Client(transport=httpx.MockTransport(_handler))
+
+        service = TikTokChannelContextService(
+            llm_generator=LLMScriptGenerator(api_key=""),
+            http_client_factory=_routed_http_factory,
+        )
+        profile = service.analyze_profile("https://www.tiktok.com/@kaitodeus", language="vi")
+        assert profile.extraction_source == "apify_api"
+        assert profile.blocked_by_captcha is False
+        assert profile.follower_count == 48200
+        assert "AI & Lập trình" in profile.bio
+        assert "#AI" in profile.hashtags
+
+    def test_endpoint_forwards_sample_video_urls(self, monkeypatch):
+        from src import main as main_module
+
+        captured: dict = {}
+
+        def _capture_analyze(**kwargs):
+            captured.update(kwargs)
+            return ChannelContextProfile(
+                handle="@kaitodeus",
+                profile_url="https://www.tiktok.com/@kaitodeus",
+                display_name="KaitoDeus",
+                bio="",
+                recent_video_titles=["Phân tích cơ chế combo nhanh #gaming"],
+                hashtags=["#gaming"],
+                niche_category="Gaming & Reviews",
+                content_pillars=["Combo guides"],
+                target_audience="Gamers",
+                tone_and_style="Energetic",
+                detected_language="vi",
+                recommended_theme="modern_tech",
+                recommended_format="short",
+                keywords=["gaming"],
+                context_summary="KaitoDeus covers combo guides.",
+                suggested_prompt="3 mẹo tối ưu combo cho người mới.",
+                extraction_source="tiktok_video_oembed",
+                blocked_by_captcha=True,
+            )
+
+        monkeypatch.setattr(main_module.channel_context_service, "analyze_profile", _capture_analyze)
+        client = TestClient(app)
+        resp = client.post(
+            "/api/v1/channels/tiktok/analyze",
+            json={
+                "profile_url": "https://www.tiktok.com/@kaitodeus",
+                "sample_video_urls": ["https://www.tiktok.com/@kaitodeus/video/7390000000000000001"],
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["extraction_source"] == "tiktok_video_oembed"
+        assert captured["sample_video_urls"] == [
+            "https://www.tiktok.com/@kaitodeus/video/7390000000000000001"
+        ]

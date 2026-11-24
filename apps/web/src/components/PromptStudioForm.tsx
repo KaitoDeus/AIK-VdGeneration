@@ -51,7 +51,11 @@ interface PromptStudioFormProps {
   onChange: (patch: Partial<StudioFormState>) => void;
   onApplyTemplate: (template: PromptTemplate) => void;
   onSwitchLanguage?: (lang: SupportedLanguage) => void;
-  onAnalyzeChannel?: (profileUrl: string, manualNotes?: string) => Promise<void> | void;
+  onAnalyzeChannel?: (
+    profileUrl: string,
+    manualNotes?: string,
+    sampleVideoUrls?: string[],
+  ) => Promise<void> | void;
   onClearChannelContext?: () => void;
   onUploadBgm?: (file: File) => Promise<void> | void;
   onAuditionVoice: () => void;
@@ -86,6 +90,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
   const [bgmUploadError, setBgmUploadError] = useState<string | null>(null);
   const [tiktokUrlInput, setTiktokUrlInput] = useState<string>(channelContext?.profile_url || '');
   const [channelNotesInput, setChannelNotesInput] = useState<string>('');
+  const [channelVideoLinksInput, setChannelVideoLinksInput] = useState<string>('');
   const [showChannelNotes, setShowChannelNotes] = useState<boolean>(false);
   const [localAnalyzingChannel, setLocalAnalyzingChannel] = useState<boolean>(false);
   const [localChannelContext, setLocalChannelContext] = useState<ChannelContextProfile | null>(
@@ -115,9 +120,15 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
     }
     setChannelError(null);
     const notes = channelNotesInput.trim() || undefined;
+    const parsedVideoUrls = channelVideoLinksInput
+      .split(/[\n\r,]+/)
+      .map((u) => u.trim())
+      .filter(Boolean)
+      .slice(0, 10);
+    const sampleVideoUrls = parsedVideoUrls.length > 0 ? parsedVideoUrls : undefined;
     if (onAnalyzeChannel) {
       try {
-        await onAnalyzeChannel(url, notes);
+        await onAnalyzeChannel(url, notes, sampleVideoUrls);
       } catch (err) {
         setChannelError(err instanceof Error ? err.message : t.channelAnalyzeError);
         setShowChannelNotes(true);
@@ -130,6 +141,7 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
       const profile = await analyzeTikTokChannel({
         profile_url: url,
         language: formState.language,
+        sample_video_urls: sampleVideoUrls,
         manual_notes: notes,
       });
       setLocalChannelContext(profile);
@@ -372,15 +384,34 @@ export const PromptStudioForm: React.FC<PromptStudioFormProps> = ({
             </button>
           </div>
 
-          {(showChannelNotes || Boolean(activeChannelContext?.blocked_by_captcha)) && (
-            <textarea
-              data-testid="tiktok-manual-notes-input"
-              rows={2}
-              value={channelNotesInput}
-              onChange={(e) => setChannelNotesInput(e.target.value)}
-              placeholder={t.channelNotesPlaceholder}
-              className="mt-2 w-full border border-[#D4D4D8] bg-[#FFFFFF] p-2.5 text-[12px] text-[#0A0A0A] placeholder:text-[#A1A1AA] focus:border-[#0A0A0A] focus:outline-none"
-            />
+          {(showChannelNotes || Boolean(channelError) || Boolean(activeChannelContext?.blocked_by_captcha)) && (
+            <div className="mt-2 space-y-2 border border-[#E5E5E5] bg-[#FFFFFF] p-3">
+              <div>
+                <label
+                  htmlFor="tiktok-video-urls-input"
+                  className="mb-1 block font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-[#52525B]"
+                >
+                  {t.channelVideoLinksLabel}
+                </label>
+                <textarea
+                  id="tiktok-video-urls-input"
+                  data-testid="tiktok-video-urls-input"
+                  rows={2}
+                  value={channelVideoLinksInput}
+                  onChange={(e) => setChannelVideoLinksInput(e.target.value)}
+                  placeholder={t.channelVideoLinksPlaceholder}
+                  className="w-full border border-[#D4D4D8] bg-[#FAFAFA] p-2.5 text-[12px] text-[#0A0A0A] placeholder:text-[#A1A1AA] focus:border-[#0A0A0A] focus:outline-none"
+                />
+              </div>
+              <textarea
+                data-testid="tiktok-manual-notes-input"
+                rows={2}
+                value={channelNotesInput}
+                onChange={(e) => setChannelNotesInput(e.target.value)}
+                placeholder={t.channelNotesPlaceholder}
+                className="w-full border border-[#D4D4D8] bg-[#FAFAFA] p-2.5 text-[12px] text-[#0A0A0A] placeholder:text-[#A1A1AA] focus:border-[#0A0A0A] focus:outline-none"
+              />
+            </div>
           )}
 
           {channelError && (

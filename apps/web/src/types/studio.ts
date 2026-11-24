@@ -280,7 +280,21 @@ export interface ChannelContextProfile {
   keywords: string[];
   context_summary: string;
   suggested_prompt: string;
-  extraction_source: 'tiktok_ssr' | 'tiktok_og_meta' | 'tiktok_oembed' | 'manual_notes';
+  extraction_source:
+    | 'tiktok_ssr'
+    | 'tiktok_og_meta'
+    | 'tiktok_oembed'
+    | 'tiktok_video_oembed'
+    | 'apify_api'
+    | 'tiktok_display_api'
+    | 'manual_notes';
   blocked_by_captcha: boolean;
   fetch_warning?: string | null;
+}
+
+export interface AnalyzeTikTokChannelRequest {
+  profile_url: string;
+  language?: SupportedLanguage;
+  sample_video_urls?: string[];
+  manual_notes?: string;
 }

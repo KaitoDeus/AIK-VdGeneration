@@ -9,6 +9,7 @@ Never bypasses anti-bot or CAPTCHA challenges; surfaces clear feedback cleanly.
 from html.parser import HTMLParser
 import json
 import logging
+import os
 import re
 import unicodedata
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -26,7 +27,12 @@ from .llm_service import LLMScriptGenerator
 logger = logging.getLogger(__name__)
 
 ALLOWED_TIKTOK_HOSTS = frozenset({"tiktok.com", "www.tiktok.com", "m.tiktok.com"})
+ALLOWED_TIKTOK_VIDEO_HOSTS = frozenset(
+    {"tiktok.com", "www.tiktok.com", "m.tiktok.com", "vm.tiktok.com", "vt.tiktok.com"}
+)
 HANDLE_PATTERN = re.compile(r"^[A-Za-z0-9._]{2,32}$")
+SHORT_VIDEO_CODE_PATTERN = re.compile(r"^[A-Za-z0-9_-]{4,32}$")
+UNVERIFIED_CHANNEL_MARKER = "UNVERIFIED_CHANNEL_DATA"
 HASHTAG_PATTERN = re.compile(r"#([A-Za-z0-9_\u00C0-\u1EF9]+)")
 VI_DIACRITICS_PATTERN = re.compile(
     r"[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]",
@@ -115,6 +121,52 @@ class _MetaAndRehydrationParser(HTMLParser):
 
 def _nfc(text: str) -> str:
     return unicodedata.normalize("NFC", (text or "").strip())
+
+
+def normalize_tiktok_video_url(raw_input: str) -> str:
+    """
+    Validates and normalizes a creator TikTok video/photo URL for official TikTok oEmbed lookup.
+    Rejects non-TikTok domains, credentials, custom ports, and profile-only URLs to prevent SSRF.
+    """
+    raw = (raw_input or "").strip()
+    if not raw:
+        raise TikTokProfileError("TikTok video URL cannot be empty.")
+
+    if raw.startswith("@"):
+        raw = f"https://www.tiktok.com/{raw}"
+    elif raw.startswith(("tiktok.com/", "www.tiktok.com/", "m.tiktok.com/", "vm.tiktok.com/", "vt.tiktok.com/")):
+        raw = f"https://{raw}"
+
+    parsed = urlparse(raw)
+    if parsed.scheme not in ("http", "https"):
+        raise TikTokProfileError("Only http/https TikTok video URLs are supported.")
+    if parsed.username or parsed.password or parsed.port:
+        raise TikTokProfileError("Video URL must not contain credentials or custom ports.")
+
+    host = (parsed.hostname or "").lower()
+    if host not in ALLOWED_TIKTOK_VIDEO_HOSTS:
+        raise TikTokProfileError(
+            f"Unsupported host '{host}' in video URL. Expected tiktok.com video link."
+        )
+
+    segments = [seg for seg in parsed.path.split("/") if seg]
+    if host in ("vm.tiktok.com", "vt.tiktok.com"):
+        if len(segments) != 1 or not SHORT_VIDEO_CODE_PATTERN.match(segments[0]):
+            raise TikTokProfileError(f"Invalid short TikTok video URL: '{raw_input}'.")
+        return f"https://{host}/{segments[0]}"
+
+    if (
+        len(segments) < 3
+        or not segments[0].startswith("@")
+        or not HANDLE_PATTERN.match(segments[0].lstrip("@"))
+        or segments[1] not in ("video", "photo")
+        or not segments[2].isdigit()
+    ):
+        raise TikTokProfileError(
+            f"Invalid TikTok video URL '{raw_input}'. Expected https://www.tiktok.com/@username/video/<id>."
+        )
+
+    return f"https://www.tiktok.com/{segments[0]}/{segments[1]}/{segments[2]}"
 
 
 def normalize_tiktok_profile_url(raw_input: str) -> Tuple[str, str]:
@@ -437,37 +489,197 @@ class TikTokChannelContextService:
         self.timeout_seconds = timeout_seconds
         self.http_client_factory = http_client_factory
 
-    def _fetch_html(self, profile_url: str) -> Tuple[int, str]:
+    def _build_http_client(self, timeout_seconds: Optional[float] = None) -> httpx.Client:
         if self.http_client_factory is not None:
-            client = self.http_client_factory()
-            with client:
-                resp = client.get(profile_url, headers=DEFAULT_REQUEST_HEADERS, follow_redirects=True)
-                return resp.status_code, resp.text
-        with httpx.Client(timeout=self.timeout_seconds, follow_redirects=True) as client:
-            resp = client.get(profile_url, headers=DEFAULT_REQUEST_HEADERS)
+            return self.http_client_factory()
+        return httpx.Client(
+            timeout=timeout_seconds or self.timeout_seconds,
+            follow_redirects=True,
+        )
+
+    def _fetch_html(self, profile_url: str) -> Tuple[int, str]:
+        with self._build_http_client() as client:
+            resp = client.get(profile_url, headers=DEFAULT_REQUEST_HEADERS, follow_redirects=True)
             return resp.status_code, resp.text
 
-    def _fetch_oembed_profile(self, profile_url: str) -> Optional[Dict[str, Any]]:
+    def _fetch_oembed_payload(self, target_url: str) -> Optional[Dict[str, Any]]:
         """
         Queries TikTok's official documented oEmbed API (`https://www.tiktok.com/oembed`)
-        to retrieve verified creator display name and profile URL when direct SSR HTML is gated.
+        for either a profile URL or a specific public creator video URL.
         """
         oembed_endpoint = "https://www.tiktok.com/oembed"
         try:
-            if self.http_client_factory is not None:
-                client = self.http_client_factory()
-                with client:
-                    resp = client.get(oembed_endpoint, params={"url": profile_url}, follow_redirects=True)
-            else:
-                with httpx.Client(timeout=self.timeout_seconds, follow_redirects=True) as client:
-                    resp = client.get(oembed_endpoint, params={"url": profile_url})
+            with self._build_http_client() as client:
+                resp = client.get(oembed_endpoint, params={"url": target_url}, follow_redirects=True)
             if resp.status_code != 200:
                 return None
             payload = resp.json()
-            if isinstance(payload, dict) and payload.get("author_name"):
+            if isinstance(payload, dict) and (payload.get("author_name") or payload.get("title")):
                 return payload
         except (httpx.HTTPError, ValueError, TypeError):
             return None
+        return None
+
+    def _fetch_oembed_profile(self, profile_url: str) -> Optional[Dict[str, Any]]:
+        payload = self._fetch_oembed_payload(profile_url)
+        if payload and payload.get("author_name"):
+            return payload
+        return None
+
+    def _fetch_video_oembed_list(
+        self, video_urls: List[str]
+    ) -> Tuple[List[str], List[str], Optional[str]]:
+        """
+        Fetches creator video captions and hashtags from official TikTok oEmbed endpoints
+        without bypassing any profile-level WAF or anti-bot gate.
+        """
+        captions: List[str] = []
+        author_name: Optional[str] = None
+        for video_url in video_urls:
+            payload = self._fetch_oembed_payload(video_url)
+            if not payload:
+                continue
+            if author_name is None and payload.get("author_name"):
+                author_name = _nfc(str(payload["author_name"]))
+            raw_title = _nfc(str(payload.get("title") or ""))
+            if raw_title and raw_title not in captions:
+                captions.append(raw_title)
+        tags = _extract_hashtags(captions)
+        return captions, tags, author_name
+
+    def _fetch_via_apify(self, canonical_url: str, handle: str) -> Optional[Dict[str, Any]]:
+        """
+        Optional licensed social data fallback using Apify's synchronous TikTok scraper API
+        when `APIFY_API_TOKEN` is configured in the environment.
+        """
+        token = os.getenv("APIFY_API_TOKEN", "").strip()
+        if not token:
+            return None
+        actor_id = os.getenv("APIFY_TIKTOK_ACTOR_ID", "clockworks~tiktok-profile-scraper").strip()
+        endpoint = f"https://api.apify.com/v2/acts/{actor_id}/run-sync-get-dataset-items"
+        try:
+            with self._build_http_client(timeout_seconds=max(self.timeout_seconds, 30.0)) as client:
+                resp = client.post(
+                    endpoint,
+                    params={"token": token},
+                    json={
+                        "profiles": [handle.lstrip("@")],
+                        "profileURLs": [canonical_url],
+                        "resultsPerPage": 8,
+                    },
+                )
+            if resp.status_code >= 400:
+                logger.warning("Apify TikTok extractor returned status %s.", resp.status_code)
+                return None
+            items = resp.json()
+            if not isinstance(items, list) or not items:
+                return None
+        except (httpx.HTTPError, ValueError, TypeError) as exc:
+            logger.warning("Apify TikTok extractor failed (%s).", type(exc).__name__)
+            return None
+
+        author_meta: Dict[str, Any] = {}
+        captions: List[str] = []
+        raw_tags: List[str] = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            if not author_meta and isinstance(item.get("authorMeta"), dict):
+                author_meta = item["authorMeta"]
+            caption = _nfc(str(item.get("text") or item.get("desc") or ""))
+            if caption and caption not in captions:
+                captions.append(caption)
+            item_tags = item.get("hashtags") or []
+            if isinstance(item_tags, list):
+                for tag_obj in item_tags:
+                    if isinstance(tag_obj, dict) and tag_obj.get("name"):
+                        raw_tags.append(f"#{str(tag_obj['name']).lstrip('#')}")
+                    elif isinstance(tag_obj, str) and tag_obj.strip():
+                        raw_tags.append(f"#{tag_obj.lstrip('#')}")
+
+        bio = _nfc(str(author_meta.get("signature") or ""))
+        display_name = _nfc(str(author_meta.get("nickName") or author_meta.get("name") or ""))
+        hashtags = _extract_hashtags(captions + raw_tags)
+        if not bio and not captions and not hashtags:
+            return None
+
+        return {
+            "display_name": display_name or handle.lstrip("@"),
+            "bio": bio,
+            "avatar_url": author_meta.get("avatar") or None,
+            "follower_count": author_meta.get("fans"),
+            "following_count": author_meta.get("following"),
+            "likes_count": author_meta.get("heart"),
+            "video_count": author_meta.get("video"),
+            "verified": bool(author_meta.get("verified", False)),
+            "recent_video_titles": captions[:8],
+            "hashtags": hashtags,
+            "extraction_source": "apify_api",
+        }
+
+    def _fetch_via_tiktok_display_api(self, handle: str) -> Optional[Dict[str, Any]]:
+        """
+        Optional official TikTok Display API v2 reader when `TIKTOK_ACCESS_TOKEN`
+        (authorized creator OAuth token) is configured in the environment.
+        """
+        token = os.getenv("TIKTOK_ACCESS_TOKEN", "").strip()
+        if not token:
+            return None
+        headers = {"Authorization": f"Bearer {token}"}
+        user_payload: Dict[str, Any] = {}
+        captions: List[str] = []
+        try:
+            with self._build_http_client() as client:
+                user_resp = client.get(
+                    "https://open.tiktokapis.com/v2/user/info/",
+                    params={
+                        "fields": (
+                            "open_id,display_name,bio_description,avatar_url,"
+                            "is_verified,follower_count,following_count,likes_count,video_count"
+                        )
+                    },
+                    headers=headers,
+                )
+                if user_resp.status_code == 200:
+                    user_json = user_resp.json()
+                    user_payload = (user_json.get("data") or {}).get("user") or {}
+
+                video_resp = client.post(
+                    "https://open.tiktokapis.com/v2/video/list/",
+                    params={"fields": "id,title,video_description"},
+                    json={"max_count": 10},
+                    headers=headers,
+                )
+                if video_resp.status_code == 200:
+                    videos = ((video_resp.json().get("data") or {}).get("videos")) or []
+                    for vid in videos:
+                        if not isinstance(vid, dict):
+                            continue
+                        cap = _nfc(str(vid.get("title") or vid.get("video_description") or ""))
+                        if cap and cap not in captions:
+                            captions.append(cap)
+        except (httpx.HTTPError, ValueError, TypeError) as exc:
+            logger.warning("TikTok Display API fetch failed (%s).", type(exc).__name__)
+            return None
+
+        bio = _nfc(str(user_payload.get("bio_description") or ""))
+        display_name = _nfc(str(user_payload.get("display_name") or ""))
+        if not bio and not captions:
+            return None
+
+        return {
+            "display_name": display_name or handle.lstrip("@"),
+            "bio": bio,
+            "avatar_url": user_payload.get("avatar_url") or None,
+            "follower_count": user_payload.get("follower_count"),
+            "following_count": user_payload.get("following_count"),
+            "likes_count": user_payload.get("likes_count"),
+            "video_count": user_payload.get("video_count"),
+            "verified": bool(user_payload.get("is_verified", False)),
+            "recent_video_titles": captions[:8],
+            "hashtags": _extract_hashtags([bio] + captions),
+            "extraction_source": "tiktok_display_api",
+        }
         return None
 
     def _fallback_analysis(
@@ -555,6 +767,25 @@ class TikTokChannelContextService:
         preferred_language: Optional[SupportedLanguage],
         model_override: Optional[str],
     ) -> TikTokChannelAnalysisInsight:
+        has_substantive_data = bool(
+            (raw_meta.get("bio") or "").strip()
+            or raw_meta.get("recent_video_titles")
+            or raw_meta.get("hashtags")
+            or (manual_notes or "").strip()
+        )
+        insufficient_msg = (
+            f"Verified creator '{raw_meta['display_name']}' ({handle}) via official TikTok oEmbed, "
+            "but TikTok SlardarWAF / anti-bot verification blocked automated reading of the channel bio, stats, and video list — "
+            "insufficient real data to infer authentic channel context without fabricating content. "
+            "Please paste 1-5 video links from this channel or add channel bio/video notes below "
+            "(or configure APIFY_API_TOKEN / TIKTOK_ACCESS_TOKEN / GEMINI_API_KEY)."
+        )
+
+        if not has_substantive_data and (
+            not self.llm_generator.api_key or self.llm_generator.api_key == "your_gemini_api_key_here"
+        ):
+            raise TikTokProfileBlockedError(insufficient_msg)
+
         fallback = self._fallback_analysis(
             handle=handle,
             display_name=raw_meta["display_name"],
@@ -590,11 +821,14 @@ class TikTokChannelContextService:
             f"Language Rule: {lang_instruction}\n"
             "Return strict JSON matching the TikTokChannelAnalysisInsight schema."
         )
-        need_search_grounding = bool(
-            not raw_meta.get("bio")
-            and not raw_meta.get("recent_video_titles")
-            and not manual_notes
-        )
+        need_search_grounding = not has_substantive_data
+        if need_search_grounding:
+            llm_prompt += (
+                "\nCRITICAL ANTI-HALLUCINATION RULE: Bio, Hashtags, and Recent Public Video Captions above are empty. "
+                "You MUST ground your answer strictly in verified Google Search evidence for this exact TikTok handle. "
+                f"If Google Search yields no verifiable creator bio or video topics for {handle}, set niche_category "
+                f"to exact string '{UNVERIFIED_CHANNEL_MARKER}' instead of guessing or inventing generic topics."
+            )
         try:
             insight, _ = self.llm_generator._invoke_gemini_structured_json(
                 user_input=llm_prompt,
@@ -603,10 +837,19 @@ class TikTokChannelContextService:
                 system_instruction=CHANNEL_ANALYST_SYSTEM_INSTRUCTION,
                 use_google_search=need_search_grounding,
             )
+            if need_search_grounding and (
+                UNVERIFIED_CHANNEL_MARKER in (insight.niche_category or "")
+                or not insight.content_pillars
+            ):
+                raise TikTokProfileBlockedError(insufficient_msg)
             return insight
+        except TikTokProfileBlockedError:
+            raise
         except Exception as exc:
+            if not has_substantive_data:
+                raise TikTokProfileBlockedError(insufficient_msg) from exc
             logger.warning(
-                "Gemini channel insight synthesis failed (%s). Using deterministic profile fallback.",
+                "Gemini channel insight synthesis failed (%s). Using deterministic profile analysis from extracted channel data.",
                 exc,
             )
             return fallback
@@ -615,15 +858,28 @@ class TikTokChannelContextService:
         self,
         profile_url: str,
         language: Optional[SupportedLanguage] = None,
+        sample_video_urls: Optional[List[str]] = None,
         manual_notes: Optional[str] = None,
         model_override: Optional[str] = None,
     ) -> ChannelContextProfile:
         """
         Fetches public metadata for a TikTok creator profile link and returns rich
         ChannelContextProfile insights ready to condition script generation.
+        Never fabricates channel context when TikTok blocks bio/video access and no
+        sample video links, user notes, licensed API data, or live search evidence exist.
         """
         handle, canonical_url = normalize_tiktok_profile_url(profile_url)
         cleaned_notes = _nfc(manual_notes) if manual_notes and manual_notes.strip() else None
+
+        normalized_video_urls: List[str] = []
+        for raw_vid in (sample_video_urls or []):
+            trimmed_vid = (raw_vid or "").strip()
+            if not trimmed_vid:
+                continue
+            canon_vid = normalize_tiktok_video_url(trimmed_vid)
+            if canon_vid not in normalized_video_urls:
+                normalized_video_urls.append(canon_vid)
+        normalized_video_urls = normalized_video_urls[:10]
 
         blocked_by_captcha = False
         fetch_warning: Optional[str] = None
@@ -655,41 +911,76 @@ class TikTokChannelContextService:
             blocked_by_captcha = True
             fetch_warning = f"Unable to fetch public TikTok HTML directly ({exc})."
 
-        # Query official documented TikTok oEmbed API when HTML metadata is incomplete or WAF-gated
+        has_html_content = bool(
+            raw_meta["bio"] or raw_meta["recent_video_titles"] or raw_meta["hashtags"]
+        )
+
+        # Optional licensed providers when SSR HTML is blocked or incomplete
+        if not has_html_content:
+            apify_meta = self._fetch_via_apify(canonical_url, handle)
+            if apify_meta:
+                raw_meta.update(apify_meta)
+                blocked_by_captcha = False
+                fetch_warning = None
+
+        if not (raw_meta["bio"] or raw_meta["recent_video_titles"]):
+            display_api_meta = self._fetch_via_tiktok_display_api(handle)
+            if display_api_meta:
+                raw_meta.update(display_api_meta)
+                blocked_by_captcha = False
+                fetch_warning = None
+
+        # Official documented TikTok oEmbed API for verified creator name / identity
         if raw_meta["extraction_source"] is None or raw_meta["display_name"] == handle.lstrip("@"):
             oembed_payload = self._fetch_oembed_profile(canonical_url)
             if oembed_payload:
                 raw_meta["display_name"] = _nfc(str(oembed_payload["author_name"]))
                 if raw_meta["extraction_source"] is None:
                     raw_meta["extraction_source"] = "tiktok_oembed"
-                    if cleaned_notes:
-                        raw_meta["extraction_source"] = "manual_notes"
-                        raw_meta["bio"] = cleaned_notes[:400]
-                        raw_meta["hashtags"] = _extract_hashtags([cleaned_notes])
-                        fetch_warning = None
-                    elif blocked_by_captcha or fetch_warning:
-                        fetch_warning = (
-                            f"Verified creator {raw_meta['display_name']} ({handle}) via TikTok official oEmbed. "
-                            "Detailed bio & recent videos are gated by TikTok anti-bot protection — "
-                            "add optional bio/video topics below to refine script personalization."
-                        )
+                    fetch_warning = (
+                        f"Verified creator '{raw_meta['display_name']}' ({handle}) via official TikTok oEmbed."
+                    )
 
-        if raw_meta["extraction_source"] is None:
-            if cleaned_notes:
-                raw_meta["extraction_source"] = "manual_notes"
-                raw_meta["bio"] = cleaned_notes[:400]
-                raw_meta["hashtags"] = _extract_hashtags([cleaned_notes])
-            else:
-                msg = (
-                    fetch_warning
-                    or "TikTok returned empty public profile metadata (anti-bot protection or private account)."
+        # Official TikTok video oEmbed extraction for user-supplied creator video URLs
+        if normalized_video_urls:
+            video_captions, video_tags, video_author = self._fetch_video_oembed_list(normalized_video_urls)
+            if video_author and raw_meta["display_name"] == handle.lstrip("@"):
+                raw_meta["display_name"] = video_author
+            if video_captions:
+                raw_meta["recent_video_titles"] = list(
+                    dict.fromkeys(raw_meta["recent_video_titles"] + video_captions)
+                )[:10]
+                raw_meta["hashtags"] = _extract_hashtags(
+                    raw_meta["recent_video_titles"] + raw_meta["hashtags"] + video_tags
                 )
-                raise TikTokProfileBlockedError(
-                    f"{msg} Please paste the channel bio or sample video topics into Channel Notes to analyze without bypassing protection."
+                if raw_meta["extraction_source"] in (None, "tiktok_oembed", "manual_notes"):
+                    raw_meta["extraction_source"] = "tiktok_video_oembed"
+                fetch_warning = (
+                    f"Extracted {len(video_captions)} video caption(s) for {raw_meta['display_name']} ({handle}) "
+                    "via official TikTok oEmbed."
                 )
-        elif cleaned_notes and not raw_meta["bio"]:
+
+        if cleaned_notes and not raw_meta["bio"]:
             raw_meta["bio"] = cleaned_notes[:400]
             raw_meta["hashtags"] = _extract_hashtags([cleaned_notes] + raw_meta["hashtags"])
+            if raw_meta["extraction_source"] in (None, "tiktok_oembed"):
+                raw_meta["extraction_source"] = "manual_notes"
+                if blocked_by_captcha:
+                    fetch_warning = (
+                        fetch_warning
+                        or "TikTok gated direct HTML scraping behind verification (SlardarWAF / anti-bot check)."
+                    )
+                else:
+                    fetch_warning = None
+
+        if raw_meta["extraction_source"] is None:
+            msg = (
+                fetch_warning
+                or "TikTok returned empty public profile metadata (anti-bot protection or private account)."
+            )
+            raise TikTokProfileBlockedError(
+                f"{msg} Please paste 1-5 video links from this channel or add channel bio/video notes below."
+            )
 
         insights = self._synthesize_insights(
             handle=handle,

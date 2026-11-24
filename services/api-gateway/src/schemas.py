@@ -296,6 +296,11 @@ class TikTokChannelAnalyzeRequest(BaseModel):
         default=None,
         description="Preferred language ('vi' or 'en') for channel summary & suggested prompt.",
     )
+    sample_video_urls: List[str] = Field(
+        default_factory=list,
+        max_length=10,
+        description="Optional creator TikTok video URLs fetched via official video oEmbed to extract captions and hashtags.",
+    )
     manual_notes: Optional[str] = Field(
         default=None,
         max_length=2000,
@@ -332,7 +337,15 @@ class ChannelContextProfile(BaseModel):
     keywords: List[str] = Field(default_factory=list)
     context_summary: str
     suggested_prompt: str
-    extraction_source: Literal["tiktok_ssr", "tiktok_og_meta", "tiktok_oembed", "manual_notes"] = "tiktok_ssr"
+    extraction_source: Literal[
+        "tiktok_ssr",
+        "tiktok_og_meta",
+        "tiktok_oembed",
+        "tiktok_video_oembed",
+        "apify_api",
+        "tiktok_display_api",
+        "manual_notes",
+    ] = "tiktok_ssr"
     blocked_by_captcha: bool = False
     fetch_warning: Optional[str] = None
 

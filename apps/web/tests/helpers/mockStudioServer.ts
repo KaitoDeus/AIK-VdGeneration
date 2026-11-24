@@ -261,30 +261,39 @@ export function installMockStudioServer(options?: {
       const reqBody = init?.body ? JSON.parse(String(init.body)) : {};
       const profileUrl = String(reqBody.profile_url || '');
       const notes = String(reqBody.manual_notes || '').trim();
+      const videoUrls = Array.isArray(reqBody.sample_video_urls)
+        ? reqBody.sample_video_urls.map((v: unknown) => String(v || '').trim()).filter(Boolean)
+        : [];
       const lang = reqBody.language === 'vi' ? 'vi' : 'en';
 
-      if (profileUrl.includes('blocked') && !notes) {
+      if (profileUrl.includes('blocked') && !notes && videoUrls.length === 0) {
         return jsonResponse(
           {
             detail:
-              'TikTok gated direct automated profile access behind verification. Please paste channel bio/notes.',
+              "Verified creator 'Blocked Creator' (@blocked.creator) via TikTok oEmbed, but TikTok gated direct automated profile access behind SlardarWAF — insufficient real data. Please paste 1-5 video links or channel bio/notes.",
           },
           422
         );
       }
 
+      const extractionSource =
+        videoUrls.length > 0 ? 'tiktok_video_oembed' : notes ? 'manual_notes' : 'tiktok_ssr';
+
       return jsonResponse({
         handle: '@dattech.ai',
         profile_url: 'https://www.tiktok.com/@dattech.ai',
         display_name: 'Dat Tech & AI',
-        bio: notes || 'Practical AI workflows & slide automation #AI #Productivity',
+        bio: notes || (videoUrls.length > 0 ? '' : 'Practical AI workflows & slide automation #AI #Productivity'),
         avatar_url: null,
         follower_count: 145000,
         following_count: 120,
         likes_count: 2400000,
         video_count: 180,
         verified: true,
-        recent_video_titles: ['3 AI workflows for slide creation'],
+        recent_video_titles:
+          videoUrls.length > 0
+            ? ['Video caption extracted from official TikTok oEmbed #AI #Minimalism']
+            : ['3 AI workflows for slide creation'],
         hashtags: ['#AI', '#Productivity'],
         niche_category: lang === 'vi' ? 'Công nghệ & AI' : 'Technology & AI Workflows',
         content_pillars: ['AI Automation', 'Short Video Hooks'],
@@ -302,8 +311,8 @@ export function installMockStudioServer(options?: {
           lang === 'vi'
             ? '3 quy trình AI giúp tự động dựng video chuyên nghiệp cho @dattech.ai'
             : '3 AI workflows that turn notes into synchronized short videos for @dattech.ai',
-        extraction_source: notes ? 'manual_notes' : 'tiktok_ssr',
-        blocked_by_captcha: Boolean(notes && profileUrl.includes('blocked')),
+        extraction_source: extractionSource,
+        blocked_by_captcha: Boolean((notes || videoUrls.length > 0) && profileUrl.includes('blocked')),
         fetch_warning: null,
       });
     }
