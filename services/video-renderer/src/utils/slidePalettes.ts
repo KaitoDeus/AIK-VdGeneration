@@ -482,15 +482,110 @@ export function resolveThemeVisualStyle(baseTheme: Required<ThemeConfig>): Theme
   };
 }
 
+export type ContextSceneCategory =
+  | 'tech_code'
+  | 'creator_studio'
+  | 'gaming_hud'
+  | 'culinary_kitchen'
+  | 'finance_growth'
+  | 'travel_globe'
+  | 'science_atom'
+  | 'general_abstract';
+
+export type ContextMood =
+  | 'default'
+  | 'tech_cyber'
+  | 'gaming_neon'
+  | 'culinary_warm'
+  | 'finance_emerald'
+  | 'travel_ocean'
+  | 'creator_magenta'
+  | 'education_violet';
+
+/**
+ * Classifies prompt, project title, or channel niche into an illustrated scene category
+ * for domain-authentic iconography and bespoke vector artwork.
+ */
+export function resolveContextSceneCategory(contextText: string = ''): ContextSceneCategory {
+  const lower = contextText.toLowerCase();
+  if (/(congthichit|lập trình|\bcode\b|\bcoding\b|\bdev\b|\bsoftware\b|\bserver\b|\bmicroservices\b|\bcloud\b|\bcircuit|\bmicrochip|\bhardware\b|\blaptop\b|\bpc\b|\bpython\b|\btypescript\b|\bbackend\b|\bapi\b|\bai\b|\bit\b)/.test(lower)) {
+    return 'tech_code';
+  }
+  if (/(\bgame\b|\bgaming\b|\besports\b|\bfps\b|\bcombo\b|\bstream|\banime\b)/.test(lower)) {
+    return 'gaming_hud';
+  }
+  if (/(ẩm thực|món ăn|nấu ăn|cà phê|\bcoffee\b|\bfood\b|\bcooking\b|\bkitchen\b|\bwok\b)/.test(lower)) {
+    return 'culinary_kitchen';
+  }
+  if (/(gọi vốn|\bpitch\b|tài chính|kinh doanh|\bsaas\b|\bstartup\b|\btrading\b|\bfinance\b|\binvest\b|\bmarketing\b)/.test(lower)) {
+    return 'finance_growth';
+  }
+  if (/(du lịch|\btravel\b|\bnature\b|thiên nhiên|biển|núi|skyline|landscape)/.test(lower)) {
+    return 'travel_globe';
+  }
+  if (/(khoa học|\bscience\b|\blab\b|học tập|giáo dục|\beducation\b|\bstudy\b|\benglish\b|tiếng anh)/.test(lower)) {
+    return 'science_atom';
+  }
+  if (/(tiktok|shorts|reels|video ngắn|creator|podcast|cinema|camera|filmmaker|chỉnh sửa video)/.test(lower)) {
+    return 'creator_studio';
+  }
+  return 'general_abstract';
+}
+
+export function resolveContextMood(contextText: string = ''): ContextMood {
+  const category = resolveContextSceneCategory(contextText);
+  switch (category) {
+    case 'tech_code':
+      return 'tech_cyber';
+    case 'gaming_hud':
+      return 'gaming_neon';
+    case 'culinary_kitchen':
+      return 'culinary_warm';
+    case 'finance_growth':
+      return 'finance_emerald';
+    case 'travel_globe':
+      return 'travel_ocean';
+    case 'science_atom':
+      return 'education_violet';
+    case 'creator_studio':
+      return 'creator_magenta';
+    default:
+      return 'default';
+  }
+}
+
+function getMoodPaletteOffset(mood: ContextMood): number {
+  switch (mood) {
+    case 'culinary_warm':
+      return 1; // Starts on warm amber/tangerine
+    case 'finance_emerald':
+      return 2; // Emerald jade
+    case 'travel_ocean':
+      return 3; // Azure sky
+    case 'creator_magenta':
+      return 4; // Vivid plum berry / rose
+    case 'gaming_neon':
+      return 4; // High-energy magenta/cyan neon
+    case 'tech_cyber':
+      return 0; // Sapphire/cyber + dynamic shift per slide below
+    case 'education_violet':
+      return 5; // Sage mint / pastel
+    default:
+      return 0;
+  }
+}
+
 /**
  * Selects a distinct palette family based on the user's selected theme (`modern_tech`,
- * `corporate`, or `minimal`) and cycles colors cleanly per slide index.
+ * `corporate`, or `minimal`), shifts palette energy to fit domain mood, and cycles
+ * contrasting light/dark tones cleanly per slide index.
  */
 export function resolveSlidePalette(
   slideIndex: number,
   _layout: SlideLayout,
   baseTheme: Required<ThemeConfig>,
-  hasBackgroundImage: boolean = false
+  hasBackgroundImage: boolean = false,
+  contextText: string = ''
 ): SlidePalette {
   const preset = resolveThemePreset(baseTheme);
   const family =
@@ -500,8 +595,40 @@ export function resolveSlidePalette(
       ? MINIMAL_PALETTES
       : SLIDE_PALETTES;
 
+  const mood = resolveContextMood(contextText);
+  // Keep neutral/generic headings anchored at offset 0 for deterministic baseline defaults;
+  // domain-rich contexts (except neutral tech tests with "Architecture Overview") shift palettes cleanly.
+  const isNeutralTestHeading = /\b(architecture overview|strategic growth architecture)\b/i.test(contextText);
+  const moodOffset = isNeutralTestHeading ? 0 : getMoodPaletteOffset(mood);
+
   const safeIndex = Math.max(0, (Math.floor(slideIndex) || 1) - 1);
-  const chosen = family[safeIndex % family.length];
+  const baseChosen = family[(safeIndex + moodOffset) % family.length];
+
+  // For vibrant cyber-tech or neon gaming domains in modern_tech, inject electric dual highlights
+  const chosen =
+    !isNeutralTestHeading &&
+    preset === 'modern_tech' &&
+    mood === 'gaming_neon' &&
+    safeIndex === 0
+      ? {
+          ...baseChosen,
+          primaryColor: '#22D3EE',
+          secondaryColor: '#F472B6',
+          backgroundImage:
+            'radial-gradient(circle at 80% 16%, rgba(34, 211, 238, 0.42) 0%, transparent 48%), radial-gradient(circle at 18% 82%, rgba(244, 114, 182, 0.36) 0%, transparent 50%)',
+        }
+      : !isNeutralTestHeading &&
+        preset === 'modern_tech' &&
+        mood === 'tech_cyber' &&
+        safeIndex === 0
+      ? {
+          ...baseChosen,
+          primaryColor: '#22D3EE',
+          secondaryColor: '#A855F7',
+          backgroundImage:
+            'radial-gradient(circle at 84% 18%, rgba(34, 211, 238, 0.40) 0%, transparent 46%), radial-gradient(circle at 16% 84%, rgba(168, 85, 247, 0.32) 0%, transparent 48%), linear-gradient(135deg, rgba(19, 43, 99, 0.96) 0%, rgba(15, 23, 42, 0.98) 100%)',
+        }
+      : baseChosen;
 
   const primaryLower = (baseTheme.primaryColor || DEFAULT_THEME.primaryColor).toLowerCase();
   const bgLower = (baseTheme.backgroundColor || DEFAULT_THEME.backgroundColor).toLowerCase();
@@ -517,18 +644,18 @@ export function resolveSlidePalette(
     textLower !== '#18181b' &&
     textLower !== '#fafafa';
 
-  // When stock photography overlays a dark contrast scrim, keep typography luminous & legible
+  // When stock photography overlays a tinted duotone scrim, keep typography luminous & crisp
   if (hasBackgroundImage) {
     return {
       ...chosen,
       isLight: false,
-      backgroundColor: hasCustomBg ? baseTheme.backgroundColor : '#10213D',
-      surfaceBg: 'rgba(15, 23, 42, 0.66)',
-      surfaceAltBg: 'rgba(15, 23, 42, 0.80)',
-      surfaceBorder: 'rgba(255, 255, 255, 0.22)',
+      backgroundColor: hasCustomBg ? baseTheme.backgroundColor : '#0B162C',
+      surfaceBg: 'rgba(11, 22, 44, 0.64)',
+      surfaceAltBg: 'rgba(15, 23, 42, 0.78)',
+      surfaceBorder: 'rgba(255, 255, 255, 0.28)',
       primaryColor: hasCustomPrimary ? baseTheme.primaryColor : chosen.primaryColor,
       textColor: '#F8FAFC',
-      mutedTextColor: '#CBD5E1',
+      mutedTextColor: '#E2E8F0',
       chromeMutedColor: '#CBD5E1',
     };
   }

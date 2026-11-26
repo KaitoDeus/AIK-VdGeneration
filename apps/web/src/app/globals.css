@@ -15,3 +15,85 @@
     border-radius: 0px !important;
   }
 }
+
+@keyframes aikSlideEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes aikKenBurnsPan {
+  0% {
+    transform: scale(1.02) translate3d(-1.2%, -0.8%, 0);
+  }
+  100% {
+    transform: scale(1.11) translate3d(1.4%, 1%, 0);
+  }
+}
+
+@keyframes aikFloatY {
+  0% {
+    transform: translateY(-4px);
+  }
+  100% {
+    transform: translateY(5px);
+  }
+}
+
+@keyframes aikOrbitSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes aikPulseGlow {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes aikDashFlow {
+  0% {
+    stroke-dashoffset: 64;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.aik-slide-enter {
+  animation: aikSlideEnter 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.aik-ken-burns-pan {
+  animation: aikKenBurnsPan 14s ease-in-out infinite alternate;
+}
+
+.aik-float-y {
+  animation: aikFloatY 3.6s ease-in-out infinite alternate;
+}
+
+.aik-orbit-spin {
+  transform-origin: center;
+  animation: aikOrbitSpin 20s linear infinite;
+}
+
+.aik-pulse-glow {
+  animation: aikPulseGlow 2.4s ease-in-out infinite;
+}
+
+.aik-dash-flow {
+  animation: aikDashFlow 2.6s linear infinite;
+}

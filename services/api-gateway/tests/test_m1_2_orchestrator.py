@@ -13,7 +13,7 @@ import pytest
 from pydantic import ValidationError
 
 from src.main import JOBS_STORE, TEMP_JOBS_DIR, app
-from src.schemas import PresentationScript, SlideScriptItem
+from src.schemas import ChannelContextProfile, PresentationScript, SlideScriptItem
 from src.services.llm_service import LLMScriptGenerator
 
 
@@ -484,3 +484,34 @@ class TestAPIGatewayEndpoints:
         assert job_data["remotion_props"]["height"] == 1920
         assert job_data["remotion_props"]["subtitles"]["enabled"] is True
         assert job_data["remotion_props"]["subtitles"]["max_words_per_line"] == 4
+
+    def test_domain_context_fallback_script_avoids_robotic_boilerplate(self):
+        generator = LLMScriptGenerator(api_key="", default_model="gemini-3.8-flash")
+        profile = ChannelContextProfile(
+            handle="@congthichit",
+            profile_url="https://www.tiktok.com/@congthichit",
+            display_name="Cộng Thích IT",
+            bio="Review laptop, code và chia sẻ góc setup dân IT #IT #Coding",
+            niche_category="Công nghệ & Lập trình",
+            content_pillars=["Mẹo code thực chiến", "Đánh giá phần cứng tối giản"],
+            target_audience="Lập trình viên và sinh viên IT",
+            tone_and_style="Gần gũi, tốc độ nhanh, trực quan",
+            detected_language="vi",
+            recommended_theme="modern_tech",
+            recommended_format="short",
+            keywords=["IT", "Code", "Setup"],
+            context_summary="Kênh Cộng Thích IT chia sẻ góc nhìn công nghệ thực tế.",
+            suggested_prompt="Tạo video ngắn cuốn hút đúng phong cách kênh @congthichit",
+            extraction_source="manual_notes",
+        )
+        script, _ = generator.generate_script(
+            prompt="Tạo video ngắn cuốn hút đúng phong cách kênh @congthichit",
+            language="vi",
+            target_slides=5,
+            channel_context=profile,
+        )
+        assert len(script.slides) == 5
+        joined_headings = " | ".join(s.heading for s in script.slides)
+        assert "Ba Trụ Cột" not in joined_headings
+        assert "Tổng Quan:" not in joined_headings
+        assert any("code" in s.visual_keywords.lower() or "server" in s.visual_keywords.lower() for s in script.slides)

@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { interpolate, spring } from 'remotion';
-import { SlidePalette, VisualVariant } from '../utils/slidePalettes';
+import { ContextSceneCategory, SlidePalette, VisualVariant } from '../utils/slidePalettes';
 
 export interface VisualMotionProps {
   frame: number;
@@ -14,30 +14,48 @@ export interface VisualMotionProps {
   palette: SlidePalette;
   slideIndex: number;
   itemCount?: number;
+  contextCategory?: ContextSceneCategory;
 }
 
 /**
  * Ambient continuously animated architectural backdrop behind slide content.
- * Cycles background motifs across slides so adjacent slides never look identical.
+ * Layers aurora spotlights, drifting bokeh particles, and parallax geometric patterns.
  */
 export const KineticBackdropScene: React.FC<{
   frame: number;
   palette: SlidePalette;
   slideIndex: number;
   variant: VisualVariant;
-}> = ({ frame, palette, slideIndex, variant }) => {
-  const driftX = Math.sin(frame / 42 + slideIndex) * 28;
-  const driftY = Math.cos(frame / 36 + slideIndex) * 20;
-  const rotateDeg = ((frame * 0.22 + slideIndex * 37) % 360).toFixed(2);
+  contextCategory?: ContextSceneCategory;
+}> = ({ frame, palette, slideIndex, variant, contextCategory = 'general_abstract' }) => {
+  const driftX = Math.sin(frame / 42 + slideIndex) * 32;
+  const driftY = Math.cos(frame / 36 + slideIndex) * 24;
+  const auroraX = Math.cos(frame / 54 + slideIndex * 0.8) * 45;
+  const auroraY = Math.sin(frame / 48 + slideIndex * 0.6) * 34;
+  const rotateDeg = ((frame * 0.28 + slideIndex * 37) % 360).toFixed(2);
   const gridOpacity = palette.isLight ? 0.08 : 0.11;
   const strokeMain = palette.isLight ? 'rgba(15, 23, 42, 0.09)' : 'rgba(255, 255, 255, 0.09)';
 
   const patternMode = slideIndex % 3;
 
+  const particles = [0, 1, 2, 3, 4, 5].map((i) => {
+    const px = 140 + ((i * 331 + slideIndex * 97) % 1640) + Math.sin(frame / (22 + i * 3) + i) * 24;
+    const py = 120 + ((i * 211 + slideIndex * 61) % 820) + Math.cos(frame / (26 + i * 2) + i) * 20;
+    const scale = 0.75 + Math.sin(frame / 16 + i * 1.3) * 0.25;
+    return {
+      cx: px,
+      cy: py,
+      r: (5 + (i % 3) * 4) * scale,
+      color: i % 2 === 0 ? palette.primaryColor : palette.secondaryColor,
+      opacity: palette.isLight ? 0.18 : 0.28,
+    };
+  });
+
   return (
     <div
       data-testid="kinetic-backdrop"
       data-backdrop-mode={patternMode}
+      data-context-scene={contextCategory}
       style={{
         position: 'absolute',
         inset: 0,
@@ -46,6 +64,32 @@ export const KineticBackdropScene: React.FC<{
         zIndex: 0,
       }}
     >
+      {/* Drifting luminous aurora bloom */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '-18%',
+          right: '-12%',
+          width: '920px',
+          height: '920px',
+          borderRadius: '50%',
+          background: `radial-gradient(circle, ${palette.primaryColor}38 0%, transparent 66%)`,
+          transform: `translate(${auroraX.toFixed(1)}px, ${auroraY.toFixed(1)}px)`,
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '-22%',
+          left: '-14%',
+          width: '840px',
+          height: '840px',
+          borderRadius: '50%',
+          background: `radial-gradient(circle, ${palette.secondaryColor}30 0%, transparent 66%)`,
+          transform: `translate(${(-auroraX * 0.8).toFixed(1)}px, ${(-auroraY * 0.8).toFixed(1)}px)`,
+        }}
+      />
+
       {/* Drifting geometric color orb */}
       <div
         style={{
@@ -56,7 +100,7 @@ export const KineticBackdropScene: React.FC<{
           height: '620px',
           borderRadius: '50%',
           border: `1.5px dashed ${palette.primaryColor}`,
-          opacity: palette.isLight ? 0.16 : 0.2,
+          opacity: palette.isLight ? 0.2 : 0.24,
           transform: `translate(${driftX.toFixed(1)}px, ${driftY.toFixed(1)}px) rotate(${rotateDeg}deg)`,
         }}
       />
@@ -71,10 +115,30 @@ export const KineticBackdropScene: React.FC<{
           height: '520px',
           borderRadius: patternMode === 1 ? '44px' : '50%',
           border: `1px solid ${palette.secondaryColor}`,
-          opacity: palette.isLight ? 0.14 : 0.18,
+          opacity: palette.isLight ? 0.16 : 0.2,
           transform: `translate(${(-driftX * 0.7).toFixed(1)}px, ${(-driftY * 0.7).toFixed(1)}px) rotate(-${rotateDeg}deg)`,
         }}
       />
+
+      {/* Floating ambient bokeh particles */}
+      <svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 1920 1080"
+        preserveAspectRatio="none"
+        style={{ position: 'absolute', inset: 0 }}
+      >
+        {particles.map((pt, idx) => (
+          <circle
+            key={`bokeh-${idx}`}
+            cx={pt.cx}
+            cy={pt.cy}
+            r={pt.r}
+            fill={pt.color}
+            opacity={pt.opacity}
+          />
+        ))}
+      </svg>
 
       {/* Architectural SVG dot grid / diagonal ribs */}
       <svg
@@ -146,6 +210,152 @@ export const KineticBackdropScene: React.FC<{
   );
 };
 
+const ContextSceneCoreEmblem: React.FC<{
+  category: ContextSceneCategory;
+  frame: number;
+  palette: SlidePalette;
+  slideIndex: number;
+  isConclusion: boolean;
+}> = ({ category, frame, palette, slideIndex, isConclusion }) => {
+  const pulse = (Math.sin(frame / 10) + 1) * 0.5;
+
+  if (category === 'tech_code') {
+    const barW = [78, 56, 86, 44];
+    return (
+      <g>
+        <rect x="174" y="188" width="132" height="104" rx="10" fill={palette.backgroundColor} stroke={palette.primaryColor} strokeWidth="2.5" />
+        <line x1="174" y1="210" x2="306" y2="210" stroke={palette.surfaceBorder} strokeWidth="1.5" />
+        <circle cx="188" cy="199" r="3.5" fill="#F43F5E" />
+        <circle cx="199" cy="199" r="3.5" fill="#FBBF24" />
+        <circle cx="210" cy="199" r="3.5" fill="#34D399" />
+        {barW.map((w, idx) => (
+          <rect
+            key={`code-${idx}`}
+            x="188"
+            y={222 + idx * 16}
+            width={Math.max(24, w * (0.72 + Math.sin(frame / 12 + idx) * 0.18))}
+            height="7"
+            rx="3.5"
+            fill={idx % 2 === 0 ? palette.primaryColor : palette.secondaryColor}
+            opacity="0.9"
+          />
+        ))}
+      </g>
+    );
+  }
+
+  if (category === 'creator_studio' || category === 'gaming_hud') {
+    const bars = [22, 42, 32, 54, 28, 44];
+    return (
+      <g>
+        <rect x="176" y="190" width="128" height="100" rx="12" fill={palette.backgroundColor} stroke={palette.primaryColor} strokeWidth="2.5" />
+        <circle cx="194" cy="206" r="5" fill="#FB7185" opacity={0.4 + pulse * 0.6} />
+        <text x="206" y="210" fill={palette.textColor} fontSize="11" fontWeight="800" letterSpacing="0.08em">
+          {category === 'gaming_hud' ? 'LIVE HUD' : 'ON AIR'}
+        </text>
+        {bars.map((h, i) => {
+          const animH = 14 + Math.abs(Math.sin(frame / 8 + i * 0.9)) * h * 0.72;
+          return (
+            <rect
+              key={`eq-${i}`}
+              x={190 + i * 17}
+              y={274 - animH}
+              width="10"
+              height={animH}
+              rx="4"
+              fill={i % 2 === 0 ? palette.primaryColor : palette.secondaryColor}
+            />
+          );
+        })}
+      </g>
+    );
+  }
+
+  if (category === 'culinary_kitchen') {
+    const steamDrift = Math.sin(frame / 12) * 5;
+    return (
+      <g>
+        <circle cx="240" cy="240" r="64" fill={palette.backgroundColor} stroke={palette.primaryColor} strokeWidth="2.5" />
+        <path
+          d={`M 218 ${222 + steamDrift} Q 212 208 220 194 M 240 ${216 - steamDrift} Q 234 202 242 188 M 262 ${222 + steamDrift} Q 256 208 264 194`}
+          fill="none"
+          stroke={palette.secondaryColor}
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+        <path d="M 196 238 Q 240 286 284 238 Z" fill={palette.primaryColor} />
+        <line x1="208" y1="274" x2="272" y2="274" stroke={palette.textColor} strokeWidth="3" strokeLinecap="round" />
+      </g>
+    );
+  }
+
+  if (category === 'finance_growth') {
+    return (
+      <g>
+        <circle cx="240" cy="240" r="66" fill={palette.backgroundColor} stroke={palette.primaryColor} strokeWidth="2.5" />
+        {[26, 42, 36, 58].map((h, idx) => (
+          <rect
+            key={`fin-${idx}`}
+            x={198 + idx * 22}
+            y={270 - h}
+            width="14"
+            height={h}
+            rx="3"
+            fill={idx === 3 ? palette.secondaryColor : palette.primaryColor}
+          />
+        ))}
+        <path
+          d="M 196 250 L 222 232 L 246 238 L 274 202"
+          fill="none"
+          stroke={palette.textColor}
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+      </g>
+    );
+  }
+
+  if (category === 'travel_globe' || category === 'science_atom') {
+    return (
+      <g>
+        <circle cx="240" cy="240" r="62" fill={palette.backgroundColor} stroke={palette.primaryColor} strokeWidth="2.5" />
+        <ellipse cx="240" cy="240" rx="52" ry="22" fill="none" stroke={palette.secondaryColor} strokeWidth="2.2" transform={`rotate(${(frame * 1.1) % 360} 240 240)`} />
+        <ellipse cx="240" cy="240" rx="52" ry="22" fill="none" stroke={palette.primaryColor} strokeWidth="2.2" transform={`rotate(${60 - ((frame * 0.8) % 360)} 240 240)`} />
+        <circle cx="240" cy="240" r="14" fill={palette.primaryColor} />
+      </g>
+    );
+  }
+
+  return (
+    <g>
+      <circle cx="240" cy="240" r="64" fill={palette.surfaceAltBg} stroke={palette.primaryColor} strokeWidth="2.5" />
+      <circle cx="240" cy="240" r="46" fill={palette.primaryColor} fillOpacity="0.18" />
+      <text
+        x="240"
+        y="234"
+        textAnchor="middle"
+        fill={palette.textColor}
+        fontSize="24"
+        fontWeight="800"
+        letterSpacing="0.1em"
+      >
+        {isConclusion ? 'NEXT' : String(slideIndex).padStart(2, '0')}
+      </text>
+      <text
+        x="240"
+        y="260"
+        textAnchor="middle"
+        fill={palette.primaryColor}
+        fontSize="13"
+        fontWeight="700"
+        letterSpacing="0.16em"
+      >
+        {isConclusion ? 'ACTION' : 'TOPIC'}
+      </text>
+    </g>
+  );
+};
+
 /**
  * Orbital constellation vector visual for title & conclusion hero slides.
  */
@@ -155,6 +365,7 @@ export const OrbitalHeroSvg: React.FC<VisualMotionProps & { isConclusion?: boole
   palette,
   slideIndex,
   isConclusion = false,
+  contextCategory = 'general_abstract',
 }) => {
   const reveal = spring({
     frame: Math.max(0, frame - 4),
@@ -239,32 +450,15 @@ export const OrbitalHeroSvg: React.FC<VisualMotionProps & { isConclusion?: boole
         </g>
       ))}
 
-      {/* Core emblem */}
+      {/* Core emblem tailored to context scene */}
       <g transform={`translate(240 240) scale(${pulseScale.toFixed(3)}) translate(-240 -240)`}>
-        <circle cx="240" cy="240" r="64" fill={palette.surfaceAltBg} stroke={palette.primaryColor} strokeWidth="2.5" />
-        <circle cx="240" cy="240" r="46" fill={palette.primaryColor} fillOpacity="0.18" />
-        <text
-          x="240"
-          y="234"
-          textAnchor="middle"
-          fill={palette.textColor}
-          fontSize="24"
-          fontWeight="800"
-          letterSpacing="0.1em"
-        >
-          {isConclusion ? 'NEXT' : String(slideIndex).padStart(2, '0')}
-        </text>
-        <text
-          x="240"
-          y="260"
-          textAnchor="middle"
-          fill={palette.primaryColor}
-          fontSize="13"
-          fontWeight="700"
-          letterSpacing="0.16em"
-        >
-          {isConclusion ? 'ACTION' : 'TOPIC'}
-        </text>
+        <ContextSceneCoreEmblem
+          category={contextCategory}
+          frame={frame}
+          palette={palette}
+          slideIndex={slideIndex}
+          isConclusion={isConclusion}
+        />
       </g>
     </svg>
   );
@@ -682,6 +876,12 @@ export const ProcessFlowBeamSvg: React.FC<{ frame: number; palette: SlidePalette
         strokeDasharray="18 14"
         strokeDashoffset={dashOffset}
         strokeLinecap="round"
+      />
+      <circle
+        cx={12 + ((frame * 14) % 1176)}
+        cy="14"
+        r="6"
+        fill={palette.secondaryColor}
       />
     </svg>
   );

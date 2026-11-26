@@ -29,6 +29,12 @@ logger = logging.getLogger(__name__)
 MIN_IMAGE_BYTES = 1024
 UNSPLASH_SEARCH_URL = "https://api.unsplash.com/search/photos"
 PEXELS_SEARCH_URL = "https://api.pexels.com/v1/search"
+OPENVERSE_SEARCH_URL = "https://api.openverse.org/v1/images/"
+WIKIMEDIA_SEARCH_URL = "https://commons.wikimedia.org/w/api.php"
+PUBLIC_ASSET_HEADERS = {
+    "User-Agent": "AIK-VdGeneration/1.0 (https://github.com/aik-studio)",
+    "Accept": "application/json,image/*,*/*",
+}
 
 
 def validate_image_bytes(data: bytes) -> str:
@@ -72,6 +78,7 @@ class StockAssetService:
         unsplash_access_key: Optional[str] = None,
         pexels_api_key: Optional[str] = None,
         provider_mode: Optional[str] = None,
+        enable_public_fallback: bool = False,
         timeout_seconds: int = 10,
         max_retries: int = 2,
     ) -> None:
@@ -92,6 +99,7 @@ class StockAssetService:
         self.provider_mode = (
             provider_mode or os.getenv("STOCK_IMAGE_PROVIDER", "auto")
         ).strip().lower()
+        self.enable_public_fallback = enable_public_fallback
         self.timeout_seconds = timeout_seconds
         self.max_retries = max_retries
 
@@ -99,7 +107,7 @@ class StockAssetService:
     def _aspect_to_orientation(aspect_ratio: str) -> Literal["landscape", "portrait"]:
         return "portrait" if aspect_ratio == "9:16" else "landscape"
 
-    def _active_providers(self) -> List[Literal["unsplash", "pexels"]]:
+    def _active_providers(self) -> List[Literal["unsplash", "pexels", "openverse", "wikimedia"]]:
         if self.provider_mode == "disabled":
             return []
 
@@ -110,12 +118,20 @@ class StockAssetService:
             return ["unsplash"] if has_unsplash else []
         if self.provider_mode == "pexels":
             return ["pexels"] if has_pexels else []
+        if self.provider_mode == "openverse":
+            return ["openverse"]
+        if self.provider_mode == "wikimedia":
+            return ["wikimedia"]
 
-        providers: List[Literal["unsplash", "pexels"]] = []
+        providers: List[Literal["unsplash", "pexels", "openverse", "wikimedia"]] = []
         if has_unsplash:
             providers.append("unsplash")
         if has_pexels:
             providers.append("pexels")
+        if self.enable_public_fallback and not os.getenv("PYTEST_CURRENT_TEST"):
+            providers.extend(["openverse", "wikimedia"])
+        elif self.provider_mode == "public":
+            providers.extend(["openverse", "wikimedia"])
         return providers
 
     def _search_unsplash(
@@ -198,6 +214,116 @@ class StockAssetService:
             )
         return candidates
 
+    def _search_openverse(
+        self,
+        query: str,
+        orientation: Literal["landscape", "portrait"],
+        limit: int,
+    ) -> List[StockImageCandidate]:
+        """Zero-key public Creative Commons photo search via Openverse API."""
+        search_terms = [query]
+        words = query.split()
+        if len(words) > 2:
+            search_terms.append(" ".join(words[:2]))
+
+        aspect_filter = "tall" if orientation == "portrait" else "wide"
+        for term in search_terms:
+            params = {
+                "q": term,
+                "aspect_ratio": aspect_filter,
+                "extension": "jpg,png",
+                "mature": "false",
+                "page_size": max(limit * 2, 8),
+            }
+            with httpx.Client(timeout=self.timeout_seconds, follow_redirects=True) as client:
+                resp = client.get(OPENVERSE_SEARCH_URL, params=params, headers=PUBLIC_ASSET_HEADERS)
+                resp.raise_for_status()
+                payload = resp.json()
+
+            candidates: List[StockImageCandidate] = []
+            for item in payload.get("results", []):
+                full_url = str(item.get("url") or "").strip()
+                thumb_url = str(item.get("thumbnail") or full_url).strip()
+                if not full_url.startswith("https://"):
+                    continue
+                width = int(item.get("width") or 1920)
+                height = int(item.get("height") or 1080)
+                if width < 600 or height < 400:
+                    continue
+                candidates.append(
+                    StockImageCandidate(
+                        provider="openverse",
+                        image_id=str(item.get("id", ""))[:40],
+                        url=full_url,
+                        preview_url=thumb_url,
+                        width=width,
+                        height=height,
+                        photographer=str(item.get("creator") or "Openverse Contributor"),
+                        attribution_url=item.get("foreign_landing_url"),
+                    )
+                )
+                if len(candidates) >= limit:
+                    break
+            if candidates:
+                return candidates
+        return []
+
+    def _search_wikimedia(
+        self,
+        query: str,
+        orientation: Literal["landscape", "portrait"],
+        limit: int,
+    ) -> List[StockImageCandidate]:
+        """Zero-key public photography fallback via Wikimedia Commons Action API."""
+        words = query.split()
+        short_q = " ".join(words[:3]) if len(words) > 3 else query
+        params = {
+            "action": "query",
+            "generator": "search",
+            "gsrnamespace": 6,
+            "gsrsearch": f"{short_q} filetype:bitmap",
+            "gsrlimit": max(limit * 2, 8),
+            "prop": "imageinfo",
+            "iiprop": "url|size|mime",
+            "iiurlwidth": 1280 if orientation == "landscape" else 900,
+            "format": "json",
+        }
+        with httpx.Client(timeout=self.timeout_seconds, follow_redirects=True) as client:
+            resp = client.get(WIKIMEDIA_SEARCH_URL, params=params, headers=PUBLIC_ASSET_HEADERS)
+            resp.raise_for_status()
+            payload = resp.json()
+
+        pages = list((payload.get("query") or {}).get("pages", {}).values())
+        candidates: List[StockImageCandidate] = []
+        for page in pages:
+            info_list = page.get("imageinfo") or []
+            if not info_list:
+                continue
+            info = info_list[0]
+            mime = str(info.get("mime") or "").lower()
+            if mime not in ("image/jpeg", "image/png", "image/webp"):
+                continue
+            full_url = str(info.get("thumburl") or info.get("url") or "").strip()
+            if not full_url.startswith("https://"):
+                continue
+            width = int(info.get("thumbwidth") or info.get("width") or 1280)
+            height = int(info.get("thumbheight") or info.get("height") or 720)
+            candidates.append(
+                StockImageCandidate(
+                    provider="wikimedia",
+                    image_id=str(page.get("pageid", "")),
+                    url=full_url,
+                    preview_url=full_url,
+                    width=width,
+                    height=height,
+                    photographer="Wikimedia Commons",
+                    attribution_url=info.get("descriptionurl"),
+                )
+            )
+            if len(candidates) >= limit:
+                break
+        return candidates
+
     def search_stock_images(
         self,
         query: str,
@@ -225,8 +351,12 @@ class StockAssetService:
                 try:
                     if provider == "unsplash":
                         results = self._search_unsplash(clean_query, orientation, limit)
-                    else:
+                    elif provider == "pexels":
                         results = self._search_pexels(clean_query, orientation, limit)
+                    elif provider == "openverse":
+                        results = self._search_openverse(clean_query, orientation, limit)
+                    else:
+                        results = self._search_wikimedia(clean_query, orientation, limit)
 
                     if results:
                         return AssetSearchResponse(
@@ -269,7 +399,7 @@ class StockAssetService:
         for attempt in range(1, self.max_retries + 1):
             try:
                 with httpx.Client(timeout=self.timeout_seconds, follow_redirects=True) as client:
-                    resp = client.get(image_url)
+                    resp = client.get(image_url, headers=PUBLIC_ASSET_HEADERS)
                     resp.raise_for_status()
                     ext = validate_image_bytes(resp.content)
                     cached_file = self.cache_dir / f"{url_hash}{ext}"
@@ -305,41 +435,46 @@ class StockAssetService:
             Tuple[Optional[str], Optional[str], Optional[str]]:
                 (relative_url, absolute_local_path, provider_used)
         """
-        target_url: Optional[str] = explicit_image_url
-        provider_used: Optional[str] = "custom-url" if explicit_image_url else None
-
-        if not target_url:
+        candidate_urls: List[Tuple[str, Optional[str]]] = []
+        if explicit_image_url:
+            candidate_urls.append((explicit_image_url, "custom-url"))
+        else:
             search_res = self.search_stock_images(
                 query=visual_keywords,
                 aspect_ratio=aspect_ratio,
-                limit=3,
+                limit=4,
             )
             if search_res.fallback_to_gradient or not search_res.results:
                 return None, None, None
-            # Rotate index across multiple returned candidates so slides don't repeat identical photos
-            candidate = search_res.results[(slide_index - 1) % len(search_res.results)]
-            target_url = candidate.url
-            provider_used = candidate.provider
+            total = len(search_res.results)
+            start_idx = (slide_index - 1) % total
+            for offset in range(total):
+                cand = search_res.results[(start_idx + offset) % total]
+                candidate_urls.append((cand.url, cand.provider))
 
-        try:
-            image_bytes, ext = self._download_and_cache(target_url)
-            digest = hashlib.sha256(target_url.encode("utf-8")).hexdigest()[:8]
-            filename = f"slide_{slide_index}_{digest}{ext}"
-            assets_dir = self.output_base_dir / job_id / "assets"
-            assets_dir.mkdir(parents=True, exist_ok=True)
-            local_file = assets_dir / filename
-            local_file.write_bytes(image_bytes)
+        assets_dir = self.output_base_dir / job_id / "assets"
+        last_exc: Optional[Exception] = None
+        for url, provider in candidate_urls:
+            try:
+                image_bytes, ext = self._download_and_cache(url)
+                digest = hashlib.sha256(url.encode("utf-8")).hexdigest()[:8]
+                filename = f"slide_{slide_index}_{digest}{ext}"
+                assets_dir.mkdir(parents=True, exist_ok=True)
+                local_file = assets_dir / filename
+                local_file.write_bytes(image_bytes)
 
-            relative_url = f"/assets/{job_id}/{filename}"
-            return relative_url, str(local_file.resolve()), provider_used
-        except Exception as exc:
-            logger.warning(
-                "Falling back to CSS gradient for slide %d ('%s'): %s",
-                slide_index,
-                visual_keywords,
-                exc,
-            )
-            return None, None, None
+                relative_url = f"/assets/{job_id}/{filename}"
+                return relative_url, str(local_file.resolve()), provider
+            except Exception as exc:
+                last_exc = exc
+
+        logger.warning(
+            "Falling back to CSS gradient for slide %d ('%s'): %s",
+            slide_index,
+            visual_keywords,
+            last_exc,
+        )
+        return None, None, None
 
     def enrich_remotion_props(
         self,

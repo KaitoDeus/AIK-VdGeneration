@@ -18,9 +18,11 @@ import {
 } from '../components/SlideVisuals';
 import { SlideData, ThemeConfig } from '../types';
 import {
+  ContextSceneCategory,
   SlidePalette,
   ThemeVisualStyle,
   VisualVariant,
+  resolveContextSceneCategory,
   resolveSlidePalette,
   resolveThemeVisualStyle,
   resolveVisualVariant,
@@ -35,6 +37,7 @@ export interface LayoutTemplateProps {
   visualVariant?: VisualVariant;
   themeStyle?: ThemeVisualStyle;
   isPortrait?: boolean;
+  contextCategory?: ContextSceneCategory;
 }
 
 function getResolvedContext(
@@ -89,7 +92,11 @@ export const TitleIntroLayout: React.FC<LayoutTemplateProps> = ({
   visualVariant: providedVariant,
   themeStyle: providedStyle,
   isPortrait = false,
+  contextCategory,
 }) => {
+  const resolvedContextCategory =
+    contextCategory ??
+    resolveContextSceneCategory(`${slide.heading} ${(slide.bullet_points || []).join(' ')}`);
   const { palette, variant, style } = getResolvedContext(
     slide,
     theme,
@@ -201,6 +208,7 @@ export const TitleIntroLayout: React.FC<LayoutTemplateProps> = ({
             fps={fps}
             palette={palette}
             slideIndex={slide.slide_index}
+            contextCategory={resolvedContextCategory}
           />
         </div>
       </div>
@@ -904,7 +912,11 @@ export const ConclusionCtaLayout: React.FC<LayoutTemplateProps> = ({
   visualVariant: providedVariant,
   themeStyle: providedStyle,
   isPortrait = false,
+  contextCategory,
 }) => {
+  const resolvedContextCategory =
+    contextCategory ??
+    resolveContextSceneCategory(`${slide.heading} ${(slide.bullet_points || []).join(' ')}`);
   const { palette, variant, style } = getResolvedContext(
     slide,
     theme,
@@ -962,6 +974,7 @@ export const ConclusionCtaLayout: React.FC<LayoutTemplateProps> = ({
               palette={palette}
               slideIndex={slide.slide_index}
               isConclusion
+              contextCategory={resolvedContextCategory}
             />
           </div>
         </div>

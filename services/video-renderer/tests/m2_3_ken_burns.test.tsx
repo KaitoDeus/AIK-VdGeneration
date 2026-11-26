@@ -106,7 +106,7 @@ describe('M2.3 Asset Source Resolver & SlideCard Scrim Rendering', () => {
     expect(resolveAssetSrc('assets/job_99/slide_1_abc.jpg')).toBe('/assets/job_99/slide_1_abc.jpg');
   });
 
-  it('renders SlideCard Ken Burns transform, 0.28 image opacity, and dark contrast scrim', () => {
+  it('renders SlideCard Ken Burns transform, 0.44 vivid image opacity, and duotone gradient scrim', () => {
     const slideWithLocalAsset: SlideData = {
       slide_index: 1,
       layout: 'split_card',
@@ -120,8 +120,8 @@ describe('M2.3 Asset Source Resolver & SlideCard Scrim Rendering', () => {
     expect(html).toContain('data-testid="slide-background-image"');
     expect(html).toContain('src="/assets/job_1/slide_1_ab12cd.jpg"');
     expect(html).toContain('translate(0.000%, 0.000%) scale(1.0600)');
-    expect(html).toContain('opacity:0.28');
-    expect(html).toContain('rgba(15, 23, 42, 0.45)');
+    expect(html).toContain('opacity:0.44');
+    expect(html).toContain('linear-gradient(135deg');
   });
 
   it('renders external Unsplash/Pexels HTTPS background image cleanly in SlideCard', () => {

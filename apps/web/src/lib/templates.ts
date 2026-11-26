@@ -610,10 +610,65 @@ export const WEB_MINIMAL_PALETTES: readonly WebSlidePalette[] = [
 
 export const WEB_SLIDE_PALETTES = WEB_MODERN_TECH_PALETTES;
 
+export type WebContextSceneCategory =
+  | 'tech_code'
+  | 'creator_studio'
+  | 'gaming_hud'
+  | 'culinary_kitchen'
+  | 'finance_growth'
+  | 'travel_globe'
+  | 'science_atom'
+  | 'general_abstract';
+
+export function resolveWebContextSceneCategory(contextText: string = ''): WebContextSceneCategory {
+  const lower = contextText.toLowerCase();
+  if (/(congthichit|lập trình|\bcode\b|\bcoding\b|\bdev\b|\bsoftware\b|\bserver\b|\bmicroservices\b|\bcloud\b|\bcircuit|\bmicrochip|\bhardware\b|\blaptop\b|\bpc\b|\bpython\b|\btypescript\b|\bbackend\b|\bapi\b|\bai\b|\bit\b)/.test(lower)) {
+    return 'tech_code';
+  }
+  if (/(\bgame\b|\bgaming\b|\besports\b|\bfps\b|\bcombo\b|\bstream|\banime\b)/.test(lower)) {
+    return 'gaming_hud';
+  }
+  if (/(ẩm thực|món ăn|nấu ăn|cà phê|\bcoffee\b|\bfood\b|\bcooking\b|\bkitchen\b|\bwok\b)/.test(lower)) {
+    return 'culinary_kitchen';
+  }
+  if (/(gọi vốn|\bpitch\b|tài chính|kinh doanh|\bsaas\b|\bstartup\b|\btrading\b|\bfinance\b|\binvest\b|\bmarketing\b)/.test(lower)) {
+    return 'finance_growth';
+  }
+  if (/(du lịch|\btravel\b|\bnature\b|thiên nhiên|biển|núi|skyline|landscape)/.test(lower)) {
+    return 'travel_globe';
+  }
+  if (/(khoa học|\bscience\b|\blab\b|học tập|giáo dục|\beducation\b|\bstudy\b|\benglish\b|tiếng anh)/.test(lower)) {
+    return 'science_atom';
+  }
+  if (/(tiktok|shorts|reels|video ngắn|creator|podcast|cinema|camera|filmmaker|chỉnh sửa video)/.test(lower)) {
+    return 'creator_studio';
+  }
+  return 'general_abstract';
+}
+
+function getWebMoodPaletteOffset(category: WebContextSceneCategory): number {
+  switch (category) {
+    case 'culinary_kitchen':
+      return 1;
+    case 'finance_growth':
+      return 2;
+    case 'travel_globe':
+      return 3;
+    case 'creator_studio':
+    case 'gaming_hud':
+      return 4;
+    case 'science_atom':
+      return 5;
+    default:
+      return 0;
+  }
+}
+
 export function resolveWebSlidePalette(
   slideIndex: number,
   hasBackgroundImage: boolean = false,
-  theme: VisualTheme = 'modern_tech'
+  theme: VisualTheme = 'modern_tech',
+  contextText: string = ''
 ): WebSlidePalette {
   const family =
     theme === 'corporate'
@@ -621,18 +676,41 @@ export function resolveWebSlidePalette(
       : theme === 'minimal'
       ? WEB_MINIMAL_PALETTES
       : WEB_MODERN_TECH_PALETTES;
+  const category = resolveWebContextSceneCategory(contextText);
+  const isNeutralBaseline = /\b(architecture overview|strategic growth architecture)\b/i.test(contextText);
+  const offset = isNeutralBaseline ? 0 : getWebMoodPaletteOffset(category);
   const idx = Math.max(0, (Math.floor(slideIndex) || 1) - 1);
-  const chosen = family[idx % family.length];
+  const baseChosen = family[(idx + offset) % family.length];
+
+  const chosen =
+    !isNeutralBaseline && theme === 'modern_tech' && category === 'tech_code' && idx === 0
+      ? {
+          ...baseChosen,
+          primaryColor: '#22D3EE',
+          secondaryColor: '#A855F7',
+          backgroundImage:
+            'radial-gradient(circle at 84% 18%, rgba(34, 211, 238, 0.42) 0%, transparent 46%), radial-gradient(circle at 16% 84%, rgba(168, 85, 247, 0.34) 0%, transparent 48%)',
+        }
+      : !isNeutralBaseline && theme === 'modern_tech' && category === 'gaming_hud' && idx === 0
+      ? {
+          ...baseChosen,
+          primaryColor: '#22D3EE',
+          secondaryColor: '#F472B6',
+          backgroundImage:
+            'radial-gradient(circle at 80% 16%, rgba(34, 211, 238, 0.42) 0%, transparent 48%), radial-gradient(circle at 18% 82%, rgba(244, 114, 182, 0.36) 0%, transparent 50%)',
+        }
+      : baseChosen;
+
   if (hasBackgroundImage) {
     return {
       ...chosen,
       isLight: false,
-      backgroundColor: '#0B1220',
-      surfaceBg: 'rgba(15, 23, 42, 0.66)',
-      surfaceAltBg: 'rgba(15, 23, 42, 0.80)',
-      surfaceBorder: 'rgba(255, 255, 255, 0.20)',
+      backgroundColor: '#0B162C',
+      surfaceBg: 'rgba(11, 22, 44, 0.64)',
+      surfaceAltBg: 'rgba(15, 23, 42, 0.78)',
+      surfaceBorder: 'rgba(255, 255, 255, 0.28)',
       textColor: '#F8FAFC',
-      mutedTextColor: '#CBD5E1',
+      mutedTextColor: '#E2E8F0',
     };
   }
   return chosen;

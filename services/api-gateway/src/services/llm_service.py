@@ -8,8 +8,9 @@ and Structured Outputs (`response_format`).
 import json
 import logging
 import os
+import re
 import time
-from typing import List, Optional, Tuple, Type, TypeVar
+from typing import Dict, List, Optional, Tuple, Type, TypeVar
 
 from dotenv import load_dotenv
 from google import genai
@@ -42,15 +43,92 @@ Rules:
    - "heading": Clear, natural, catchy human headline (under 9 words). Avoid robotic label prefixes.
    - "bullet_points": Minimalist talking highlights or crisp natural phrases (NOT numbered bullets like "Step 1:" or dense bulleted checklists). Use 1 to 2 concise subtitle sentences on "title_intro" and "quote_highlight", and 2 to 3 succinct statements on body slides.
    - "voiceover_script": Natural, spoken narrative text (2 to 4 sentences). Use conversational, engaging language with clear punctuation (commas, periods) so TTS pauses naturally. Do NOT include markdown syntax (`**`, `` ` ``, `#`) in spoken text.
-   - "visual_keywords": 3 to 5 English keywords to search for relevant background photos or illustrations.
+   - "visual_keywords": 3 to 5 concrete English photography keywords describing specific scenes, objects, lighting, and setting (e.g. "developer coding neon monitor closeup" or "street food steaming bowl warm lighting") — NEVER vague abstract words like "abstract concept".
    - "layout": One of ["title_intro", "bullet_list", "split_card", "quote_highlight", "conclusion_cta"].
 3. Visual Diversity & Editorial Rhythm:
    - Always start Slide 1 with "title_intro" and end the final slide with "conclusion_cta".
    - Actively vary middle slide layouts across "split_card", "quote_highlight", and "bullet_list" — do NOT overuse "bullet_list", and NEVER place the same layout on two consecutive body slides.
-   - Prefer concise narrative statements, contrasts, and memorable single-idea quotes over repetitive bulleted lists.
+   - Write bold, story-driven, surprising headlines rather than dry academic chapter labels (avoid cliché headings like "Overview", "Tổng Quan", or "Key Pillars").
 4. Strict Language Consistency: Write "title", "heading", "bullet_points", and "voiceover_script" 100% in the requested language ("vi" -> pure natural Vietnamese; "en" -> natural English). Never mix English sentences into Vietnamese scripts. Keep only "visual_keywords" in English.
 5. Output: Strict JSON matching the provided schema. No markdown formatting outside the JSON object.
 """
+
+_DOMAIN_VISUAL_SCENES: Dict[str, List[str]] = {
+    "tech_it": [
+        "software developer glowing code monitor dark desk",
+        "modern computer hardware microchip circuit macro",
+        "server rack neon blue lights data center",
+        "minimalist programmer laptop mechanical keyboard workspace",
+        "futuristic digital interface hologram screen studio",
+    ],
+    "gaming": [
+        "gaming setup neon purple rgb keyboard monitor",
+        "esports controller glowing cyber studio desk",
+        "dramatic neon arcade lights dark room",
+        "high tech streaming microphone headphones studio",
+        "cyberpunk cityscape neon reflection night",
+    ],
+    "culinary": [
+        "chef cooking wok flame restaurant kitchen",
+        "delicious asian noodle bowl warm lighting closeup",
+        "artisan coffee espresso pour cafe counter",
+        "fresh vibrant ingredients wooden table photography",
+        "street food night market warm bokeh lights",
+    ],
+    "finance": [
+        "modern glass skyscraper skyline golden hour",
+        "financial analytics monitor trading desk workspace",
+        "startup founders brainstorming glass boardroom",
+        "luxury modern architecture interior warm light",
+        "minimalist notebook coffee desk strategy meeting",
+    ],
+    "travel": [
+        "dramatic mountain sunrise clouds landscape wide",
+        "tropical turquoise coastline aerial nature view",
+        "vibrant night city street neon lanterns",
+        "hiking traveler backpack misty mountain peak",
+        "historic cultural temple golden sunset light",
+    ],
+    "education": [
+        "modern university library warm sunlight books",
+        "creative design desk notebook sketches pen",
+        "science laboratory glass flasks glowing light",
+        "student focused laptop coffee shop window",
+        "architecture museum minimalist bright atrium",
+    ],
+    "creator": [
+        "filmmaker cinema camera studio colorful lighting",
+        "podcast microphone studio foam neon accent",
+        "video editing timeline monitor color grading",
+        "creative studio ring light smartphone tripod",
+        "stage spotlight bokeh creative photography",
+    ],
+    "general": [
+        "creative studio colorful spotlight workspace",
+        "modern architecture glass interior warm sunlight",
+        "focused craftsperson desk close up natural light",
+        "dynamic motion light trails dark background",
+        "minimalist editorial table design inspiration",
+    ],
+}
+
+
+def _detect_script_domain(combined_text: str) -> str:
+    """Infers visual & narrative domain from topic + channel metadata for context-accurate slides."""
+    lower = (combined_text or "").lower()
+    domain_patterns = [
+        ("tech_it", r"(congthichit|lập trình|\bcode\b|\bcoding\b|\bdev\b|\bsoftware\b|\bmicroservice|\bcloud\b|\bserver\b|\bhardware\b|\bpc\b|\blaptop\b|công nghệ|\bai\b|\bit\b)"),
+        ("gaming", r"(\bgame\b|\bgaming\b|\besports\b|\bstream\b|\banime\b|\bfps\b|combo|rank|gaming gear)"),
+        ("culinary", r"(ẩm thực|món ăn|nấu ăn|cà phê|\bcoffee\b|\bfood\b|\bcooking\b|\brecipe\b|quán ngon)"),
+        ("finance", r"(gọi vốn|\bpitch\b|kinh doanh|tài chính|\bsaas\b|\bstartup\b|\bb2b\b|\bmarketing\b|\bfinance\b|\binvest\b)"),
+        ("travel", r"(du lịch|\btravel\b|\bnature\b|thiên nhiên|biển|núi|khám phá)"),
+        ("creator", r"(tiktok|shorts|reels|video ngắn|creator|sáng tạo nội dung|podcast|nhà sáng tạo)"),
+        ("education", r"(học tập|giáo dục|tiếng anh|\benglish\b|\bstudy\b|\beducation\b|\bdesign\b|thiết kế)"),
+    ]
+    for domain, pattern in domain_patterns:
+        if re.search(pattern, lower):
+            return domain
+    return "general"
 
 _VI_EXPANSION_BLUEPRINTS: List[Tuple[SlideLayout, str, List[str], str, str]] = [
     (
@@ -536,6 +614,7 @@ class LLMScriptGenerator:
                 language=script.language,
                 count=count_to_generate,
                 existing_headings=[s.heading for s in script.slides],
+                channel_context=channel_context,
             )
             merged = self.merge_continuation_slides(script, generated_slides)
             return merged, f"{primary_model} (mock-fallback)"
@@ -591,12 +670,12 @@ class LLMScriptGenerator:
         """Normalizes whitespace and trims at word boundaries without dangling punctuation."""
         normalized = " ".join(prompt.split())
         if len(normalized) <= max_chars:
-            return normalized.rstrip("([:,;- ")
+            return normalized.rstrip("([:,;-· ")
 
         clipped = normalized[:max_chars]
         if " " in clipped:
             clipped = clipped.rsplit(" ", 1)[0]
-        return clipped.rstrip("([:,;- ") or normalized[:max_chars].strip()
+        return clipped.rstrip("([:,;-· ") or normalized[:max_chars].strip()
 
     @staticmethod
     def _generate_fallback_continuation_slides(
@@ -604,12 +683,24 @@ class LLMScriptGenerator:
         language: SupportedLanguage,
         count: int,
         existing_headings: Optional[List[str]] = None,
+        channel_context: Optional[ChannelContextProfile] = None,
     ) -> List[SlideScriptItem]:
         """Generates diverse, topic-aware continuation slides without duplicating existing headings."""
         clean_topic = LLMScriptGenerator._clean_topic_title(
             topic.replace("Chuyên đề:", "").replace("Deep Dive:", "").strip(),
             max_chars=52,
         ) or ("nội dung này" if language == "vi" else "this topic")
+        channel_block_text = (
+            f"{channel_context.display_name} {channel_context.niche_category} "
+            f"{' '.join(channel_context.keywords)} {' '.join(channel_context.content_pillars)}"
+            if channel_context
+            else ""
+        )
+        domain = _detect_script_domain(
+            f"{topic} {channel_block_text}"
+        )
+        scene_pool = _DOMAIN_VISUAL_SCENES.get(domain, _DOMAIN_VISUAL_SCENES["general"])
+
         catalog = _VI_EXPANSION_BLUEPRINTS if language == "vi" else _EN_EXPANSION_BLUEPRINTS
         used = {h.strip().lower() for h in (existing_headings or [])}
 
@@ -622,6 +713,8 @@ class LLMScriptGenerator:
             bp = ordered[idx % len(ordered)]
             cycle = idx // len(ordered)
             heading = bp[1] if cycle == 0 else f"{bp[1]} ({cycle + 1})"
+            # Rotate authentic domain scenes cleanly so expansion slides showcase rich imagery
+            scene_kw = scene_pool[(idx + 1) % len(scene_pool)] if domain != "general" else bp[4]
             generated.append(
                 SlideScriptItem(
                     slide_index=idx + 1,
@@ -629,7 +722,7 @@ class LLMScriptGenerator:
                     heading=heading,
                     bullet_points=list(bp[2]),
                     voiceover_script=bp[3].format(topic=clean_topic),
-                    visual_keywords=bp[4],
+                    visual_keywords=scene_kw,
                 )
             )
         return generated
@@ -643,18 +736,93 @@ class LLMScriptGenerator:
         is_short: bool = False,
         channel_context: Optional[ChannelContextProfile] = None,
     ) -> PresentationScript:
-        """Deterministic language-accurate dev fallback when GEMINI_API_KEY is not set."""
+        """Deterministic context-grounded script generator when GEMINI_API_KEY is not set."""
+        normalized_prompt = " ".join(prompt.split())
         clean_topic = LLMScriptGenerator._clean_topic_title(prompt, max_chars=52 if is_short else 58)
+        channel_text = (
+            f"{channel_context.display_name} {channel_context.handle} {channel_context.niche_category} "
+            f"{' '.join(channel_context.content_pillars)} {' '.join(channel_context.keywords)} "
+            f"{' '.join(channel_context.recent_video_titles[:3])}"
+            if channel_context
+            else ""
+        )
+        domain = _detect_script_domain(f"{prompt} {channel_text}")
+        scene_pool = _DOMAIN_VISUAL_SCENES.get(domain, _DOMAIN_VISUAL_SCENES["general"])
+
         channel_intro_vi = (
-            f"Theo phong cách kênh {channel_context.display_name} ({channel_context.niche_category}), "
+            f"Theo đúng chất kể chuyện của kênh {channel_context.display_name} ({channel_context.niche_category}), "
             if channel_context
             else ""
         )
         channel_intro_en = (
-            f"Aligned with {channel_context.display_name} ({channel_context.niche_category}), "
+            f"Tailored to {channel_context.display_name}'s voice ({channel_context.niche_category}), "
             if channel_context
             else ""
         )
+        pillars = [p.strip() for p in (channel_context.content_pillars if channel_context else []) if p.strip()]
+        domain_default_pillar_vi = {
+            "tech_it": "Công Nghệ & Tư Duy Hệ Thống",
+            "gaming": "Nhịp Độ Trận Đấu & Chiến Thuật",
+            "culinary": "Hương Vị Bản Địa & Bếp Lửa",
+            "finance": "Động Lực Tăng Trưởng & Dòng Tiền",
+            "travel": "Khung Hình Thực Địa & Trải Nghiệm",
+            "creator": "Nhịp Dựng & Câu Hook Bắt Mắt",
+            "education": "Phương Pháp Trực Quan Dễ Nhớ",
+        }.get(domain, "Giá Trị Thực Tế Cốt Lõi")
+        domain_default_pillar_en = {
+            "tech_it": "Engineering & Modern Systems",
+            "gaming": "Competitive Mechanics & Flow",
+            "culinary": "Craft Flavors & Kitchen Fire",
+            "finance": "Growth Levers & Market Strategy",
+            "travel": "Visual Story & Destination Feel",
+            "creator": "High-Retention Pacing & Hooks",
+            "education": "Clear Visual Mental Models",
+        }.get(domain, "Real-World Practical Value")
+
+        primary_pillar = pillars[0] if pillars else (
+            domain_default_pillar_vi if language == "vi" else domain_default_pillar_en
+        )
+        secondary_pillar = pillars[1] if len(pillars) > 1 else (
+            "Góc nhìn thị giác giàu cảm xúc" if language == "vi" else "Fresh visual perspective"
+        )
+
+        # Extract authentic subject cleanly on full normalized_prompt (never truncated mid-@handle)
+        vi_stripped = re.sub(
+            r"^(tạo video ngắn cuốn hút đúng phong cách kênh|giải thích|giới thiệu)\s*",
+            "",
+            normalized_prompt,
+            flags=re.IGNORECASE,
+        ).strip()
+        if vi_stripped.startswith("@"):
+            vi_handle = vi_stripped.split()[0]
+            vi_rest = vi_stripped[len(vi_handle) :].strip(" ,.-:")
+            subject_vi = vi_rest or (
+                pillars[0]
+                if pillars
+                else (
+                    f"{domain_default_pillar_vi} {vi_handle}"
+                    if len(vi_handle) <= 14
+                    else domain_default_pillar_vi
+                )
+            )
+        else:
+            subject_vi = LLMScriptGenerator._clean_topic_title(vi_stripped or normalized_prompt, max_chars=44)
+
+        en_stripped = re.sub(
+            r"^(create a punchy short presentation tailored to|explain|introduce)\s*",
+            "",
+            normalized_prompt,
+            flags=re.IGNORECASE,
+        ).strip()
+        if en_stripped.startswith("@"):
+            en_handle = en_stripped.split()[0]
+            en_rest = en_stripped[len(en_handle) :].strip(" ,.-:")
+            subject_en = en_rest or (pillars[0] if pillars else f"{domain_default_pillar_en} · {en_handle}")
+        else:
+            subject_en = LLMScriptGenerator._clean_topic_title(en_stripped or normalized_prompt, max_chars=42)
+
+        subject_vi_short = LLMScriptGenerator._clean_topic_title(subject_vi, max_chars=38)
+        subject_en_short = LLMScriptGenerator._clean_topic_title(subject_en, max_chars=38)
 
         if is_short and language == "vi":
             base_script = PresentationScript(
@@ -665,48 +833,52 @@ class LLMScriptGenerator:
                     SlideScriptItem(
                         slide_index=1,
                         layout="title_intro",
-                        heading=f"Hiểu Nhanh: {clean_topic}",
-                        bullet_points=[
-                            channel_context.niche_category if channel_context else "Gói gọn trong 30 giây"
-                        ],
+                        heading=f"Điểm Sáng 30 Giây: {subject_vi_short}",
+                        bullet_points=[primary_pillar, secondary_pillar],
                         voiceover_script=(
-                            f"{channel_intro_vi}Đừng lướt qua nếu bạn muốn nắm trọn điểm mấu chốt về {clean_topic} chỉ trong nửa phút."
+                            f"{channel_intro_vi}Đừng lướt qua nếu bạn muốn nắm ngay cốt lõi của {subject_vi} chỉ trong nửa phút."
                         ),
-                        visual_keywords="vertical mobile studio neon abstract",
+                        visual_keywords=scene_pool[0],
                     ),
                     SlideScriptItem(
                         slide_index=2,
                         layout="split_card",
-                        heading="Vì Sao Xu Hướng Này Bùng Nổ?",
-                        bullet_points=["Nhanh gấp 5 lần thủ công", "Tối ưu cho màn hình dọc"],
+                        heading=f"Khác Biệt Từ {LLMScriptGenerator._clean_topic_title(primary_pillar, max_chars=34)}",
+                        bullet_points=[
+                            "Đi thẳng vào bối cảnh thực tế ngay giây đầu",
+                            "Nhịp cắt gãy gọn, hình ảnh tương phản cao",
+                        ],
                         voiceover_script=(
-                            "Thay vì tốn hàng giờ xử lý rời rạc, quy trình tự động gom kịch bản, giọng đọc và đồ họa thành một mạch liền."
+                            f"Thay vì giải thích dài dòng, cách tiếp cận {primary_pillar} giúp người xem lập tức thấy kết quả trực quan."
                         ),
-                        visual_keywords="growth analytics mobile trend",
+                        visual_keywords=scene_pool[1 % len(scene_pool)],
                     ),
                     SlideScriptItem(
                         slide_index=3,
                         layout="bullet_list",
-                        heading="Ba Bước Tạo Video Cuốn Hút",
+                        heading="Ba Nguyên Tắc Đắt Giá Khi Kể Chuyện",
                         bullet_points=[
-                            "Mở đầu bằng câu hỏi gây tò mò",
-                            "Chữ lớn, tương phản mạnh theo slide",
-                            "Phụ đề tự động giữ nhịp người xem",
+                            "Bối cảnh thực tế ngay 3 giây đầu",
+                            "Chuyển động nhịp nhàng theo âm thanh",
+                            secondary_pillar,
                         ],
                         voiceover_script=(
-                            "Chỉ cần giữ ba nguyên tắc: câu hook ba giây đầu, thẻ màu tương phản cao và phụ đề nhảy nhịp rõ ràng."
+                            "Chỉ một khung hình đúng bối cảnh kết hợp nhịp chuyển động mượt sẽ giữ trọn sự tập trung đến giây cuối."
                         ),
-                        visual_keywords="creative production checklist studio",
+                        visual_keywords=scene_pool[2 % len(scene_pool)],
                     ),
                     SlideScriptItem(
                         slide_index=4,
                         layout="conclusion_cta",
-                        heading="Thử Tạo Short Ngay Hôm Nay",
-                        bullet_points=["Lưu lại ý tưởng", "Xuất 9:16 chuẩn Reels & Shorts"],
+                        heading="Lưu Ý Tưởng & Bấm Máy Ngay",
+                        bullet_points=[
+                            "Áp dụng ngay cho tập tiếp theo",
+                            "Giữ chất riêng nhưng nâng tầm thị giác",
+                        ],
                         voiceover_script=(
-                            "Hãy thử áp dụng ngay cho ý tưởng tiếp theo của bạn, và nhấn theo dõi để không bỏ lỡ mẹo hay!"
+                            "Hãy thử áp dụng công thức này cho video kế tiếp và theo dõi để khám phá thêm nhiều góc nhìn hay!"
                         ),
-                        visual_keywords="social creator launch success",
+                        visual_keywords=scene_pool[3 % len(scene_pool)],
                     ),
                 ],
             )
@@ -719,48 +891,46 @@ class LLMScriptGenerator:
                     SlideScriptItem(
                         slide_index=1,
                         layout="title_intro",
-                        heading=f"Fast Hook: {clean_topic}",
-                        bullet_points=[
-                            channel_context.niche_category if channel_context else "30-second vertical breakdown"
-                        ],
+                        heading=f"The 30-Second Hook: {subject_en_short}",
+                        bullet_points=[primary_pillar, secondary_pillar],
                         voiceover_script=(
-                            f"{channel_intro_en}Here is the fastest breakdown of {clean_topic} you need today."
+                            f"{channel_intro_en}Stop scrolling if you want the sharpest visual breakdown of {subject_en}."
                         ),
-                        visual_keywords="vertical mobile studio abstract",
+                        visual_keywords=scene_pool[0],
                     ),
                     SlideScriptItem(
                         slide_index=2,
                         layout="split_card",
-                        heading="Why Speed & Clarity Win",
-                        bullet_points=["5x faster turnaround", "Built for vertical screens"],
+                        heading=f"Inside {LLMScriptGenerator._clean_topic_title(primary_pillar, max_chars=36)}",
+                        bullet_points=["Instant visual proof", "High-contrast pacing built for Shorts"],
                         voiceover_script=(
-                            "Instead of juggling manual editors, automated syncing locks script, narration, and motion graphics together."
+                            f"By leading with {primary_pillar}, viewers grasp the payoff before the three-second drop-off window."
                         ),
-                        visual_keywords="growth chart mobile analytics",
+                        visual_keywords=scene_pool[1 % len(scene_pool)],
                     ),
                     SlideScriptItem(
                         slide_index=3,
                         layout="bullet_list",
-                        heading="Three Rules For High Retention",
+                        heading="Three Rules Behind Memorable Shorts",
                         bullet_points=[
-                            "Lead with a bold 3-second hook",
-                            "Alternate crisp color contrast",
-                            "Sync punchy word-level captions",
+                            "Open inside a vivid real-world scene",
+                            "Let dynamic motion pace each transition",
+                            secondary_pillar,
                         ],
                         voiceover_script=(
-                            "Stick to three essentials: a curiosity hook up front, vivid contrasting palettes, and large synced captions."
+                            "Pairing domain-authentic photography with rhythmic motion turns dry points into memorable moments."
                         ),
-                        visual_keywords="creative creator smartphone video",
+                        visual_keywords=scene_pool[2 % len(scene_pool)],
                     ),
                     SlideScriptItem(
                         slide_index=4,
                         layout="conclusion_cta",
-                        heading="Save & Try This Workflow",
-                        bullet_points=["Export 9:16 vertical HD", "Post straight to Shorts & Reels"],
+                        heading="Bring This Energy To Your Next Reel",
+                        bullet_points=["Lock in the hook", "Render 9:16 with synced captions"],
                         voiceover_script=(
-                            "Save this workflow for your next reel, and follow for more automated video breakdowns."
+                            "Save this flow for your next vertical release, and follow for sharper storytelling tactics."
                         ),
-                        visual_keywords="rocket launch social growth",
+                        visual_keywords=scene_pool[3 % len(scene_pool)],
                     ),
                 ],
             )
@@ -773,45 +943,49 @@ class LLMScriptGenerator:
                     SlideScriptItem(
                         slide_index=1,
                         layout="title_intro",
-                        heading=f"Tổng Quan: {clean_topic}",
-                        bullet_points=[
-                            "Khái niệm cốt lõi và nguyên lý hoạt động",
-                            "Giá trị ứng dụng trong quy trình thực tế",
-                        ],
+                        heading=f"Góc Nhìn Sâu: {subject_vi_short}",
+                        bullet_points=[primary_pillar, secondary_pillar],
                         voiceover_script=(
-                            f"{channel_intro_vi}Chào mừng bạn đến với bài thuyết trình về chủ đề {clean_topic}. "
-                            "Trong ít phút tới, chúng ta sẽ cùng khám phá những nguyên lý nền tảng và các điểm ứng dụng quan trọng nhất."
+                            f"{channel_intro_vi}Chào mừng bạn cùng khám phá câu chuyện phía sau {subject_vi} qua những bối cảnh trực quan sống động."
                         ),
-                        visual_keywords="technology abstract digital network",
+                        visual_keywords=scene_pool[0],
                     ),
                     SlideScriptItem(
                         slide_index=2,
-                        layout="bullet_list",
-                        heading="Ba Trụ Cột & Lợi Ích Cốt Lõi",
+                        layout="split_card",
+                        heading=f"Điểm Sáng Từ {LLMScriptGenerator._clean_topic_title(primary_pillar, max_chars=34)}",
                         bullet_points=[
-                            "Tự động hóa quy trình, tiết kiệm thời gian",
-                            "Mở rộng linh hoạt theo nhu cầu thực tế",
-                            "Vận hành ổn định và dễ dàng tích hợp",
+                            "Bối cảnh thực tế quyết định cách khán giả cảm nhận",
+                            "Mỗi chuyển cảnh đều gắn với một luận điểm rõ nét",
+                            "Kết hợp hình ảnh giàu cảm xúc và nhịp kể tự nhiên",
                         ],
                         voiceover_script=(
-                            "Cách tiếp cận này mang lại hiệu quả nhờ ba trụ cột chính. "
-                            "Hệ thống giúp tối ưu hóa năng suất xử lý, đồng thời đảm bảo sự ổn định khi triển khai ở quy mô lớn."
+                            f"Điểm tạo nên sức hút của {subject_vi} không nằm ở lý thuyết khô khan, mà ở cách đặt đúng tình huống và hình ảnh vào từng nhịp kể."
                         ),
-                        visual_keywords="workflow analytics cloud servers",
+                        visual_keywords=scene_pool[1 % len(scene_pool)],
                     ),
                     SlideScriptItem(
                         slide_index=3,
+                        layout="quote_highlight",
+                        heading="Khán giả nhớ câu chuyện sống động, không nhớ những gạch đầu dòng rập khuôn.",
+                        bullet_points=[secondary_pillar],
+                        voiceover_script=(
+                            "Khi màu sắc, ánh sáng và bố cục đồng điệu với chủ đề, thông điệp tự khắc chạm đến người xem mà không cần nhồi nhét chữ."
+                        ),
+                        visual_keywords=scene_pool[2 % len(scene_pool)],
+                    ),
+                    SlideScriptItem(
+                        slide_index=4,
                         layout="conclusion_cta",
-                        heading="Tổng Kết & Hướng Ứng Dụng",
+                        heading=f"Bước Tiếp Theo Với {LLMScriptGenerator._clean_topic_title(subject_vi, max_chars=30)}",
                         bullet_points=[
-                            "Áp dụng từng bước vào công việc hằng ngày",
-                            "Theo dõi hiệu quả và cải tiến liên tục",
+                            "Chọn bảng màu khớp tâm trạng chủ đề",
+                            "Kết hợp ảnh bối cảnh thật với chuyển động mượt",
                         ],
                         voiceover_script=(
-                            "Đó là toàn bộ nội dung trọng tâm của chuyên đề hôm nay. "
-                            "Hãy áp dụng ngay những kiến thức này vào dự án tiếp theo của bạn, và hẹn gặp lại trong các video kế tiếp."
+                            "Hãy thử làm mới ngay bộ slide tiếp theo bằng màu sắc đúng bối cảnh và đón chờ những phân tích sâu hơn trong tập tới."
                         ),
-                        visual_keywords="future horizon innovation team",
+                        visual_keywords=scene_pool[3 % len(scene_pool)],
                     ),
                 ],
             )
@@ -824,60 +998,80 @@ class LLMScriptGenerator:
                     SlideScriptItem(
                         slide_index=1,
                         layout="title_intro",
-                        heading=f"Overview: {clean_topic}",
-                        bullet_points=[
-                            "Core concepts and foundational architecture",
-                            "Why it matters in modern workflows",
-                        ],
+                        heading=f"Visual Story: {subject_en_short}",
+                        bullet_points=[primary_pillar, secondary_pillar],
                         voiceover_script=(
-                            f"{channel_intro_en}Welcome to this presentation on {clean_topic}. "
-                            "In the next minute, we will break down the essential concepts and practical takeaways."
+                            f"{channel_intro_en}Let us unpack the real story behind {subject_en} through vivid visual scenes and sharp pacing."
                         ),
-                        visual_keywords="technology abstract digital network",
+                        visual_keywords=scene_pool[0],
                     ),
                     SlideScriptItem(
                         slide_index=2,
-                        layout="bullet_list",
-                        heading="Key Pillars & Advantages",
+                        layout="split_card",
+                        heading=f"Inside {LLMScriptGenerator._clean_topic_title(primary_pillar, max_chars=36)}",
                         bullet_points=[
-                            "High efficiency and automated execution",
-                            "Seamless scalability across environments",
-                            "Reliable integration with modern toolchains",
+                            "Context-authentic visuals anchor every concept",
+                            "Contrasting light and dark scenes sustain focus",
+                            "Tight conversational narration drives rhythm",
                         ],
                         voiceover_script=(
-                            "There are three primary pillars that make this approach effective. "
-                            "It streamlines operations while maintaining reliability at scale."
+                            f"What makes {subject_en} click is pairing real-world imagery and domain color with tight, human-first narration."
                         ),
-                        visual_keywords="workflow analytics cloud servers",
+                        visual_keywords=scene_pool[1 % len(scene_pool)],
                     ),
                     SlideScriptItem(
                         slide_index=3,
+                        layout="quote_highlight",
+                        heading="Great presentations look like cinema — vivid scenes, crisp tension, zero filler.",
+                        bullet_points=[secondary_pillar],
+                        voiceover_script=(
+                            "When color temperature, imagery, and motion match the mood of the story, every idea lands effortlessly."
+                        ),
+                        visual_keywords=scene_pool[2 % len(scene_pool)],
+                    ),
+                    SlideScriptItem(
+                        slide_index=4,
                         layout="conclusion_cta",
-                        heading="Summary & Actionable Next Steps",
+                        heading="Turn Context Into Living Motion",
                         bullet_points=[
-                            "Start applying these principles today",
-                            "Subscribe for more deep-dive explainers",
+                            "Refine slides on the interactive canvas",
+                            "Compile into 1080p synchronized MP4",
                         ],
                         voiceover_script=(
-                            "That wraps up our quick guide. "
-                            "Put these insights into practice on your next project, and see you in the next video."
+                            "Put this visual system into practice on your next video, and customize any frame before rendering."
                         ),
-                        visual_keywords="future horizon innovation team",
+                        visual_keywords=scene_pool[3 % len(scene_pool)],
                     ),
                 ],
             )
 
-        desired = (
-            max(3, min(MAX_PRESENTATION_SLIDES, target_slides))
-            if target_slides is not None
-            else 3
-        )
-        if desired > len(base_script.slides):
-            extra = LLMScriptGenerator._generate_fallback_continuation_slides(
-                topic=clean_topic,
-                language=language,
-                count=desired - len(base_script.slides),
-                existing_headings=[s.heading for s in base_script.slides],
+        if target_slides is not None:
+            desired = max(3, min(MAX_PRESENTATION_SLIDES, target_slides))
+            if desired < len(base_script.slides):
+                # Keep slide 1 + body slices + final CTA so count respects exact requested target_slides
+                trimmed = [base_script.slides[0]] + base_script.slides[1 : desired - 1] + [base_script.slides[-1]]
+                return PresentationScript(
+                    title=base_script.title,
+                    language=base_script.language,
+                    theme=base_script.theme,
+                    slides=LLMScriptGenerator._normalize_slides(trimmed),
+                )
+            if desired > len(base_script.slides):
+                extra = LLMScriptGenerator._generate_fallback_continuation_slides(
+                    topic=clean_topic,
+                    language=language,
+                    count=desired - len(base_script.slides),
+                    existing_headings=[s.heading for s in base_script.slides],
+                    channel_context=channel_context,
+                )
+                return LLMScriptGenerator.merge_continuation_slides(base_script, extra)
+        elif not is_short:
+            # Default 3-slide minimum contract when target_slides is omitted
+            trimmed = [base_script.slides[0], base_script.slides[1], base_script.slides[-1]]
+            return PresentationScript(
+                title=base_script.title,
+                language=base_script.language,
+                theme=base_script.theme,
+                slides=LLMScriptGenerator._normalize_slides(trimmed),
             )
-            return LLMScriptGenerator.merge_continuation_slides(base_script, extra)
         return base_script

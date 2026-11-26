@@ -435,3 +435,47 @@ class TestM23StockAssetEndpoints:
         finally:
             shutil.rmtree(TEMP_JOBS_DIR / job_id, ignore_errors=True)
             JOBS_STORE.pop(job_id, None)
+
+    def test_openverse_zero_key_public_photo_search(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        service = StockAssetService(
+            output_base_dir=tmp_path / "jobs",
+            cache_dir=tmp_path / "cache",
+            unsplash_access_key="",
+            pexels_api_key="",
+            provider_mode="openverse",
+            max_retries=1,
+        )
+
+        class _MockOpenverseClient:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def get(self, url: str, params=None, headers=None, **kwargs):
+                resp = MagicMock()
+                resp.raise_for_status.return_value = None
+                resp.json.return_value = {
+                    "results": [
+                        {
+                            "id": "ov_101",
+                            "url": "https://images.rawpixel.com/coding-setup-101.jpg",
+                            "thumbnail": "https://api.openverse.org/v1/images/ov_101/thumb/",
+                            "width": 1920,
+                            "height": 1080,
+                            "creator": "Openverse Dev",
+                            "foreign_landing_url": "https://openverse.org/image/ov_101",
+                        }
+                    ]
+                }
+                return resp
+
+        monkeypatch.setattr("src.services.asset_service.httpx.Client", _MockOpenverseClient)
+        res = service.search_stock_images("software developer neon desk", aspect_ratio="16:9", limit=4)
+        assert res.fallback_to_gradient is False
+        assert res.provider_used == "openverse"
+        assert res.results[0].url == "https://images.rawpixel.com/coding-setup-101.jpg"

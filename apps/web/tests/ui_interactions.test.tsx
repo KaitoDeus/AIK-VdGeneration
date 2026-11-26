@@ -290,9 +290,9 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
       expect(compileCall).toBeDefined();
       const parsedBody = JSON.parse(String(compileCall?.[1]?.body));
       expect(parsedBody.include_stock_visuals).toBe(true);
-      expect(parsedBody.slide_backgrounds).toEqual({
-        '1': 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=1920',
-      });
+      expect(parsedBody.slide_backgrounds['1']).toBe(
+        'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=1920'
+      );
     });
 
     // Clear override -> reverts canvas backdrop to pure gradient
@@ -614,6 +614,25 @@ describe('Interactive Web Studio User Flows (jsdom + Testing Library)', () => {
     // 4. Clearing channel context removes card cleanly
     await user.click(screen.getByTestId('clear-channel-context-btn'));
     expect(screen.queryByTestId('tiktok-channel-context-card')).not.toBeInTheDocument();
+  });
+
+  it('renders context-matched animated scene backdrop, photography, and motion replay on live canvas', async () => {
+    const user = userEvent.setup();
+    render(<StudioWorkspacePage />);
+
+    await user.click(screen.getByRole('button', { name: 'TECH EXPLAINER' }));
+    await user.click(screen.getByRole('button', { name: 'Draft Script First' }));
+
+    const canvas = await screen.findByTestId('live-slide-canvas');
+    expect(canvas).toHaveAttribute('data-context-scene', 'tech_code');
+    expect(screen.getByTestId('web-kinetic-backdrop')).toBeInTheDocument();
+    expect(screen.getByTestId('canvas-focal-scene')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('canvas-stock-backdrop')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId('replay-slide-motion-btn'));
+    expect(screen.getByTestId('live-slide-canvas')).toBeInTheDocument();
   });
 
   it('submits creator sample_video_urls when TikTok profile bio is gated behind SlardarWAF', async () => {

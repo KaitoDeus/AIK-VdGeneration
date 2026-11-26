@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { getJobAssetUrl, getJobAudioUrl, searchStockAssets } from '@/lib/api';
 import { STUDIO_DICTIONARY, UiLocale } from '@/lib/i18n';
 import {
+  resolveWebContextSceneCategory,
   resolveWebSlidePalette,
   resolveWebThemeStyle,
   resolveWebVisualVariant,
@@ -11,6 +12,10 @@ import {
   WebSlidePalette,
   WebVisualVariant,
 } from '@/lib/templates';
+import {
+  WebSlideBackdropLayer,
+  WebSlideFocalScene,
+} from '@/components/WebSlideSceneVisuals';
 import {
   AspectRatio,
   PresentationScript,
@@ -66,6 +71,7 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
   const resolvedTheme: VisualTheme = activeTheme || (script.theme as VisualTheme) || 'modern_tech';
   const themeStyle = resolveWebThemeStyle(resolvedTheme);
   const [activeIndex, setActiveIndex] = useState<number>(0);
+  const [motionReplaySeed, setMotionReplaySeed] = useState<number>(0);
   const [isSearchingStock, setIsSearchingStock] = useState<boolean>(false);
   const [stockResults, setStockResults] = useState<StockImageCandidate[]>([]);
   const [stockFallbackNotice, setStockFallbackNotice] = useState<boolean>(false);
@@ -83,19 +89,22 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
   const resolvedCanvasBgUrl = rawBackgroundUrl
     ? getJobAssetUrl(jobId, rawBackgroundUrl)
     : null;
+  const displayProjectTitle = script.title.normalize('NFC');
+  const displayHeading = currentSlide.heading.normalize('NFC');
+  const displayBullets = currentSlide.bullet_points.map((bp) => bp.normalize('NFC'));
+  const contextText = `${displayProjectTitle} ${displayHeading} ${displayBullets.join(' ')} ${currentSlide.visual_keywords || ''}`;
+  const contextCategory = resolveWebContextSceneCategory(contextText);
   const currentPalette: WebSlidePalette = resolveWebSlidePalette(
     currentSlide.slide_index,
     Boolean(resolvedCanvasBgUrl),
-    resolvedTheme
+    resolvedTheme,
+    contextText
   );
   const currentVariant: WebVisualVariant = resolveWebVisualVariant(
     currentSlide.slide_index,
     currentSlide.layout,
     currentSlide.heading
   );
-  const displayProjectTitle = script.title.normalize('NFC');
-  const displayHeading = currentSlide.heading.normalize('NFC');
-  const displayBullets = currentSlide.bullet_points.map((bp) => bp.normalize('NFC'));
 
   const handleSearchStock = async () => {
     setIsSearchingStock(true);
@@ -259,7 +268,12 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
               const timingSlide = remotionProps?.slides.find(
                 (s) => s.slide_index === slide.slide_index
               );
-              const itemPalette = resolveWebSlidePalette(slide.slide_index, false, resolvedTheme);
+              const itemPalette = resolveWebSlidePalette(
+                slide.slide_index,
+                false,
+                resolvedTheme,
+                `${displayProjectTitle} ${slide.heading} ${slide.bullet_points.join(' ')} ${slide.visual_keywords || ''}`
+              );
               return (
                 <li key={slide.slide_index}>
                   <button
@@ -305,14 +319,29 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
 
         {/* Right Column: Live Slide Canvas Preview + Content Inspector */}
         <div className="p-8 lg:col-span-8">
-          {/* Pure Uncluttered Slide Canvas */}
-          <div className="mb-8 flex justify-center border border-[#E5E5E5] bg-[#FAFAFA] p-6">
+          {/* Pure Uncluttered Animated Slide Canvas */}
+          <div className="mb-8 flex flex-col items-center gap-3 border border-[#E5E5E5] bg-[#FAFAFA] p-6">
+            <div className="flex w-full max-w-[760px] items-center justify-between text-[11px] font-mono uppercase tracking-[0.06em] text-[#71717A]">
+              <span>
+                {locale === 'vi' ? 'BỐI CẢNH: ' : 'SCENE: '}
+                {contextCategory.replace('_', ' ')} · {currentPalette.name}
+              </span>
+              <button
+                type="button"
+                data-testid="replay-slide-motion-btn"
+                onClick={() => setMotionReplaySeed((prev) => prev + 1)}
+                className="border border-[#D4D4D8] bg-[#FFFFFF] px-2.5 py-1 font-mono text-[10px] font-semibold uppercase text-[#0A0A0A] hover:border-[#0A0A0A]"
+              >
+                {locale === 'vi' ? 'Phát Lại Chuyển Động' : 'Replay Motion'}
+              </button>
+            </div>
             <div
               data-testid="live-slide-canvas"
               data-layout={currentSlide.layout}
               data-palette-id={currentPalette.id}
               data-visual-variant={currentVariant}
               data-theme-preset={themeStyle.preset}
+              data-context-scene={contextCategory}
               style={{
                 backgroundColor: currentPalette.backgroundColor,
                 backgroundImage: currentPalette.backgroundImage,
@@ -323,7 +352,14 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                 isVertical ? 'aspect-[9/16] w-full max-w-[320px]' : 'aspect-video w-full max-w-[760px]'
               }`}
             >
-              {/* Stock Background Image Layer (Ken Burns Scrim Preview) */}
+              {/* Animated Aurora & Geometric Backdrop Layer */}
+              <WebSlideBackdropLayer
+                palette={currentPalette}
+                slideIndex={currentSlide.slide_index}
+                category={contextCategory}
+              />
+
+              {/* Stock Background Image Layer (Ken Burns Motion + Vivid Duotone Blend) */}
               {resolvedCanvasBgUrl && (
                 <div
                   data-testid="canvas-stock-backdrop"
@@ -332,9 +368,14 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                   <img
                     src={resolvedCanvasBgUrl}
                     alt=""
-                    className="h-full w-full object-cover opacity-30"
+                    className="aik-ken-burns-pan h-full w-full object-cover opacity-45 saturate-125 contrast-105"
                   />
-                  <div className="absolute inset-0 bg-[#0F172A]/45" />
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      background: `linear-gradient(135deg, ${currentPalette.backgroundColor}D8 0%, ${currentPalette.primaryColor}38 52%, ${currentPalette.backgroundColor}EC 100%)`,
+                    }}
+                  />
                 </div>
               )}
 
@@ -429,11 +470,13 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                 </div>
               ) : (
                 <div
-                  className={`relative z-10 my-auto grid gap-4 ${
+                  key={`stage-${currentSlide.slide_index}-${motionReplaySeed}`}
+                  className={`aik-slide-enter relative z-10 my-auto grid gap-4 ${
                     !isVertical &&
                     (currentSlide.layout === 'split_card' ||
                       currentSlide.layout === 'title_intro' ||
-                      currentVariant === 'knowledge_graph')
+                      currentSlide.layout === 'conclusion_cta' ||
+                      currentSlide.layout === 'bullet_list')
                       ? 'grid-cols-12 items-center'
                       : 'grid-cols-1'
                   }`}
@@ -443,7 +486,8 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                       !isVertical &&
                       (currentSlide.layout === 'split_card' ||
                         currentSlide.layout === 'title_intro' ||
-                        currentVariant === 'knowledge_graph')
+                        currentSlide.layout === 'conclusion_cta' ||
+                        currentSlide.layout === 'bullet_list')
                         ? 'col-span-8'
                         : 'col-span-12'
                     }
@@ -545,11 +589,13 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                       ))}
                   </div>
 
-                  {/* Visual Focal Panel (no robotic technical captions) */}
+                  {/* Animated Context-Matched Visual Scene Panel */}
                   {(currentSlide.layout === 'split_card' ||
                     currentSlide.layout === 'title_intro' ||
-                    currentVariant === 'knowledge_graph') && (
+                    currentSlide.layout === 'conclusion_cta' ||
+                    currentSlide.layout === 'bullet_list') && (
                     <div
+                      data-testid="canvas-focal-scene"
                       className={`flex flex-col items-center justify-center p-3 ${
                         isVertical ? 'col-span-12 mt-1' : 'col-span-4'
                       }`}
@@ -564,55 +610,14 @@ export const SlideReviewer: React.FC<SlideReviewerProps> = ({
                             : `1px solid ${currentPalette.surfaceBorder}`,
                       }}
                     >
-                        <svg width="116" height="96" viewBox="0 0 116 96">
-                          {currentVariant === 'compare_bars' ? (
-                            <g>
-                              <rect x="14" y="54" width="16" height="32" fill={currentPalette.secondaryColor} />
-                              <rect x="42" y="38" width="16" height="48" fill={currentPalette.primaryColor} />
-                              <rect x="70" y="22" width="16" height="64" fill={currentPalette.secondaryColor} />
-                              <path
-                                d="M 16 50 Q 50 32 82 16"
-                                fill="none"
-                                stroke={currentPalette.primaryColor}
-                                strokeWidth="2.5"
-                              />
-                            </g>
-                          ) : currentVariant === 'stacked_layers' ? (
-                            <g>
-                              <polygon
-                                points="58,10 104,24 58,38 12,24"
-                                fill={currentPalette.primaryColor}
-                              />
-                              <polygon
-                                points="58,32 104,46 58,60 12,46"
-                                fill={currentPalette.secondaryColor}
-                                fillOpacity="0.85"
-                              />
-                              <polygon
-                                points="58,54 104,68 58,82 12,68"
-                                fill={currentPalette.surfaceBg}
-                                stroke={currentPalette.primaryColor}
-                              />
-                            </g>
-                          ) : (
-                            <g>
-                              <circle
-                                cx="58"
-                                cy="48"
-                                r="34"
-                                fill="none"
-                                stroke={currentPalette.primaryColor}
-                                strokeDasharray="4 4"
-                              />
-                              <circle cx="58" cy="48" r="14" fill={currentPalette.primaryColor} />
-                              <circle cx="24" cy="24" r="6" fill={currentPalette.secondaryColor} />
-                              <circle cx="92" cy="28" r="6" fill={currentPalette.secondaryColor} />
-                              <circle cx="84" cy="76" r="6" fill={currentPalette.primaryColor} />
-                            </g>
-                          )}
-                        </svg>
-                      </div>
-                    )}
+                      <WebSlideFocalScene
+                        variant={currentVariant}
+                        category={contextCategory}
+                        palette={currentPalette}
+                        slideIndex={currentSlide.slide_index}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 

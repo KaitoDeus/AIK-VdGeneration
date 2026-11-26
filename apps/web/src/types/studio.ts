@@ -102,7 +102,7 @@ export interface RemotionSlideProps {
 }
 
 export interface StockImageCandidate {
-  provider: 'unsplash' | 'pexels';
+  provider: 'unsplash' | 'pexels' | 'openverse' | 'wikimedia';
   image_id: string;
   url: string;
   preview_url: string;

@@ -19,11 +19,13 @@ import {
   generateScript,
   generateVideoJob,
   previewVoiceAudio,
+  searchStockAssets,
   uploadBgmAudio,
 } from '@/lib/api';
 import { STUDIO_DICTIONARY, UiLocale } from '@/lib/i18n';
 import { DEFAULT_VOICES, PROMPT_TEMPLATES, resolveTemplatePrompt } from '@/lib/templates';
 import {
+  AspectRatio,
   ChannelContextProfile,
   HealthResponse,
   JobLifecycleStatus,
@@ -430,10 +432,42 @@ export default function StudioWorkspacePage() {
     }
   };
 
+  const autoPopulateSlideVisuals = useCallback(
+    async (targetScript: PresentationScript, aspectRatio: AspectRatio) => {
+      const picked: Record<number, string> = {};
+      const seenUrls = new Set<string>();
+      await Promise.all(
+        targetScript.slides.slice(0, 8).map(async (slide) => {
+          try {
+            const res = await searchStockAssets({
+              query: slide.visual_keywords || slide.heading,
+              aspect_ratio: aspectRatio,
+              limit: 4,
+            });
+            if (!res.fallback_to_gradient && res.results.length > 0) {
+              const unique =
+                res.results.find((cand) => !seenUrls.has(cand.url)) ||
+                res.results[(slide.slide_index - 1) % res.results.length];
+              seenUrls.add(unique.url);
+              picked[slide.slide_index] = unique.url;
+            }
+          } catch {
+            // Graceful fallback to animated contextual SVG & gradient scenes
+          }
+        })
+      );
+      if (Object.keys(picked).length > 0) {
+        setSlideBackgrounds((prev) => ({ ...picked, ...prev }));
+      }
+    },
+    []
+  );
+
   const handleDraftScript = async () => {
     if (!validatePrompt()) return;
     setIsSubmitting(true);
     setStatusMessage(null);
+    setSlideBackgrounds({});
     try {
       const script = await generateScript({
         prompt: formState.prompt.trim(),
@@ -448,6 +482,7 @@ export default function StudioWorkspacePage() {
       setDraftScript(script);
       setActiveJob(null);
       setLiveEvents([]);
+      void autoPopulateSlideVisuals(script, formState.aspectRatio);
     } catch (err) {
       setValidationError(err instanceof Error ? err.message : t.form.scriptError);
     } finally {
@@ -560,6 +595,7 @@ export default function StudioWorkspacePage() {
         channel_context: channelContext || undefined,
       });
       setDraftScript(expanded);
+      void autoPopulateSlideVisuals(expanded, formState.aspectRatio);
     } catch (err) {
       setStatusMessage(err instanceof Error ? err.message : t.reviewer.aiExpandError);
     } finally {

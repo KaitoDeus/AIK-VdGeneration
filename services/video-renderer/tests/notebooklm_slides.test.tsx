@@ -238,4 +238,33 @@ describe('NotebookLM Per-Slide Palette Alternation & Visual Variants', () => {
       expect(html).not.toContain('Helvetica Neue');
     }
   });
+
+  it('adapts scene mood palettes and domain SVG artwork to channel/topic context', () => {
+    const culinarySlide: SlideData = {
+      slide_index: 1,
+      layout: 'title_intro',
+      heading: 'Bí quyết nấu món ẩm thực đường phố nóng hổi',
+      bullet_points: ['Hương vị đậm đà', 'Ánh lửa bếp rực rỡ'],
+      voiceover_duration_seconds: 5,
+    };
+    const techSlide: SlideData = {
+      slide_index: 1,
+      layout: 'title_intro',
+      heading: 'Review góc code & laptop @congthichit',
+      bullet_points: ['Hiệu năng lập trình AI', 'Tối ưu setup'],
+      voiceover_duration_seconds: 5,
+    };
+
+    const culinaryHtml = renderToStaticMarkup(
+      <SlideCard slide={culinarySlide} projectTitle="Ẩm Thực Việt" totalSlides={4} />
+    );
+    const techHtml = renderToStaticMarkup(
+      <SlideCard slide={techSlide} projectTitle="Kênh @congthichit" totalSlides={4} />
+    );
+
+    expect(culinaryHtml).toContain('data-context-scene="culinary_kitchen"');
+    expect(culinaryHtml).toContain('data-palette-id="warm_editorial_paper"');
+    expect(techHtml).toContain('data-context-scene="tech_code"');
+    expect(techHtml).toContain('#22D3EE');
+  });
 });

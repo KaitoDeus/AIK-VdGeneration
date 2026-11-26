@@ -21,6 +21,7 @@ import {
   resolveTheme,
 } from '../utils/timing';
 import {
+  resolveContextSceneCategory,
   resolveSlidePalette,
   resolveThemeVisualStyle,
   resolveVisualVariant,
@@ -46,15 +47,18 @@ export const SlideCard: React.FC<SlideCardProps> = ({
   const resolvedTheme = resolveTheme(theme);
   const themeStyle = resolveThemeVisualStyle(resolvedTheme);
   const hasBackgroundImage = Boolean(slide.background_image_url);
+  const contextText = `${projectTitle} ${slide.heading} ${(slide.bullet_points || []).join(' ')}`;
+  const contextCategory = resolveContextSceneCategory(contextText);
   const palette = resolveSlidePalette(
     slide.slide_index,
     slide.layout,
     resolvedTheme,
-    hasBackgroundImage
+    hasBackgroundImage,
+    contextText
   );
   const visualVariant = resolveVisualVariant(slide);
 
-  // Smooth spring entrance
+  // Smooth spring entrance with per-slide choreography variety
   const entrance = spring({
     frame,
     fps,
@@ -77,7 +81,10 @@ export const SlideCard: React.FC<SlideCardProps> = ({
   });
   const combinedOpacity = Math.min(enterOpacity, exitOpacity);
 
-  const translateY = interpolate(entrance, [0, 1], [36, 0]);
+  const choreoMode = (slide.slide_index || 1) % 4;
+  const translateY = choreoMode === 0 ? interpolate(entrance, [0, 1], [36, 0]) : choreoMode === 3 ? interpolate(entrance, [0, 1], [-22, 0]) : 0;
+  const translateX = choreoMode === 1 ? interpolate(entrance, [0, 1], [44, 0]) : choreoMode === 2 ? interpolate(entrance, [0, 1], [-44, 0]) : 0;
+  const entranceScale = choreoMode === 0 ? interpolate(entrance, [0, 1], [0.95, 1]) : choreoMode === 3 ? interpolate(entrance, [0, 1], [1.03, 1]) : 1;
 
   // Alternating Ken Burns pan + zoom for stock background imagery (M2.3)
   const kenBurns = computeKenBurnsTransform(frame, durationInFrames, slide.slide_index);
@@ -103,6 +110,7 @@ export const SlideCard: React.FC<SlideCardProps> = ({
       visualVariant,
       themeStyle,
       isPortrait,
+      contextCategory,
     };
 
     switch (slide.layout) {
@@ -150,9 +158,10 @@ export const SlideCard: React.FC<SlideCardProps> = ({
         palette={palette}
         slideIndex={slide.slide_index}
         variant={visualVariant}
+        contextCategory={contextCategory}
       />
 
-      {/* Optional Background Image with Ken Burns pan/zoom effect & dark scrim */}
+      {/* Optional Background Image with Ken Burns pan/zoom effect & vivid duotone blend scrim */}
       {slide.background_image_url && (
         <div
           data-testid="slide-background-image"
@@ -170,14 +179,15 @@ export const SlideCard: React.FC<SlideCardProps> = ({
               height: '100%',
               objectFit: 'cover',
               transform: kenBurns.transformCss,
-              opacity: 0.28,
+              opacity: 0.44,
+              filter: 'saturate(1.22) contrast(1.06)',
             }}
           />
           <div
             style={{
               position: 'absolute',
               inset: 0,
-              backgroundColor: 'rgba(15, 23, 42, 0.45)',
+              background: `linear-gradient(135deg, ${palette.backgroundColor}D8 0%, ${palette.primaryColor}38 52%, ${palette.backgroundColor}EC 100%)`,
             }}
           />
         </div>
@@ -239,7 +249,7 @@ export const SlideCard: React.FC<SlideCardProps> = ({
       <div
         style={{
           opacity: combinedOpacity,
-          transform: `translateY(${translateY}px)`,
+          transform: `translate3d(${translateX}px, ${translateY}px, 0) scale(${entranceScale})`,
           width: '100%',
           display: 'flex',
           justifyContent: 'center',

@@ -451,9 +451,9 @@ class VoicePreviewRequest(BaseModel):
 
 
 class StockImageCandidate(BaseModel):
-    """Normalized stock media search result returned by Unsplash or Pexels (M2.3)."""
+    """Normalized stock media search result returned by Unsplash, Pexels, Openverse, or Wikimedia (M2.3)."""
 
-    provider: Literal["unsplash", "pexels"]
+    provider: Literal["unsplash", "pexels", "openverse", "wikimedia"]
     image_id: str
     url: str
     preview_url: str
